@@ -287,6 +287,73 @@ expect("a short line below does not stand in for the lower graph", halvesWithLin
 expect("a flat reference line below does not stand in for the lower graph", halvesWithLine(sameHalf, [0, -1], [8, -1]), "axes_frames_overlap", true);
 expect("a true split graph with a short line in one half is still admitted", halvesWithLine(decay, [3, 1], [4, 1.5]), "axes_frames_overlap", false);
 
+// --- cells in parallel: the load current ---------------------------------------------
+// Rails T (top) and B (bottom). Branch i: T -wire- Ti -resistor ri- Mi -cell- Bi -wire- B. A cell drawn from Mi to
+// Bi has its long plate at Mi, so its positive plate faces T. The load runs T to B. With every cell's positive plate
+// on T, T is the higher rail whatever the EMFs, so the load current runs T to B and a positive badge on it is right.
+function parallel(options: { up?: boolean[]; loadSense?: string; badgeOn?: string; badgeSense?: string; role?: string; label?: string; load?: string; ladder?: boolean } = {}): Doc {
+  const up = options.up ?? [true, true];
+  const parts: Array<[Entity, Construction]> = [point("T", 3, 4), point("B", 3, -4)];
+  up.forEach((positiveUp, index) => {
+    const x = index === 0 ? 0 : 6;
+    parts.push(point(`T${index}`, x, 4), point(`M${index}`, x, 0), point(`B${index}`, x, -4),
+      [{ id: `wt${index}`, kind: "connector", role: "wire" }, { id: `make_wt${index}`, operator: "connect", inputs: { start: "T", end: `T${index}` }, outputs: [`wt${index}`] }],
+      [{ id: `r${index}`, kind: "component", role: "internal resistance", label: `r${index + 1}` }, { id: `make_r${index}`, operator: "symbol", inputs: { start: `T${index}`, end: `M${index}`, symbol: "resistor" }, outputs: [`r${index}`] }],
+      [{ id: `cell${index}`, kind: "component", role: "source", label: `E${index + 1}` }, { id: `make_cell${index}`, operator: "symbol", inputs: positiveUp ? { start: `M${index}`, end: `B${index}`, symbol: "cell" } : { start: `B${index}`, end: `M${index}`, symbol: "cell" }, outputs: [`cell${index}`] }],
+      [{ id: `wb${index}`, kind: "connector", role: "wire" }, { id: `make_wb${index}`, operator: "connect", inputs: { start: `B${index}`, end: "B" }, outputs: [`wb${index}`] }]);
+  });
+  if (options.ladder) {
+    parts.push(point("X", 3, 0),
+      [{ id: "load", kind: "component", role: "load resistor", label: "R" }, { id: "make_load", operator: "symbol", inputs: { start: "T", end: "X", symbol: "resistor" }, outputs: ["load"] }],
+      [{ id: "rb", kind: "component", role: "resistor", label: "Rb" }, { id: "make_rb", operator: "symbol", inputs: { start: "X", end: "B", symbol: "resistor" }, outputs: ["rb"] }],
+      [{ id: "rc", kind: "component", role: "resistor", label: "Rc" }, { id: "make_rc", operator: "symbol", inputs: { start: "X", end: "B", symbol: "resistor" }, outputs: ["rc"] }]);
+  } else {
+    parts.push([{ id: "load", kind: "component", role: "load", label: "R" }, { id: "make_load", operator: "symbol", inputs: { start: "T", end: "B", symbol: options.load ?? "resistor" }, outputs: ["load"] }]);
+  }
+  parts.push([{ id: "flow", kind: "sign_badge", role: options.role ?? "load current", label: options.label ?? "I" },
+    { id: "make_flow", operator: "sign_badge", inputs: { target: options.badgeOn ?? "load", at: 0.5, sense: options.badgeSense ?? options.loadSense ?? "positive" }, outputs: ["flow"] }]);
+  return build(parts);
+}
+const LOAD = "current_against_source_polarity";
+expect("parallel cells: a load current from the rail their positive plates share is admitted", parallel(), LOAD, false);
+expect("mutation: the load current reversed is refused", parallel({ loadSense: "negative" }), LOAD, true);
+expect("parallel cells drawn the other way: the load current reverses with them", parallel({ up: [false, false], loadSense: "negative" }), LOAD, false);
+expect("mutation: cells drawn the other way with the load current kept is refused", parallel({ up: [false, false], loadSense: "positive" }), LOAD, true);
+expect("a charging cell: current into its positive plate is true and not judged", parallel({ badgeOn: "r1", badgeSense: "positive", role: "branch current", label: "I2" }), LOAD, false);
+expect("a cell's own branch is not judged either way", parallel({ badgeOn: "r1", badgeSense: "negative", role: "branch current", label: "I2" }), LOAD, false);
+expect("cells in opposition fix no load direction, either way", parallel({ up: [true, false], loadSense: "negative" }), LOAD, false);
+expect("cells in opposition fix no load direction, the other way", parallel({ up: [true, false], loadSense: "positive" }), LOAD, false);
+expect("a load branch that is not resistive is not judged", parallel({ loadSense: "negative", load: "capacitor" }), LOAD, false);
+expect("more than two junctions is not judged", parallel({ ladder: true, loadSense: "negative" }), LOAD, false);
+expect("an electron flow mark on the load is not judged", parallel({ loadSense: "negative", role: "electron flow" }), LOAD, false);
+expect("mutation: a reversed load badge named I_L with a neutral role is judged", parallel({ loadSense: "negative", role: "direction marker", label: "I_L" }), LOAD, true);
+expect("a reversed load badge named Image is not read as a current", parallel({ loadSense: "negative", role: "direction marker", label: "Image" }), LOAD, false);
+
+// --- polarity marks against the plates ----------------------------------------------
+// The loop's cell runs P to S, so its long plate is at P. Marks on terminal points land in the order the points are
+// drawn, P before S, whatever order the targets are listed in.
+const MARK = "polarity_mark_against_plates";
+function marked(text: string | undefined, targetIds: string[], reversedCell = false): Doc {
+  const document = loop("positive");
+  if (reversedCell) for (const construction of document.constructions as Construction[]) if (construction.id === "make_cell") construction.inputs = { start: "S", end: "P", symbol: "cell" };
+  (document.annotations as unknown[]).push({ id: "signs", kind: "polarity", targetIds, ...(text === undefined ? {} : { text }) });
+  if (reversedCell) for (const construction of document.constructions as Construction[]) if (construction.id === "make_flow") construction.inputs = { ...construction.inputs, sense: "negative" };
+  return document;
+}
+expect("a + written at the long plate is admitted", marked("+-", ["P", "S"]), MARK, false);
+expect("the same marks listed the other way still land at the long plate", marked("+-", ["S", "P"]), MARK, false);
+expect("mutation: a + written at the short plate is refused", marked("-+", ["P", "S"]), MARK, true);
+expect("mutation: a cell drawn the other way under the same marks is refused", marked("+-", ["P", "S"], true), MARK, true);
+expect("marks with no written text are not judged", marked(undefined, ["P", "S"], true), MARK, false);
+expect("marks on the cell itself are admitted", marked("+-", ["cell"]), MARK, false);
+expect("marks on a resistor are not judged", marked("-+", ["load"]), MARK, false);
+const twoMarked = parallel();
+(twoMarked.annotations as unknown[]).push({ id: "signs0", kind: "polarity", targetIds: ["M0", "B0"], text: "+-" }, { id: "signs1", kind: "polarity", targetIds: ["M1", "B1"], text: "-+" });
+expect("mutation: one cell's marks right and the other's at its short plate is refused", twoMarked, MARK, true);
+const twoRight = parallel();
+(twoRight.annotations as unknown[]).push({ id: "signs0", kind: "polarity", targetIds: ["M0", "B0"], text: "+-" }, { id: "signs1", kind: "polarity", targetIds: ["M1", "B1"], text: "+-" });
+expect("both cells' marks at their long plates are admitted", twoRight, MARK, false);
+
 // Scope: without the option (engine built figures) the rules do not run.
 if (codes(loop("negative"), false).includes("current_against_source_polarity")) { failures.push("the rules ran without the figureConsistency option"); console.log("FAIL the rules ran without the figureConsistency option"); }
 else { passed += 1; console.log("pass the rules run only when admission opts in"); }

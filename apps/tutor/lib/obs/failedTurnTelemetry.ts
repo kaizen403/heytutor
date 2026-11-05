@@ -51,7 +51,7 @@ export const FAILED_TURN_ISSUE_CODES = [
   "physical_direction_relation_failed", "directed_cycle_not_closed", "directed_cycle_orientation_failed",
   // Figure consistency (scene-engine compile/figureConsistency.ts).
   "component_glyph_overlap", "current_against_source_polarity", "vector_collinear_overlap",
-  "vector_without_label", "region_label_in_nested_body", "axes_frames_overlap",
+  "vector_without_label", "region_label_in_nested_body", "axes_frames_overlap", "polarity_mark_against_plates",
   "unknown_issue",
 ] as const;
 export const FAILED_TURN_DEPLOYMENTS = ["gpt-6-sol", "gpt-6-1-sol", "gpt-6.1-sol", "gpt-5-4-mini", "fireworks", "mock", "unknown"] as const;
