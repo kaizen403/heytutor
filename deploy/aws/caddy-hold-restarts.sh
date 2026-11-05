@@ -79,6 +79,13 @@ UPSTREAM="$UPSTREAM" BARE="$bare" MARKER="$MARKER" awk '
   { print }
 ' "$CADDYFILE" > "$candidate"
 
+# Validation accepts a cut file, and awks differ: the block is one line becoming
+# eleven, so check that is exactly what came out before it can reach the box.
+if ! grep -qF "$MARKER" "$candidate" ||
+  [ "$(wc -l < "$candidate")" -ne "$(($(wc -l < "$CADDYFILE") + 10))" ]; then
+  warn "the edit did not produce the expected block"
+  exit 0
+fi
 if ! caddy validate --config "$candidate" --adapter caddyfile >/dev/null 2>&1; then
   warn "the edited Caddyfile does not validate"
   exit 0

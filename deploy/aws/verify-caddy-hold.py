@@ -170,6 +170,23 @@ class CaddyHold(unittest.TestCase):
             self.assertEqual(self.caddyfile.read_text(), text)
         self.assertEqual(self.reloads(), [])
 
+    def test_an_edit_that_lost_lines_or_skipped_the_block_is_never_written(self):
+        for name, awk in [
+            ("lost its output", "#!/usr/bin/env bash\nexit 0\n"),
+            ("skipped the block", '#!/usr/bin/env bash\ncat "${@: -1}"\n'),
+            ("cut after the block", '#!/usr/bin/env bash\n/usr/bin/awk "$@" | head -n 12\n'),
+        ]:
+            with self.subTest(name):
+                self.log.unlink(missing_ok=True)
+                (self.bin / "awk").write_text(awk)
+                (self.bin / "awk").chmod(0o755)
+                result = self.run_hold()
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("expected block", result.stderr)
+                self.assertEqual(self.caddyfile.read_text(), BOX)
+                self.assertFalse(Path(f"{self.caddyfile}.before-hold-restarts").exists())
+                self.assertEqual(self.reloads(), [])
+
     def test_an_edit_that_does_not_validate_is_never_written(self):
         result = self.run_hold(CADDY_FAIL_VALIDATE="1")
         self.assertEqual(result.returncode, 0, result.stderr)

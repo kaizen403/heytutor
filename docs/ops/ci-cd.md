@@ -188,6 +188,13 @@ duration and storage limits. Validate Caddy before reload. Re-run setup to
 apply the updated proxy policy to an existing machine; updating the checkout
 alone does not replace `/etc/caddy/Caddyfile`.
 
+One exception: `deploy.sh` runs `deploy/aws/caddy-hold-restarts.sh`, which edits
+the one bare `reverse_proxy` line so requests wait up to 90 s across a restart
+instead of answering 502. In an outage they also wait 90 s, then get 502. To undo
+it, first remove the call from `deploy.sh` (a restored file is otherwise edited
+again on the next deploy), then restore `Caddyfile.before-hold-restarts` and
+reload Caddy.
+
 Node 20 reached end of life on 30 April 2026. Node 24 is the supported LTS
 deployment line. See the [official release schedule](https://github.com/nodejs/Release#release-schedule)
 and [Caddy request_body documentation](https://caddyserver.com/docs/caddyfile/directives/request_body).
