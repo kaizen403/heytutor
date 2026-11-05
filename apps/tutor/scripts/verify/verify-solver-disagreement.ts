@@ -148,6 +148,17 @@ async function main() {
     const on = reconcilePlanWithAuthority(STEM, unlisted, { problemIR: falseProblem, solverResult: falseResult, audit, projection: null, rawContent: "", elapsedMs: 0 } as never, quiet as never, { keepDisagreement: true });
     assert.equal(valueOf(on.turnPlan, "y"), undefined, "the switch on withdraws it");
   });
+  await check("on: only a disagreed value is withdrawn, not a quantity another issue names", async () => {
+    const quiet = () => undefined;
+    const problem = problemFor(STEM, [{ id: "x", value: 3, unit: "m" }, { id: "y", value: -7 }]);
+    const result = await solve(problem);
+    const mixed = planFor(STEM, [{ id: "x", value: 3, unit: "cm" }, { id: "y", value: 2 }]);
+    const audit = verifyTurnPlanAgainstSolver(problem, result, mixed, STEM);
+    assert.ok(audit.issues.some((issue) => issue.code === "unit_mismatch" && issue.quantityId === "x"), "the fixture names x in another issue");
+    const on = reconcilePlanWithAuthority(STEM, mixed, { problemIR: problem, solverResult: result, audit, projection: null, rawContent: "", elapsedMs: 0 } as never, quiet as never, { keepDisagreement: true });
+    assert.equal(valueOf(on.turnPlan, "y"), undefined);
+    assert.equal(valueOf(on.turnPlan, "x"), 3, "a unit issue is not a disagreement about the value");
+  });
   await check("on: a model written uncertainty does not let a disagreement pass", () => {
     const loose = planFor(STEM, [{ id: "x", value: 3 }, { id: "y", value: 2 }]);
     (loose.derived[1] as { uncertainty?: number }).uncertainty = 10;
