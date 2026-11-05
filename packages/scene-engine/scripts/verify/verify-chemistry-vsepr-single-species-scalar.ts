@@ -59,6 +59,12 @@ for (const [question, scalars] of [
   ["shape of NH3 molecule", [{ symbol: "steric number", value: 3, unit: "" }]],
   ["shape of H2O", [ANGLE(107)]],
   ["shape of NH3 molecule", [{ symbol: "bond angle of H2O", value: 107, unit: "degrees" }]],
+  // A target named in words is a target, even with the right value.
+  ["shape of NH3 molecule", [{ symbol: "bond angle of water", value: 107, unit: "degrees" }]],
+  ["shape of NH3 molecule", [{ symbol: "bond angle of methane", value: 107, unit: "degrees" }]],
+  ["shape of NH3 molecule", [{ symbol: "bond angle of silane", value: 107, unit: "degrees" }]],
+  ["shape of NH3 molecule", [{ symbol: "bond angle", value: 107, unit: "degrees", sourceText: "the angle in water" }]],
+  ["shape of NH3 molecule", [{ symbol: "bond angle", value: 107, unit: "degrees", sourceText: "as in carbon dioxide" }]],
   ["shape of NH3 molecule", [{ symbol: "bond angle", value: 107, unit: "degrees", sourceText: "the angle in H2O" }]],
   ["shape of NH3 molecule", [{ symbol: "bond angle", value: 107, unit: "pm" }]],
   ["shape of NH3 molecule", [{ symbol: "unnamed", value: 107, unit: "degrees" }]],
@@ -73,6 +79,8 @@ for (const [question, scalars] of [
 for (const [question, scalars] of [
   ["Compare the shapes of NH3 and H2O.", [{ symbol: "NH3 bond angle", value: 107, unit: "degrees" }, { symbol: "H2O bond angle", value: 104.5, unit: "degrees" }]],
   ["shape of NH3 molecule", [{ symbol: "N valence electrons", value: 5, unit: "electrons", sourceText: "Nitrogen has 5 valence electrons" }]],
+  ["shape of NH3 molecule", [{ symbol: "NH3 bond angle", value: 107, unit: "degrees", sourceText: "less than in methane" }]],
+  ["shape of NH3 molecule", [{ symbol: "bond angle", value: 107, unit: "degrees", sourceText: "the angle in ammonia" }]],
 ] as Array<[string, Scalar[]]>) {
   check(`a named target still certifies: ${question}`, () => assert.deepEqual(issues(question, scalars), []));
 }
@@ -97,6 +105,10 @@ for (const [question, claim] of [
   ["shape of NH3 molecule", "NH3 is tetrahedral with an angle of 107 degrees."],
   ["shape of H2O", "H2O is linear."],
   ["shape of H2O", "H2O is a tetrahedral molecule, with an angle below 109.5 degrees."],
+  // A reference angle beside a wrong shape must not change how the wrong shape reads.
+  ["shape of NH3 molecule", "NH3 has a tetrahedral molecular shape and an electron geometry with tetrahedral angles"],
+  ["shape of NH3 molecule", "The molecular shape is tetrahedral and the electron geometry has a tetrahedral angle"],
+  ["shape of NH3 molecule", "NH3 is trigonal planar, with an angle below the tetrahedral 109.5 degrees."],
   ["shape of NH3 molecule", "The molecular shape of NH3 is trigonal planar, with a planar angle of 120 degrees."],
 ] as Array<[string, string]>) {
   check(`a false shape claim still refuses: ${claim}`, () => assert.ok(conflict(question, claim)?.includes("contradicts")));

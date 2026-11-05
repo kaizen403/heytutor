@@ -13,6 +13,7 @@ import { deferVerifiedAnswerLabels } from "../compile/answerLabels";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
 import type { SceneDocument, SceneIssue } from "../types";
 import { formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
+import { namedSpeciesMentions } from "./namedSpecies";
 import { ELEMENTS, valenceElectrons, type ElementRecord } from "./elements";
 import { buildVseprScene, isVseprStem, VSEPR_FAMILY, vseprSpecies, type VseprResult } from "./vsepr";
 
@@ -88,6 +89,12 @@ function equalScalar(actual: number, expected: number): boolean {
   return Number.isFinite(actual) && Math.abs(actual - expected) <= 1e-8 * Math.max(1, Math.abs(expected));
 }
 
+/** The symbol is the bare role, and the text names no other species: "bond angle of water" is a target. */
+function namesNoTarget(quantity: TurnPlanQuantityV3, knownKeys: ReadonlySet<string | null>): boolean {
+  if (!/^(?:the)?(?:bondangles?|angles?|lonepairs?|bondpairs?|stericnumber)$/i.test(declarationText(quantity.symbol).replace(/[\s-]+/g, ""))) return false;
+  return namedSpeciesMentions(declarationText(quantity.sourceText ?? "")).every((mention) => knownKeys.has(formulaKey(mention.formula)));
+}
+
 /** Each declaration must identify its target independently. A sourceText that
  * names another molecule/atom cannot borrow the symbol's otherwise valid ID.
  */
@@ -119,7 +126,7 @@ function quantityMatches(quantity: TurnPlanQuantityV3, role: Role, species: read
   // value must still equal the one computed for that species below.
   const targets = formulaTarget ? [formulaTarget] : atomTarget
     ? species.filter((result) => result.central.symbol === atomTarget.symbol)
-    : species.length === 1 ? [species[0]!] : [];
+    : species.length === 1 && namesNoTarget(quantity, knownKeys) ? [species[0]!] : [];
   if (targets.length !== 1) return false;
   const result = targets[0]!;
   if (atomTarget && atomTarget.symbol !== result.central.symbol) return false;

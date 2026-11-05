@@ -60,6 +60,8 @@ const board = JSON.parse(JSON.stringify(select(NH3, planFor(NH3, [], [])).repres
 for (const [label, derived, claims] of [
   ["wrong angle", [ANGLE(109.5)], []],
   ["wrong shape", [], ["NH3 is tetrahedral."]],
+  ["a scalar naming another species in words", [{ symbol: "bond angle of water", value: 107, unit: "degrees" }], []],
+  ["a wrong shape beside a reference angle in one claim", [], ["NH3 has a tetrahedral molecular shape and an electron geometry with tetrahedral angles"]],
   ["wrong shape beside a reference angle", [], ["NH3 is a tetrahedral molecule, with an angle below 109.5 degrees."]],
 ] as Array<[string, Scalar[], string[]]>) {
   check(`a false plan is still refused at the save: ${label}`, () => {

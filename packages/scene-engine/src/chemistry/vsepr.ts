@@ -696,11 +696,8 @@ function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
   for (const rawClause of repairOcr(normalizeChemistryText(text)).split(/[.;]|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/i)) {
     const clause = rawClause.toLowerCase();
     const mentions = shapeOwnerMentions(rawClause);
-    // "less than the ideal tetrahedral angle of 109.5" names an angle, not this
-    // molecule's shape, so a shape word before an angle or a number claims nothing.
     const shapes = SHAPE_WORDS.flatMap(([pattern, shape]) => [...clause.matchAll(new RegExp(pattern.source, "g"))]
       .map((match) => ({ shape, start: match.index, end: match.index + match[0].length })))
-      .filter((shape) => !/^\s+(?:(?:bond\s+)?angles?\b|values?\b|\d)/.test(clause.slice(shape.end)))
       .sort((left, right) => left.start - right.start);
     if (!shapes.length && mentions.length) {
       const owners = [...new Set(mentions.map(mention => mention.key))];
@@ -736,7 +733,9 @@ function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
         && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/.test(join)
         && !(BARE_COMMA_JOIN.test(join) && !bareCommaJoinsList(clause, shapes, index));
       const negated = explicitNegative || joinedNegative || contrastedShape(clause, roles, shapes, index, ownersOf);
-      claims.push({ shape: shape.shape, target, negated, owners });
+      // "less than the ideal tetrahedral angle of 109.5" names an angle, not this
+      // molecule's shape. It stays in the list so the other words keep their reading.
+      if (!/^\s+(?:(?:bond\s+)?angles?\b|values?\b|\d)/.test(clause.slice(shape.end))) claims.push({ shape: shape.shape, target, negated, owners });
       previousShape = { end: shape.end, negated };
     }
   }
