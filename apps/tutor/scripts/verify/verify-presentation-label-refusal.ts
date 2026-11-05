@@ -107,7 +107,7 @@ class StorageQuotaError extends Error {
 class KnownRequestError extends Error {}
 const DB_NULL = Symbol("DbNull");
 
-function harness() {
+function harness(options: { canonicalize?: (metadata: Row, options?: Row) => Promise<unknown> } = {}) {
   const env = { NODE_ENV: "production", S3_BUCKET: "fixture-bucket" };
   const turns: Row[] = [], segments: Row[] = [];
   // One save allowance per trace, as each lesson and resume has its own.
@@ -210,8 +210,8 @@ function harness() {
     "@/lib/scene/turnPersistencePolicy": { isTurnMetadataPersistable: () => true },
     "@/lib/scene/referencePicturePersistence": { sceneKeepsReferencePictureRows },
     // Each route's own options reach the real canonicalizer: the kind, the stored question and the page loaders.
-    "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: (metadata: Row, options?: Row) =>
-      canonicalizeTurnSceneMetadata(JSON.parse(JSON.stringify(metadata)), options) },
+    "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: options.canonicalize ?? ((metadata: Row, routeOptions?: Row) =>
+      canonicalizeTurnSceneMetadata(JSON.parse(JSON.stringify(metadata)), routeOptions)) },
     "@/lib/scene/turnUploadLimits": uploadLimits,
     "@/lib/boards/turnStatus": turnStatus,
     "@/lib/boards/turnSaveRejection": turnSaveRejection,
@@ -240,7 +240,13 @@ function harness() {
     const response = await checkpoint.handleTurnCheckpoint(new Request(`https://example.test/api/boards/${boardId}/turns/${turnId}`, { method: "PUT", body: form }), { boardId, turnId });
     return { status: response.status, body: await response.json() as Row };
   }
-  return { postTurn, putCheckpoint, turns, client };
+  async function closeTurn(turnId: string, body: Row) {
+    const response = await checkpoint.handleTurnClose(new Request(`https://example.test/api/boards/${boardId}/turns/${turnId}`, {
+      method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ traceId: `trace-${turnId}`, ...body }),
+    }), { boardId, turnId });
+    return { status: response.status, body: await response.json() as Row };
+  }
+  return { postTurn, putCheckpoint, closeTurn, turns, client };
 }
 
 /** What the browser resends after a 400: the page's plan, no figure (Decision 7, `partialTurnScene`). */
@@ -310,6 +316,40 @@ async function main() {
     console.log("PASS checkpoint route: lesson and resume refuse with the code, text resends save, a saved figure's resume passes");
   }
 
+  // The keepalive close of a live turn whose stored figure no longer presents
+  // (a board saved before an engine change): its rows are refused, the turn closes.
+  {
+    const CLOSE_ID = "6c3f1d0e-5b7a-4c2e-9f10-2a6b8d4e1c05";
+    const PLACED_ID = "6c3f1d0e-5b7a-4c2e-9f10-2a6b8d4e1c06";
+    const fixture = harness();
+    const row = (orderIndex: number) => ({ orderIndex, narration: "And the last point.", spokenText: "And the last point.", command: null });
+    assert.equal((await fixture.putCheckpoint(CLOSE_ID, 1, metadataOf(spaced, { kind: "lesson" }))).status, 200);
+    assert.equal((await fixture.putCheckpoint(PLACED_ID, 1, metadataOf(spaced, { kind: "lesson" }))).status, 200);
+    const live = fixture.turns.find(turn => turn.id === CLOSE_ID)!;
+    assert.equal(live.status, "live");
+    live.sceneDocument = JSON.parse(JSON.stringify(crowded));
+    const closed = await fixture.closeTurn(CLOSE_ID, { seq: 2, status: "stopped", baseCount: 1, appendSegments: [row(1)] });
+    assert.equal(closed.status, 400, `the close answers 400, not a server error: ${JSON.stringify(closed.body).slice(0, 160)}`);
+    assert.equal(closed.body.code, "scene_label_unplaced");
+    assert.equal(live.status, "stopped", "and the live turn still closes to stopped");
+    const placed = await fixture.closeTurn(PLACED_ID, { seq: 2, status: "stopped", baseCount: 1, appendSegments: [row(1)] });
+    assert.equal(placed.status, 200, `a close on a figure that places saves: ${JSON.stringify(placed.body).slice(0, 160)}`);
+    assert.equal(placed.body.turn.visualStatus, "validated");
+    assert(placed.body.turn.segments.some((segment: Row) => segment.narration === "And the last point."), "with its appended row");
+    console.log("PASS close: a stored figure that no longer presents answers 400 and the turn stops; one that places saves");
+  }
+
+  // Only a label with no place is a refusal. Any other throw from the save is
+  // not turned into one: both routes let it out, which Next answers with a 500
+  // (verify-presentation-throw-escapes holds the step from presentation to here).
+  {
+    const throwing = harness({ canonicalize: async () => { throw new TypeError("presentation failed"); } });
+    await assert.rejects(throwing.postTurn(metadataOf(spaced)), TypeError, "the lesson route lets another error out");
+    await assert.rejects(throwing.putCheckpoint(REFUSED_LESSON_ID, 1, metadataOf(spaced, { kind: "lesson" })), TypeError, "the checkpoint route lets another error out");
+    assert.equal(throwing.turns.length, 0, "and writes nothing");
+    console.log("PASS other errors: both routes let a save error out instead of refusing it");
+  }
+
   // Reopen skips a refused figure; a figure that draws reopens.
   const storedTurn = (sceneDocument: SceneDocument) => ({ question: QUESTION, sceneDocument, sceneArtifacts: artifacts }) as Parameters<typeof restoreVerifiedPresentationFromTurn>[0];
   let reopened: ReturnType<typeof restoreVerifiedPresentationFromTurn> = null;
@@ -317,7 +357,7 @@ async function main() {
   assert.equal(reopened, null, "reopen skips the refused figure");
   assert(restoreVerifiedPresentationFromTurn(storedTurn(spaced)), "a figure that draws reopens");
   console.log("PASS reopen: a refused figure is skipped, a figure that draws reopens");
-  console.log("PASS presentation label refusal: 5 groups");
+  console.log("PASS presentation label refusal: 7 groups");
 }
 
 void main().catch((error) => { console.error(error); process.exitCode = 1; });
