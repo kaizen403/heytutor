@@ -1,7 +1,7 @@
 /**
  * A figure that draws because named atoms bound to it must also pass the next resume
- * save of its board, and figures dev built must still pass. The save audit regenerates
- * through the family path (sceneSaveAdmission), and this change refuses nothing there.
+ * save of its board, and figures dev built must still pass. The save audit certifies a
+ * VSEPR figure against the question (sceneSaveAdmission), and it never reads the binder.
  *
  *   tsx --tsconfig tsconfig.json scripts/verify/verify-chemistry-certified-atom-save.ts
  */
@@ -46,7 +46,7 @@ function saved(question: string, bodies: Array<[string, string]>) {
 
 for (const [question, bodies] of [
   ["geometry of PCl5", [["other", "PCl5 molecule"], ["point", "central P atom"], ["point", "Cl atoms"]]],
-  ["Use VSEPR to predict the shapes of ClF3 and BrF5.", [["other", "ClF3 molecule"], ["other", "BrF5 molecule"], ["point", "central Cl atom"]]],
+  ["shape of ClF3", [["other", "ClF3 molecule"], ["point", "central Cl atom"], ["point", "F atoms"]]],
   // Dev drew these already, and must still save.
   ["Use VSEPR to predict the shapes of ClF3 and BrF5.", [["other", "ClF3 molecule"], ["other", "BrF5 molecule"]]],
   ["shape of NH3 molecule", [["other", "NH3 molecule"]]],
@@ -60,6 +60,24 @@ check("a body the figure lacks draws nothing, so nothing new is saved", () => {
   const question = "geometry of PCl5";
   const selection = selectProductionScene({ question, turnPlan: planFor(question), problemIR: problem(question, [["point", "central S atom"]]), candidate: null, requiredRetryEnabled: true } as Parameters<typeof selectProductionScene>[0]);
   assert.equal(selection.representation, null);
+});
+
+check("a left over stem draws nothing here, so nothing new is saved", () => {
+  const question = "hybridisation of P in PCl5";
+  const selection = selectProductionScene({ question, turnPlan: planFor(question), problemIR: problem(question, [["point", "central P atom"]]), candidate: null, requiredRetryEnabled: true } as Parameters<typeof selectProductionScene>[0]);
+  assert.equal(selection.representation, null);
+});
+
+check("the save still refuses a false plan claim", () => {
+  const input = saved("geometry of PCl5", [["other", "PCl5 molecule"], ["point", "central P atom"]]);
+  input.turnPlan = { ...input.turnPlan, qualitativeClaims: [{ id: "c1", claim: "PCl5 is tetrahedral.", expected: true }] } as TurnPlanV3;
+  assert.match(sceneSaveAdmissionFailure(input) ?? "", /contradicts/);
+});
+
+check("the save still refuses a changed figure", () => {
+  const input = saved("geometry of PCl5", [["other", "PCl5 molecule"], ["point", "central P atom"]]);
+  input.document.entities.find((entity: { label?: string }) => entity.label === "P").label = "As";
+  assert.match(sceneSaveAdmissionFailure(input) ?? "", /unsupported or disagree/);
 });
 
 check("the save still refuses a stated value the plan does not support", () => {

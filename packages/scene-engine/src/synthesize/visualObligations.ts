@@ -40,7 +40,7 @@ import type { SceneDocument, SceneIssue } from "../types";
 import { verifiedVseprStructure } from "../chemistry/vseprStructure";
 import type { VseprFigure } from "../chemistry/vsepr";
 import { elementByName, elementBySymbol } from "../chemistry/elements";
-import { parseFormula } from "../chemistry/formula";
+import { formulaTokens, normalizeChemistryText, parseFormula } from "../chemistry/formula";
 import { chemistrySpeciesIdentity } from "../chemistry/representation/species";
 import { sourceAdditionProductEntityHolds } from "../chemistry/organic/reactionBinding";
 import { sourceDepositedMetalEntityHolds } from "../chemistry/depositionBinding";
@@ -529,7 +529,7 @@ function mapProblemEntities(
       consumed.add(species);
       continue;
     }
-    const atom = bindCertifiedAtom(molecule, byId, obligation, consumed);
+    const atom = bindCertifiedAtom(molecule, byId, obligation, consumed, originalQuestion);
     if (atom) {
       mapping.set(obligation.problemEntityId, atom);
       consumed.add(atom);
@@ -727,31 +727,42 @@ function bindCertifiedSpecies(
 const ATOM_BODY_KINDS = new Set([...SPECIES_BODY_KINDS, "point"]);
 
 /**
+ * The whole stem is a plain shape or geometry ask of one formula, with nothing left over.
+ * The figure draws the free molecule from the formula, so a stem saying anything else
+ * about it (a state, a dimer, an adduct, a change) is not answered by that figure.
+ */
+function plainShapeAskOfOneFormula(question: string | undefined): boolean {
+  const read = /^(?:(?:what\s+is|find|give|state|describe|predict|draw|sketch)\s+)?(?:the\s+)?(?:molecular\s+)?(?:shape|geometry)\s+of\s+(?:the\s+)?(\S+?)(?:\s+molecule)?\s*[.?]?$/i
+    .exec(normalizeChemistryText(question ?? "").trim());
+  if (!read) return false;
+  const tokens = formulaTokens(read[1]!);
+  return tokens.length === 1 && tokens[0] === read[1];
+}
+
+/**
  * Bind "central P atom", "Cl atoms" or "sulfur atom" to an atom of that element on the
- * certified VSEPR figure. "central" needs the atom every bond shares, and a plural needs
- * two such atoms in one species. A count, an index or a charge in the name stays unbound.
+ * certified VSEPR figure, only on a plain ask of its one species. "central" needs the
+ * atom every bond shares, and a plural needs two such atoms. A count, an index, a charge
+ * or any other word in the name stays unbound.
  */
 function bindCertifiedAtom(
   molecule: VseprFigure | null,
   entities: ReadonlyMap<string, SceneDocument["entities"][number]>,
   obligation: NamedBodyObligation,
   consumed: ReadonlySet<string>,
+  originalQuestion: string | undefined,
 ): string | null {
-  if (!molecule || !ATOM_BODY_KINDS.has(obligation.problemKind) || !obligation.problemLabel) return null;
+  if (molecule?.structures.length !== 1 || !plainShapeAskOfOneFormula(originalQuestion)) return null;
+  if (!ATOM_BODY_KINDS.has(obligation.problemKind) || !obligation.problemLabel) return null;
   const read = /^(?:[Tt]he\s+)?([Cc]entral\s+)?(\S+)\s+(atoms?)$/.exec(obligation.problemLabel.trim());
-  if (!read) return null;
+  if (!read || (read[1] && read[3] === "atoms")) return null;
   const element = elementBySymbol(read[2]!) ?? elementByName(read[2]!);
   if (!element) return null;
-  for (const structure of molecule.structures) {
-    const atoms = structure.atomIds.filter((id) => entities.get(id)?.label === element.symbol);
-    if (read[3] === "atoms" && atoms.length < 2) continue;
-    const allowed = read[1]
-      ? atoms.filter((id) => structure.bonds.length > 1 && structure.bonds.every((bond) => bond.includes(id)))
-      : atoms;
-    const free = allowed.find((id) => !consumed.has(id));
-    if (free) return free;
-  }
-  return null;
+  const structure = molecule.structures[0]!;
+  const atoms = structure.atomIds.filter((id) => entities.get(id)?.label === element.symbol);
+  if (read[3] === "atoms" && atoms.length < 2) return null;
+  const allowed = read[1] ? atoms.filter((id) => structure.bonds.every((bond) => bond.includes(id))) : atoms;
+  return allowed.find((id) => !consumed.has(id)) ?? null;
 }
 
 /**
