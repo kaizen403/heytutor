@@ -28,7 +28,7 @@ import {
 import { drawSegmentInk, planSegmentInk } from "../../lib/turn/segmentInk";
 import { guardDrawWithSpeech, incompleteCodeBeatFailure, requiredCodeBeatTargets, shouldFinishSegmentAfterHeardSpeechFailure, silentSentenceRemainingMs, voiceFailureDisposition, type SegmentRunOutcome } from "../../lib/turn/turnFailurePolicy";
 import { segmentWatchdogPlaybackRate, speakSegmentTimeoutMs } from "../../lib/turn/ttsSegmentTimeout";
-import { browserRecoveryPlaybackRate, createPauseAwareSpeechClock, requireSpeechStart, speakWithPauseOwnedFallback, speakWithStartupRecovery, speechPlaybackOverdue, type PauseAwareSpeechClock } from "../../lib/turn/speechStartup";
+import { browserRecoveryPlaybackRate, createPauseAwareSpeechClock, requireSpeechStart, SPEECH_AUDIO_IN_TRANSIT_GRACE_MS, speakWithPauseOwnedFallback, speakWithStartupRecovery, speechPlaybackOverdue, type PauseAwareSpeechClock } from "../../lib/turn/speechStartup";
 import { liveTurnSave } from "../../lib/turn/liveTurnSave";
 import { savedCommandFilter } from "../../lib/scene/lessonFigureSequence";
 import type { UseSegmentRunnerParams } from "./types";
@@ -798,7 +798,9 @@ export function useSegmentRunner({
               if (!canAcceptPrimary()) return;
               tel?.mark("tts-audio-in-transit", { segment_index: index, turn_generation: turnGeneration });
               inTransitTimeoutFloorMs = Math.max(inTransitTimeoutFloorMs,
-                clock.elapsedMs() + speakSegmentTimeoutMs(spokenText, slowestPlaybackRate));
+                // The grace is added so a browser takeover after a full wait still
+                // gets a whole sentence budget of its own.
+                clock.elapsedMs() + SPEECH_AUDIO_IN_TRANSIT_GRACE_MS + speakSegmentTimeoutMs(spokenText, slowestPlaybackRate));
               onAudioInTransit();
             },
             onStart: () => {
