@@ -16,6 +16,12 @@ interface Value {
 }
 /** A symbol is a claim even without a printed numeral. Bind curve parameter
  * names and declared complex operations to evaluated mathematical metadata. */
+/** The a in a label "f(a)" or "f(a) = b" with a plain number a; otherwise null. */
+function statedAbscissa(label: string | undefined): number | null {
+    const match = /^\s*[A-Za-z][A-Za-z0-9_′']*\s*\(\s*([-−]?\d+(?:\.\d+)?)\s*\)\s*(?:=.*)?$/.exec(label ?? "");
+    return match ? Number(match[1]!.replace("−", "-")) : null;
+}
+
 export function validateGeometryClaimTruth(document: SceneDocument, geometry: ReadonlyMap<string, unknown>): SceneIssue[] {
     const issues: SceneIssue[] = [];
     for (const c of document.constructions) {
@@ -33,6 +39,19 @@ export function validateGeometryClaimTruth(document: SceneDocument, geometry: Re
                 const q = matches[0]!;
                 if (typeof q.value === "number" && Number.isFinite(q.value) && Math.abs(q.value - value.calculusAnchor.parameter) > 1e-7 * Math.max(1, Math.abs(q.value)))
                     fail("A named function-curve parameter is placed at a different abscissa from its declared quantity.");
+            }
+        }
+        if (c.operator === "curve_anchor" && value?.calculusAnchor) {
+            const curve = geometry.get(value.calculusAnchor.curveId) as Value | undefined;
+            if (curve?.sampledCurve?.curveKind === "function") {
+                const labels = [entity?.label, ...document.annotations
+                    .filter(a => (a.kind === "label" || a.kind === "callout") && a.targetIds.length === 1 && a.targetIds[0] === id)
+                    .map(a => a.text)];
+                for (const label of labels) {
+                    const stated = statedAbscissa(label);
+                    if (stated !== null && Math.abs(stated - value.calculusAnchor.parameter) > 1e-7 * Math.max(1, Math.abs(stated)))
+                        fail("A label f(a) on a function-curve point names a different abscissa from where the point is drawn.");
+                }
             }
         }
         if (c.operator === "complex_transform" && /^conjugate(?:\s+of\b|$)/i.test(entity?.role ?? "")) {
