@@ -18,6 +18,7 @@ import {
   certifyVseprSourceDocument,
   chemistryTeachingFamilyId,
   compileSceneDocument,
+  prepareVerifiedParts,
   validateSceneDocument,
   validateTurnPlanSceneProofs,
   type SceneDocument,
@@ -94,10 +95,21 @@ export function admitStoredScene(submitted: StoredSceneAdmissionInput): StoredSc
   // figure dev admits: a figure dev refuses stays refused, and if the moved
   // labels would refuse it, dev's admission stands.
   const asDevDocument = withoutCurveLabelStamp(submitted.sceneDocument);
-  const asDev = admitMemoized({ ...submitted, sceneDocument: asDevDocument });
-  if (submitted.curveLabels !== true || asDevDocument === submitted.sceneDocument || !asDev.ok) return asDev;
+  if (asDevDocument === submitted.sceneDocument) return admitMemoized(submitted);
+  // Live validation removed unprovable labels with the stamp on. Without it a
+  // kept label sits where dev would put it, so dev's figure is the unstamped
+  // document through the same removal.
+  const asDev = admitMemoized({ ...submitted, sceneDocument: asDevPrepared(asDevDocument) });
+  if (submitted.curveLabels !== true || !asDev.ok) return asDev;
   const onStroke = admitMemoized(submitted);
   return onStroke.ok ? onStroke : asDev;
+}
+
+/** An unstamped document as live validation leaves it: unprovable labels removed under verified_parts. */
+function asDevPrepared(sceneDocument: unknown): unknown {
+  const validated = validateSceneDocument(sceneDocument);
+  if (!validated.document || validated.document.source.diagramYieldPolicy !== "verified_parts") return sceneDocument;
+  return prepareVerifiedParts(validated.document, { enabled: true, figureConsistency: true }).document;
 }
 
 function admitMemoized(input: StoredSceneAdmissionInput): StoredSceneAdmission {

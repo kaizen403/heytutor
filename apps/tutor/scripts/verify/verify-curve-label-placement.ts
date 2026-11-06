@@ -174,7 +174,11 @@ async function main() {
   assert(offResult.valid && offResult.value && !isCurveLabelPlacementOnStroke(offResult.value.document), "switch off, a candidate's own stamp is removed");
   const onResult = validateCandidate(areaFigure() as unknown as Row, true);
   assert(onResult.valid && onResult.value && isCurveLabelPlacementOnStroke(onResult.value.document), "switch on, the engine stamps it");
-  console.log("PASS engine only: dropped from planner output; validation stamps from the switch alone");
+  // Completion of an admitted figure validates its proposal with no switch: the figure's own stamp stays.
+  const stampedValid = onResult.value!.document as unknown as Row;
+  const completed = validateProductionSceneCandidate({ candidate: structuredClone(stampedValid), question: QUESTION, turnPlan: plan(QUESTION) as never });
+  assert(completed.valid && completed.value && isCurveLabelPlacementOnStroke(completed.value.document), "an absent switch leaves an admitted figure's stamp");
+  console.log("PASS engine only: dropped from planner output; validation stamps from the switch alone; completion keeps it");
 
   // The switch fixes, it never admits: a figure dev refuses stays refused, even
   // when its moved label would have let it pass.
@@ -211,7 +215,16 @@ async function main() {
   const lessonFigures = admitLessonFigures({ schemaVersion: LESSON_FIGURES_VERSION, figures: [{ id: "figure_2", view, sceneDocument: laterFigure, tier: "qualitative_verified", family: view, figureSource: "fast_family" }] } as never, { lessonQuestion: QUESTION, lessonPlan: plan(QUESTION) });
   assert.equal(lessonFigures.artifact.figures.length, 1, `the later figure is admitted: ${JSON.stringify(lessonFigures.droppedFigureIds)}`);
   for (const figure of lessonFigures.artifact.figures) assert(!isCurveLabelPlacementOnStroke(figure.sceneDocument as SceneDocument), "a later lesson figure is admitted without the stamp");
-  console.log("PASS server: a submitted stamp is kept only with the switch on; later lesson figures stay dev");
+  // The browser saves the figure as live validation left it. The server judges dev's figure the same way
+  // (the unstamped document through the same label removal), so a drawn graph saves with the switch on or off.
+  const liveDrawn = onResult.value!.document;
+  assert(isCurveLabelPlacementOnStroke(liveDrawn) && liveDrawn.source.diagramYieldPolicy === "verified_parts", "the browser's figure carries both stamps");
+  const savedLiveOn = admit(liveDrawn, true);
+  assert(savedLiveOn.ok && isCurveLabelPlacementOnStroke(savedLiveOn.document), `with the switch on the server saves it stamped: ${savedLiveOn.ok ? "" : savedLiveOn.code}`);
+  assert(labelOf(savedLiveOn.compiled.renderScene, "curve"), "with its label");
+  const savedLiveOff = admit(liveDrawn, false);
+  assert(savedLiveOff.ok && !isCurveLabelPlacementOnStroke(savedLiveOff.document), `with it off the server saves dev's figure, not a refusal: ${savedLiveOff.ok ? "" : savedLiveOff.code}`);
+  console.log("PASS server: a submitted stamp is kept only with the switch on; a live drawn graph saves either way; later lesson figures stay dev");
 
   // Saves.
   const off = { curveLabelsEnabled: false };

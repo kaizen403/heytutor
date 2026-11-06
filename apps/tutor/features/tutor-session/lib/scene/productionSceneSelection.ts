@@ -133,7 +133,12 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
 type ProductionSceneCandidateInput = {
   candidate: Record<string, unknown>; question: string; turnPlan: TurnPlanV3;
   yieldPolicy?: DiagramYieldPolicy;
-  /** `DIAGRAM_CURVE_LABELS`, from begin-turn: stamps a graph of y = f(x) for placement by its own stroke. Default off. */
+  /**
+   * `DIAGRAM_CURVE_LABELS`, from begin-turn. True stamps a graph of y = f(x)
+   * for placement by its own stroke, false removes any stamp, and absent leaves
+   * the candidate's own as it is (completion of an already admitted figure;
+   * planner output never carries one).
+   */
   curveLabels?: boolean;
   /** As `ProductionSceneInput.blockFlowEligible`; without it any block_flow is refused. */
   blockFlowEligible?: boolean;
@@ -145,8 +150,9 @@ type ProductionSceneCandidateInput = {
  * If the moved labels would refuse it, dev's result stands.
  */
 export function validateProductionSceneCandidate(input: ProductionSceneCandidateInput): SceneCandidateValidation<ValidatedSceneCandidate> {
+  if (input.curveLabels !== true) return validateCandidateOnce(input);
   const asDev = validateCandidateOnce({ ...input, curveLabels: false });
-  if (input.curveLabels !== true || !asDev.valid || !asDev.value || !documentHasFunctionCurve(asDev.value.document)) return asDev;
+  if (!asDev.valid || !asDev.value || !documentHasFunctionCurve(asDev.value.document)) return asDev;
   const onStroke = validateCandidateOnce(input);
   return onStroke.valid ? onStroke : asDev;
 }
@@ -181,7 +187,7 @@ function validateCandidateOnce(input: ProductionSceneCandidateInput): SceneCandi
     };
   }
   // The stamp is the engine's, set here from the switch: a candidate's own is replaced.
-  validated.document = withCurveLabelPlacement(validated.document, input.curveLabels === true);
+  if (input.curveLabels !== undefined) validated.document = withCurveLabelPlacement(validated.document, input.curveLabels);
   const routeNormalized = normalizeClaimedClosedRouteGeometry(
     validated.document,
     authoritativePlan,
