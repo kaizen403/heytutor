@@ -109,6 +109,7 @@ assert.equal(validateStraightLineNames(doc, [own, ring(720, 312, 80, "arc", { st
 const closed = (kind: string, points: Row[]): RenderPrimitive => ({ id: "rival_shape", entityId: "rival", kind, points } as unknown as RenderPrimitive);
 assert.equal(validateStraightLineNames(doc, [own, closed("polygon", [{ x: 640, y: 100 }, { x: 900, y: 300 }, { x: 640, y: 500 }]), name("own", 570, 300)]).length, 1, "a name beside a triangle's closing edge is flagged");
 assert.equal(validateStraightLineNames(doc, [own, closed("rectangle", [{ x: 640, y: 100 }, { x: 900, y: 100 }, { x: 900, y: 500 }, { x: 640, y: 500 }]), name("own", 570, 300)]).length, 1, "and beside a rectangle's last side");
+assert.equal(validateStraightLineNames(doc, [own, closed("rectangle", [{ x: 900, y: 500 }, { x: 640, y: 100 }]), name("own", 570, 300)]).length, 1, "and beside a rectangle given by two corners");
 console.log("PASS rule: flagged only when the name's box hugs another stroke and sits nearer it than its own straight line");
 
 // Rule 3: a saved figure is judged by the save path, where the name rule does not run.
