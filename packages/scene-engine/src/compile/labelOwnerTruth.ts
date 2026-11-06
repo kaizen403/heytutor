@@ -128,7 +128,8 @@ export function validateStraightLineNames(document: SceneDocument, primitives: R
     const box = labelBox(label);
     if (!box) continue;
     const ownDistance = Math.min(...own.map(p => boxDistance(box, p)));
-    const nearest = Math.min(...ink.filter(p => !owners.includes(p.entityId)).map(p => boxDistance(box, p)));
+    // An axis is named at its ends, so a line's name beside one still reads as a plotted line's: not a rival.
+    const nearest = Math.min(...ink.filter(p => !owners.includes(p.entityId) && p.kind !== "axes").map(p => boxDistance(box, p)));
     // A name floating clear of every stroke is read by elimination; one that hugs another stroke names it.
     if (!(nearest <= STRAIGHT_LINE_NAME_RIVAL_PX && nearest + STRAIGHT_LINE_NAME_MARGIN_PX < ownDistance)) continue;
     const entityIndex = document.entities.findIndex(e => e.id === label.entityId);

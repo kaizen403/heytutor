@@ -100,6 +100,10 @@ assert.equal(validateStraightLineNames(doc, [own, near, name("own", 510, 300)]).
 const far = straight("rival", { x: 900, y: 100 }, { x: 900, y: 500 });
 assert.equal(validateStraightLineNames(doc, [own, far, name("own", 700, 300)]).length, 0, "a name floating clear of every stroke is read by elimination");
 assert.equal(validateStraightLineNames(doc, [curved("own"), rival, name("own", 570, 300)]).length, 0, "a curve's name, however far, is not this rule");
+// An axis is not a rival owner: a name 10 px from the y-axis and far from its own line is read as a line's name.
+const axes = { id: "rival_axes", entityId: "rival", kind: "axes", points: [{ x: 560, y: 500 }, { x: 900, y: 500 }, { x: 640, y: 500 }, { x: 640, y: 100 }] } as unknown as RenderPrimitive;
+assert.equal(validateStraightLineNames(doc, [own, axes, name("own", 570, 300)]).length, 0, "a name beside an axis is not taken from its line");
+assert.equal(validateStraightLineNames(doc, [own, axes, rival, name("own", 570, 300)]).length, 1, "a stroke beside it still is a rival");
 // Measured to the ink another stroke draws: a ring by its circumference, a closed shape by every edge.
 const ring = (cx: number, cy: number, radius: number, kind = "circle", extra: Row = {}): RenderPrimitive => ({ id: "rival_ring", entityId: "rival", kind, points: [{ x: cx, y: cy }], radius, ...extra } as unknown as RenderPrimitive);
 assert.equal(validateStraightLineNames(doc, [own, ring(600, 312, 150), name("own", 570, 300)]).length, 0, "a name near the centre of a wide ring is far from its ink");
