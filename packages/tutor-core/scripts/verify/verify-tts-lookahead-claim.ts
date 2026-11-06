@@ -15,7 +15,7 @@
  * waits for the voice instead of replacing it.
  */
 import assert from "node:assert/strict";
-import { StreamingSpeechClient, TTS_AUDIO_IN_TRANSIT_TYPE } from "../../src/tts/streamingSpeechClient";
+import { StreamingSpeechClient, TTS_AUDIO_IN_TRANSIT_TYPE, TTS_WS_IN_TRANSIT_WATCHDOG_MS } from "../../src/tts/streamingSpeechClient";
 import { TUTOR_OPENING_VOICE_SETTINGS, TUTOR_VOICE_SETTINGS } from "../../src/tts/voiceSettings";
 
 class RunningContext {
@@ -80,6 +80,13 @@ class Socket {
       alignment: { characters: ["a", "b"], character_start_times_seconds: [0, 0.2], character_end_times_seconds: [0.2, 0.4] } });
   }
 }
+/** Long timers the client arms: its no-audio watchdog lives here. */
+const longTimers: number[] = [];
+const realSetTimeout = globalThis.setTimeout;
+globalThis.setTimeout = ((run: () => void, ms?: number, ...rest: unknown[]) => {
+  if (typeof ms === "number" && ms >= 10_000) longTimers.push(ms);
+  return realSetTimeout(run, ms, ...rest);
+}) as typeof setTimeout;
 Object.defineProperty(globalThis, "window", { configurable: true, value: globalThis });
 Object.defineProperty(globalThis, "AudioContext", { configurable: true, value: RunningContext });
 Object.defineProperty(globalThis, "Audio", { configurable: true, value: NativeAudio });
@@ -140,6 +147,7 @@ async function replay(notice: "before-claim" | "after-claim" | "none") {
     await opening;
 
     let inTransit = 0;
+    longTimers.length = 0;
     let firstByte = false;
     let started = false;
     const intro = client.speakSegment(INTRO, { ...trace, previousText: OPENING, nextText: NEXT,
@@ -159,6 +167,10 @@ async function replay(notice: "before-claim" | "after-claim" | "none") {
       assert.equal(inTransit, 1, "one notice per sentence");
     }
     if (notice === "none") assert.equal(inTransit, 0, "no notice, no extension");
+    // The watchdog must outlast the runner's 12 s in-transit wait, or it drops
+    // the landing audio and regenerates the sentence over HTTP.
+    if (notice === "none") assert(!longTimers.includes(TTS_WS_IN_TRANSIT_WATCHDOG_MS), "no notice keeps the plain watchdog");
+    else assert.equal(longTimers.at(-1), TTS_WS_IN_TRANSIT_WATCHDOG_MS, `${notice}: watchdog re-armed past the runner's wait`);
 
     socket.answer(introIndex);
     await waitFor(() => started, `${notice}: sentence 1 speaks in the provider voice once its audio lands`);

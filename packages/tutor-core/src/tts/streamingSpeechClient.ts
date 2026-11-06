@@ -177,6 +177,9 @@ const HTTP_STREAM_URL = "/api/tts/stream";
  * clients ignore unknown control types, so the relay sends it unconditionally.
  */
 export const TTS_AUDIO_IN_TRANSIT_TYPE = "audio-in-transit";
+const TTS_WS_NO_AUDIO_WATCHDOG_MS = 12_000;
+/** Runner in-transit grace (12 s) plus margin, so the runner decides first. */
+export const TTS_WS_IN_TRANSIT_WATCHDOG_MS = 16_000;
 const DEFAULT_VOICE_SETTINGS = TUTOR_VOICE_SETTINGS;
 /** Fail over to HTTP quickly; a 5s connect wait after every sentence stalls the teacher. */
 export const TTS_WS_CONNECT_TIMEOUT_MS = 1_200;
@@ -1538,6 +1541,10 @@ export class StreamingSpeechClient implements TTSClient {
             const job = typeof contextId === "string" ? this.jobsByContext.get(contextId) : undefined;
             if (job && !job.settled && !job.audioInTransit) {
               job.audioInTransit = true;
+              // A whole-sentence message counts as received only once it has
+              // landed, so the no-audio watchdog must restart from here and
+              // outlast the runner's in-transit wait.
+              if (job === this.currentJob) this.resetWatchdog(job);
               this.emitAudioInTransit(job);
             }
             return;
@@ -1816,6 +1823,12 @@ export class StreamingSpeechClient implements TTSClient {
     if (this.paused) return;
 
     // Fail when ElevenLabs never returns audio; leave room for cold WS + first chunk.
+    // Audio the relay reported in transit gets longer than the runner waits
+    // for it (SPEECH_AUDIO_IN_TRANSIT_GRACE_MS, 12 s): firing first would drop
+    // the landing sentence, disable the socket and regenerate it over HTTP.
+    const watchdogMs = job.audioInTransit && !job.receivedAudio
+      ? TTS_WS_IN_TRANSIT_WATCHDOG_MS
+      : TTS_WS_NO_AUDIO_WATCHDOG_MS;
     this.watchdogTimer = window.setTimeout(() => {
       if (this.currentJob !== job || job.settled) {
         return;
@@ -1827,7 +1840,7 @@ export class StreamingSpeechClient implements TTSClient {
       }
 
       void this.completeCurrentJob();
-    }, 12_000);
+    }, watchdogMs);
   }
 
   private clearTimers(): void {

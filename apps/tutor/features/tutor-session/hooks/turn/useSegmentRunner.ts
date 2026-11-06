@@ -705,6 +705,13 @@ export function useSegmentRunner({
         const spokenText = mathToSpeech(text);
         let slowestPlaybackRate = segmentWatchdogPlaybackRate(segmentPlaybackRate());
         let timeoutMs = speakSegmentTimeoutMs(spokenText, slowestPlaybackRate);
+        /**
+         * The relay said this sentence's audio is downloading. Startup waits
+         * for it (SPEECH_AUDIO_IN_TRANSIT_GRACE_MS), so the whole-segment
+         * budget restarts from the notice too: without this a short sentence
+         * whose audio lands late would be cut by its own 15 s timeout.
+         */
+        let inTransitTimeoutFloorMs = 0;
         let timedOut = false;
         let timeoutId: number | null = null;
         let playbackWatchId: number | null = null;
@@ -790,6 +797,8 @@ export function useSegmentRunner({
             onAudioInTransit: () => {
               if (!canAcceptPrimary()) return;
               tel?.mark("tts-audio-in-transit", { segment_index: index, turn_generation: turnGeneration });
+              inTransitTimeoutFloorMs = Math.max(inTransitTimeoutFloorMs,
+                clock.elapsedMs() + speakSegmentTimeoutMs(spokenText, slowestPlaybackRate));
               onAudioInTransit();
             },
             onStart: () => {
@@ -1020,7 +1029,7 @@ export function useSegmentRunner({
                 // the expanded deadline if speed rises again: elapsed slow
                 // playback cannot be judged against a shorter natural budget.
                 slowestPlaybackRate = Math.min(slowestPlaybackRate, segmentWatchdogPlaybackRate(segmentPlaybackRate()));
-                timeoutMs = Math.max(timeoutMs, speakSegmentTimeoutMs(spokenText, slowestPlaybackRate));
+                timeoutMs = Math.max(timeoutMs, speakSegmentTimeoutMs(spokenText, slowestPlaybackRate), inTransitTimeoutFloorMs);
                 if (clock.elapsedMs() >= timeoutMs) {
                   timedOut = true;
                   reject(new Error(`tts segment timeout after ${timeoutMs}ms`));
