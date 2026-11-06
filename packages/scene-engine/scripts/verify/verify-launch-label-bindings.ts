@@ -38,8 +38,9 @@ for (const pointStyle of ["filled", "cross"] as const) {
 {
     const d = structuredClone(base);
     d.entities = [{ id: "curve", kind: "polyline", role: "function" }, { id: "secant", kind: "line", role: "secant" }];
-    d.constructions = [{ id: "curve_c", operator: "function_curve", inputs: { expression: "abs(x)", xMin: -2, xMax: 2 }, outputs: ["curve"] }, { id: "secant_c", operator: "curve_secant", inputs: { curve: "curve", first: -1, second: 0 }, outputs: ["secant"] }];
-    d.annotations = [{ id: "name", kind: "label", targetIds: ["secant"], text: "left slope" }];
+    d.constructions = [{ id: "curve_c", operator: "function_curve", inputs: { expression: "abs(x)", xMin: -2, xMax: 2 }, outputs: ["curve"] }, { id: "secant_c", operator: "curve_secant", inputs: { curve: "curve", first: -1, second: 1 }, outputs: ["secant"] }];
+    // Across the corner: a secant along one arm of |x| would be drawn as more of the curve, and is refused.
+    d.annotations = [{ id: "name", kind: "label", targetIds: ["secant"], text: "chord" }];
     const scene = compile(d);
     assert(scene.primitives.find(p => p.id === "name")?.provenance?.usesLeader, "a secant label must identify its original parameter interval");
     d.annotations=[]; d.entities[1]!.label="slope";
