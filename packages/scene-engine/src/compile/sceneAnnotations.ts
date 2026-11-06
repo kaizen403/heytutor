@@ -156,6 +156,36 @@ export function appendCompiledAnnotations(
     });
     entityToGroup.set(annotation.id, groupId);
   }
+  if (verifiedPartsEnabled) narrowRingsOverFilledPoints(document, primitives);
+}
+
+/** A filled dot this close to an open ring's centre is drawn under the ring. */
+const RING_OVER_FILLED_POINT_PX = 1;
+
+/**
+ * An open endpoint drawn on another entity's filled point is a join, not a
+ * hole: the next piece includes the point. The wide ring would read as a hole
+ * round that dot, so draw it at the dot's own size, as before verified parts.
+ */
+function narrowRingsOverFilledPoints(document: SceneDocument, primitives: RenderPrimitive[]): void {
+  const targetsOf = new Map(document.annotations.map((annotation) => [annotation.id, new Set(annotation.targetIds)]));
+  const filled = primitives.filter((primitive) => primitive.kind === "point" && primitive.points[0]);
+  const narrowed = new Set<string>();
+  for (const ring of primitives) {
+    const centre = ring.points[0];
+    if (ring.kind !== "circle" || ring.provenance?.pointStyle !== "open" || !centre) continue;
+    const own = targetsOf.get(ring.entityId) ?? new Set([ring.entityId]);
+    if (!filled.some((dot) => !own.has(dot.entityId) && dot.entityId !== ring.entityId &&
+        Math.hypot(dot.points[0]!.x - centre.x, dot.points[0]!.y - centre.y) <= RING_OVER_FILLED_POINT_PX)) continue;
+    narrowed.add(`${Math.round(centre.x * 100)},${Math.round(centre.y * 100)}`);
+  }
+  if (!narrowed.size) return;
+  for (let index = 0; index < primitives.length; index++) {
+    const ring = primitives[index]!;
+    const centre = ring.points[0];
+    if (ring.kind !== "circle" || ring.provenance?.pointStyle !== "open" || !centre) continue;
+    if (narrowed.has(`${Math.round(centre.x * 100)},${Math.round(centre.y * 100)}`)) primitives[index] = { ...ring, radius: 2 };
+  }
 }
 
 function targetPrimitives(
