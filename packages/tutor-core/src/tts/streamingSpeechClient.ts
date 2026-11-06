@@ -117,6 +117,8 @@ interface SegmentJob {
   firstAudioByteReported?: boolean;
   /** Created by the lookahead, before the runner asked for it. */
   lookahead?: boolean;
+  /** The relay said this sentence's complete audio is on its way. */
+  audioInTransit?: boolean;
 }
 
 /** Complete provider bytes exist, but the output clock stopped advancing. */
@@ -170,6 +172,14 @@ function jobMatches(
 }
 
 const HTTP_STREAM_URL = "/api/tts/stream";
+/**
+ * Relay control message sent just before a sentence's complete audio. Older
+ * clients ignore unknown control types, so the relay sends it unconditionally.
+ */
+export const TTS_AUDIO_IN_TRANSIT_TYPE = "audio-in-transit";
+const TTS_WS_NO_AUDIO_WATCHDOG_MS = 12_000;
+/** Runner in-transit grace (12 s) plus margin, so the runner decides first. */
+export const TTS_WS_IN_TRANSIT_WATCHDOG_MS = 16_000;
 const DEFAULT_VOICE_SETTINGS = TUTOR_VOICE_SETTINGS;
 /** Fail over to HTTP quickly; a 5s connect wait after every sentence stalls the teacher. */
 export const TTS_WS_CONNECT_TIMEOUT_MS = 1_200;
@@ -628,6 +638,7 @@ export class StreamingSpeechClient implements TTSClient {
       job.reject = reject;
       job.timingsEmitted = false;
       this.reportJobFirstAudioByte(job);
+      this.emitAudioInTransit(job);
       this.emitAudioReady(job);
       this.emitTimings(job);
       tutorDebug("tts", "ws segment claimed from lookahead", {
@@ -783,6 +794,7 @@ export class StreamingSpeechClient implements TTSClient {
         audioReady = true;
         callbacks.onAudioReady?.();
       },
+      onAudioInTransit: () => { if (this.speakGeneration === generation) callbacks.onAudioInTransit?.(); },
       onStart: () => { if (this.speakGeneration === generation) callbacks.onStart?.(); },
       onEnd: () => { if (this.speakGeneration === generation) callbacks.onEnd?.(); },
       onError: (error) => { if (this.speakGeneration === generation) callbacks.onError?.(error); },
@@ -1247,6 +1259,13 @@ export class StreamingSpeechClient implements TTSClient {
     };
   }
 
+  /** Bytes still downloading are not a stall; only a claimed, unfinished job hears it. */
+  private emitAudioInTransit(job: SegmentJob): void {
+    if (job.claimed && !job.settled && job.audioInTransit && !job.contextFinal) {
+      job.options.onAudioInTransit?.();
+    }
+  }
+
   private emitAudioReady(job: SegmentJob): void {
     if (job.claimed && !job.settled && job.contextFinal && job.capturedChunks.some((chunk) => chunk.length > 0)) {
       job.options.onAudioReady?.();
@@ -1517,6 +1536,19 @@ export class StreamingSpeechClient implements TTSClient {
 
         const payload = parseWsPayload(event.data);
         if (payload && isTtsRelayControlPayload(payload)) {
+          if (payload.type === TTS_AUDIO_IN_TRANSIT_TYPE) {
+            const contextId = (payload as { contextId?: unknown }).contextId;
+            const job = typeof contextId === "string" ? this.jobsByContext.get(contextId) : undefined;
+            if (job && !job.settled && !job.audioInTransit) {
+              job.audioInTransit = true;
+              // A whole-sentence message counts as received only once it has
+              // landed, so the no-audio watchdog must restart from here and
+              // outlast the runner's in-transit wait.
+              if (job === this.currentJob) this.resetWatchdog(job);
+              this.emitAudioInTransit(job);
+            }
+            return;
+          }
           if (payload.type === "skip" || payload.type === "error") {
             const error = new Error(
               payload.type === "skip"
@@ -1791,6 +1823,12 @@ export class StreamingSpeechClient implements TTSClient {
     if (this.paused) return;
 
     // Fail when ElevenLabs never returns audio; leave room for cold WS + first chunk.
+    // Audio the relay reported in transit gets longer than the runner waits
+    // for it (SPEECH_AUDIO_IN_TRANSIT_GRACE_MS, 12 s): firing first would drop
+    // the landing sentence, disable the socket and regenerate it over HTTP.
+    const watchdogMs = job.audioInTransit && !job.receivedAudio
+      ? TTS_WS_IN_TRANSIT_WATCHDOG_MS
+      : TTS_WS_NO_AUDIO_WATCHDOG_MS;
     this.watchdogTimer = window.setTimeout(() => {
       if (this.currentJob !== job || job.settled) {
         return;
@@ -1802,7 +1840,7 @@ export class StreamingSpeechClient implements TTSClient {
       }
 
       void this.completeCurrentJob();
-    }, 12_000);
+    }, watchdogMs);
   }
 
   private clearTimers(): void {

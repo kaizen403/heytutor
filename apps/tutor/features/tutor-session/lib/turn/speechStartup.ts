@@ -13,6 +13,15 @@ export async function requireSpeechStart(
 export const SPEECH_STARTUP_DEADLINE_MS = 6_500;
 /** Complete bytes may still be waiting for native media to start. */
 export const SPEECH_MEDIA_READY_GRACE_MS = 2_500;
+/**
+ * The relay reported the sentence's complete audio on its way. A Cartesia
+ * sentence is one uncompressed WAV (~64 KB per spoken second as base64), and
+ * on 6 Nov 2026 a 13 s sentence queued behind its neighbour took ~6.6 s to
+ * arrive on a ~155 KB/s link: the deadline handed it to the robotic browser
+ * voice 20 ms before it landed. Waiting longer for audio that exists is the
+ * better trade than a different voice.
+ */
+export const SPEECH_AUDIO_IN_TRANSIT_GRACE_MS = 12_000;
 
 /** Active playback time, excluding every pause (including repeated pauses). */
 export function createPauseAwareSpeechClock(now: () => number = () => performance.now()) {
@@ -84,7 +93,7 @@ export async function waitForSpeechStartup(
 /** A stalled first chunk must hand the sentence to the browser voice. */
 export async function speakWithStartupRecovery(input: {
   /** Only publish app onStart when this owned startup accepts the event. */
-  primary: (onStart: () => boolean, onAudioReady: () => void) => Promise<void>;
+  primary: (onStart: () => boolean, onAudioReady: () => void, onAudioInTransit: () => void) => Promise<void>;
   fallback: () => Promise<void>;
   abandonPrimary: () => void;
   /** Caller display state is not allowed to override the owned startup outcome. */
@@ -99,10 +108,14 @@ export async function speakWithStartupRecovery(input: {
   const clock = input.clock ?? createPauseAwareSpeechClock();
   const deadlineMs = input.deadlineMs ?? SPEECH_STARTUP_DEADLINE_MS;
   let readyAtMs: number | null = null;
+  let inTransitAtMs: number | null = null;
   let ownsPrimary = true;
   let acceptedStart = false;
-  const activeDeadlineMs = () => readyAtMs === null ? deadlineMs :
-    Math.max(deadlineMs, readyAtMs + SPEECH_MEDIA_READY_GRACE_MS);
+  const activeDeadlineMs = () => Math.max(
+    deadlineMs,
+    readyAtMs === null ? 0 : readyAtMs + SPEECH_MEDIA_READY_GRACE_MS,
+    inTransitAtMs === null ? 0 : inTransitAtMs + SPEECH_AUDIO_IN_TRANSIT_GRACE_MS,
+  );
   const primary = input.primary(
     () => {
       if (!ownsPrimary || clock.isPaused() || clock.elapsedMs() >= activeDeadlineMs()) return false;
@@ -113,6 +126,13 @@ export async function speakWithStartupRecovery(input: {
     () => {
       if (ownsPrimary && readyAtMs === null && clock.elapsedMs() < activeDeadlineMs()) {
         readyAtMs = clock.elapsedMs();
+      }
+    },
+    () => {
+      // Only before the cutoff: a notice that lands after the browser voice
+      // took over cannot reopen the provider.
+      if (ownsPrimary && inTransitAtMs === null && clock.elapsedMs() < activeDeadlineMs()) {
+        inTransitAtMs = clock.elapsedMs();
       }
     },
   );
