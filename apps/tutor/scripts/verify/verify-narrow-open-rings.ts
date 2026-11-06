@@ -62,15 +62,15 @@ assert.deepEqual(radii(piecewise({ openFirst: true })), [2], "whichever annotati
 // 2. True holes keep the wide ring.
 assert.deepEqual(radii(piecewise({ right: "6*x-5" })), [6], "a jump, its filled point elsewhere, keeps radius 6");
 assert.deepEqual(radii(piecewise({ join: null })), [6], "a hole with no filled point keeps radius 6");
-// 3. Only a dot under the ring: one 2 px from its centre is a different point.
-const pixelsPerUnit = (() => {
-  const left = compiled(piecewise()).find((p) => p.entityId === "left" && p.kind === "polyline")!;
-  return (left.points.at(-1)!.x - left.points[0]!.x) / 3;
-})();
-const nearby = piecewise({ join: 3 - 2 / pixelsPerUnit });
-const ringAt = rings(compiled(nearby))[0]!.points[0]!, dotAt = compiled(nearby).find((p) => p.entityId === "join" && p.kind === "point")!.points[0]!;
-assert(Math.hypot(ringAt.x - dotAt.x, ringAt.y - dotAt.y) > 1.5, "the fixture's dot is off the ring's centre");
-assert.deepEqual(radii(nearby), [6], "a filled point 2 px from the ring's centre keeps radius 6");
+// 3. Only a dot under the ring: one 1.5 px from its centre is a different point.
+const offset = (delta: number) => {
+  const primitives = compiled(piecewise({ join: 3 - delta }));
+  const ring = rings(primitives)[0]!.points[0]!, dot = primitives.find((p) => p.entityId === "join" && p.kind === "point")!.points[0]!;
+  return Math.hypot(ring.x - dot.x, ring.y - dot.y);
+};
+const delta = 0.001 * 1.5 / offset(0.001);
+assert(offset(delta) > 1.2 && offset(delta) < 2, `the fixture's dot sits about 1.5 px off the ring's centre: ${offset(delta)}`);
+assert.deepEqual(radii(piecewise({ join: 3 - delta })), [6], "a filled point 1.5 px from the ring's centre keeps radius 6");
 // 4. With verified parts off nothing changes: the ring was already radius 2.
 assert.deepEqual(radii(piecewise({ yield: false })), [2], "verified parts off draws radius 2 as before");
 assert.deepEqual(radii(piecewise({ yield: false, right: "6*x-5" })), [2], "for a jump too");
