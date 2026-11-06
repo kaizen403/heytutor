@@ -335,6 +335,17 @@ const oneCell = parallel({ up: [true], loadSense: "negative" });
 (oneCell.requiredEntityIds as string[]).push("load2");
 ((oneCell.revealGroups as Array<{ entityIds: string[] }>)[0]!.entityIds).push("load2");
 expect("one cell with loads in parallel is left to the single cell rule", oneCell, LOAD, false);
+// Another kind of source fixes no polarity the plates can show, so the rule stands down.
+const withAc = parallel({ loadSense: "negative" });
+for (const [entity, construction] of [point("TA", 9, 4), point("BA", 9, -4),
+  [{ id: "wta", kind: "connector", role: "wire" }, { id: "make_wta", operator: "connect", inputs: { start: "T", end: "TA" }, outputs: ["wta"] }],
+  [{ id: "mains", kind: "component", role: "source", label: "V" }, { id: "make_mains", operator: "symbol", inputs: { start: "TA", end: "BA", symbol: "ac_source" }, outputs: ["mains"] }],
+  [{ id: "wba", kind: "connector", role: "wire" }, { id: "make_wba", operator: "connect", inputs: { start: "BA", end: "B" }, outputs: ["wba"] }],
+] as Array<[Entity, Construction]>) {
+  (withAc.entities as Entity[]).push(entity); (withAc.constructions as Construction[]).push(construction);
+  (withAc.requiredEntityIds as string[]).push(entity.id); ((withAc.revealGroups as Array<{ entityIds: string[] }>)[0]!.entityIds).push(entity.id);
+}
+expect("cells in parallel beside an AC source are not judged", withAc, LOAD, false);
 
 // --- polarity marks against the plates ----------------------------------------------
 // The loop's cell runs P to S, so its long plate is at P. Marks on terminal points land in the order the points are
