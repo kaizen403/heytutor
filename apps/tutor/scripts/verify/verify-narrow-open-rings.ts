@@ -59,6 +59,28 @@ const radii = (document: SceneDocument) => rings(compiled(document)).map((ring) 
 // 1. A smooth join: the other piece's filled point sits under the ring.
 assert.deepEqual(radii(piecewise()), [2], "an open end on another piece's filled join point is drawn at radius 2");
 assert.deepEqual(radii(piecewise({ openFirst: true })), [2], "whichever annotation comes first");
+// An open end on a point: its own dot becomes a ring, and both it and the mark are narrowed over another piece's filled mark.
+function openOnPoint(right: string): SceneDocument {
+  const raw: Row = {
+    schemaVersion: SCENE_DOCUMENT_VERSION, visualDecision: { mode: "scene", reason: "figure" },
+    source: { question: QUESTION, nonMetric: true, representationTier: "qualitative_verified", diagramYieldPolicy: "verified_parts" },
+    quantities: [{ id: "x0", symbol: "x0", value: 3 }], relations: [], assertions: [], teachingTimeline: [],
+    entities: [{ id: "axes", kind: "axes", role: "coordinate axes" }, { id: "left", kind: "polyline", role: "curve" }, { id: "right", kind: "polyline", role: "curve" }, { id: "end", kind: "point", role: "excluded point" }],
+    constructions: [
+      { id: "make_axes", operator: "axes", inputs: { xMin: 0, xMax: 5, yMin: 0, yMax: 22 }, outputs: ["axes"] },
+      { id: "make_left", operator: "function_curve", inputs: { expression: "x^2", xMin: 0, xMax: 3, samples: 65 }, outputs: ["left"] },
+      { id: "make_right", operator: "function_curve", inputs: { expression: right, xMin: 3, xMax: 5, samples: 33 }, outputs: ["right"] },
+      { id: "make_end", operator: "curve_anchor", inputs: { curve: "left", at: "x0" }, outputs: ["end"] },
+    ],
+    annotations: [{ id: "left_exclusion", kind: "endpoint", targetIds: ["end"], style: { pointStyle: "open" } }, { id: "right_inclusion", kind: "endpoint", targetIds: ["right"], style: { pointStyle: "filled" } }],
+    requiredEntityIds: ["axes", "left", "right", "end"], revealGroups: [{ id: "g", entityIds: ["axes", "left", "right", "end"], dependsOn: [], narrationCue: "The two pieces." }],
+  };
+  const validated = validateSceneDocument(raw);
+  assert(validated.document, "the open point fixture is valid");
+  return validated.document;
+}
+assert.deepEqual(radii(openOnPoint("6*x-9")), [2, 2], "an open end on a point: its own dot, now a ring, and the mark are both drawn at radius 2");
+assert.deepEqual(radii(openOnPoint("6*x-5")), [6, 6], "and at a jump both keep radius 6");
 // 2. True holes keep the wide ring.
 assert.deepEqual(radii(piecewise({ right: "6*x-5" })), [6], "a jump, its filled point elsewhere, keeps radius 6");
 assert.deepEqual(radii(piecewise({ join: null })), [6], "a hole with no filled point keeps radius 6");
