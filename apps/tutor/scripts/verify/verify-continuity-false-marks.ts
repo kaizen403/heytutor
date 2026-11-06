@@ -44,6 +44,16 @@ assert.deepEqual(fatal(anchorCompile(0.5, { entity: "f(0)=2" })), ["geometry_cla
 assert(anchorCompile(0, { entity: "f(0)=2" }).ok, "f(0)=2 drawn at x 0 is kept");
 assert.deepEqual(fatal(anchorCompile(0.5, { annotation: "f(0)" })), ["geometry_claim_contradiction"], "a label annotation f(0) at x 0.5 is refused too");
 assert(anchorCompile(-1, { entity: "f(−1)" }).ok, "a unicode minus reads as the same number");
+assert.deepEqual(fatal(anchorCompile(1, { entity: "f(−1)" })), ["geometry_claim_contradiction"], "f(−1) with a unicode minus drawn at x 1 is refused");
+// Two or more decimals are a rounding of the drawn abscissa; an integer or one decimal is exact.
+const markOn = (expression: string, xMin: number, xMax: number, at: number, label: string) => compileSceneDocument(valid(base("Sketch the curve and mark the point.",
+  [{ id: "curve", kind: "polyline", role: "curve" }, { id: "point", kind: "point", role: "point", label }],
+  [{ id: "c1", operator: "function_curve", inputs: { expression, xMin, xMax }, outputs: ["curve"] }, { id: "c2", operator: "curve_anchor", inputs: { curve: "curve", at }, outputs: ["point"] }])));
+assert(markOn("x^3-6*x", -3, 3, Math.SQRT2, "f(1.41)").ok, "f(1.41) on a dot at x = √2 is kept");
+assert(markOn("sin(x)", 0, 4, Math.PI, "f(3.14)").ok, "f(3.14) on a dot at x = π is kept");
+assert.deepEqual(fatal(markOn("x^3-6*x", -3, 3, 1.42, "f(1.41)")), ["geometry_claim_contradiction"], "f(1.41) on a dot at 1.42 is refused");
+assert.deepEqual(fatal(markOn("x^3-6*x", -3, 3, 0.46, "f(0.5)")), ["geometry_claim_contradiction"], "f(0.5) on a dot at 0.46 is refused: one decimal is exact");
+assert.deepEqual(fatal(markOn("x^3-6*x", -3, 3, 0.25, "x(0.10)")), ["geometry_claim_contradiction"], "x(0.10) on a dot at 0.25 is refused");
 assert(anchorCompile(0.5, { entity: "f(a)" }).ok, "a symbolic argument states no abscissa");
 assert(anchorCompile(0.5, { entity: "P" }).ok, "a plain name is not this check");
 console.log("PASS f(a): a labelled point must sit at its stated abscissa");

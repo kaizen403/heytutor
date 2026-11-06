@@ -17,9 +17,19 @@ interface Value {
 /** A symbol is a claim even without a printed numeral. Bind curve parameter
  * names and declared complex operations to evaluated mathematical metadata. */
 /** The a in a label "f(a)" or "f(a) = b" with a plain number a; otherwise null. */
-function statedAbscissa(label: string | undefined): number | null {
-    const match = /^\s*[A-Za-z][A-Za-z0-9_′']*\s*\(\s*([-−]?\d+(?:\.\d+)?)\s*\)\s*(?:=.*)?$/.exec(label ?? "");
-    return match ? Number(match[1]!.replace("−", "-")) : null;
+function statedAbscissa(label: string | undefined): { value: number; decimals: number } | null {
+    const match = /^\s*[A-Za-z][A-Za-z0-9_′']*\s*\(\s*([-−]?\d+(?:\.(\d+))?)\s*\)\s*(?:=.*)?$/.exec(label ?? "");
+    return match ? { value: Number(match[1]!.replace("−", "-")), decimals: match[2]?.length ?? 0 } : null;
+}
+
+/**
+ * Does the drawn abscissa agree with the printed one? An integer or one
+ * decimal is read as exact, so f(0) on a dot at 0.5 is false. Two or more
+ * decimals are a rounding: f(1.41) on a dot at √2 is true.
+ */
+function abscissaDisagrees(stated: { value: number; decimals: number }, drawn: number): boolean {
+    if (stated.decimals < 2) return Math.abs(stated.value - drawn) > 1e-7 * Math.max(1, Math.abs(stated.value));
+    return Math.abs(stated.value - drawn) > 0.5 * 10 ** -stated.decimals * (1 + 1e-9);
 }
 
 export function validateGeometryClaimTruth(document: SceneDocument, geometry: ReadonlyMap<string, unknown>): SceneIssue[] {
@@ -49,7 +59,7 @@ export function validateGeometryClaimTruth(document: SceneDocument, geometry: Re
                     .map(a => a.text)];
                 for (const label of labels) {
                     const stated = statedAbscissa(label);
-                    if (stated !== null && Math.abs(stated - value.calculusAnchor.parameter) > 1e-7 * Math.max(1, Math.abs(stated)))
+                    if (stated !== null && abscissaDisagrees(stated, value.calculusAnchor.parameter))
                         fail("A label f(a) on a function-curve point names a different abscissa from where the point is drawn.");
                 }
             }
