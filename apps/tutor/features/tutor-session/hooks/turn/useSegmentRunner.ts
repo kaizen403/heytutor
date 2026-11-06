@@ -731,7 +731,7 @@ export function useSegmentRunner({
           }
           onSpeechStartupStatus?.(null);
         };
-        const speakPrimary = (onStart: () => boolean, onAudioReady: () => void) => {
+        const speakPrimary = (onStart: () => boolean, onAudioReady: () => void, onAudioInTransit: () => void) => {
           const attempt = ++primaryGeneration;
           const canAcceptPrimary = () => ownsPrimary && attempt === primaryGeneration && !isCancelled() && !speechAborted;
           tel?.mark("tts-startup-attempted", {
@@ -786,6 +786,11 @@ export function useSegmentRunner({
             onAudioReady: () => {
               if (!canAcceptPrimary()) return;
               onAudioReady();
+            },
+            onAudioInTransit: () => {
+              if (!canAcceptPrimary()) return;
+              tel?.mark("tts-audio-in-transit", { segment_index: index, turn_generation: turnGeneration });
+              onAudioInTransit();
             },
             onStart: () => {
               if (canAcceptPrimary() && permissionWaitOwnerRef.current === startupOwner && !isPausedRef.current) {

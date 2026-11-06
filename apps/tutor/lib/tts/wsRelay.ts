@@ -1,5 +1,5 @@
 import { WebSocket } from "ws";
-import { normalizeVoiceKey, type TutorVoiceKey } from "@heytutor/tutor-core";
+import { normalizeVoiceKey, TTS_AUDIO_IN_TRANSIT_TYPE, type TutorVoiceKey } from "@heytutor/tutor-core";
 import { prisma } from "../db/prisma";
 import { captureTtsRelayFailure } from "../obs/sentryNode";
 import { flushInBackground, recordTtsSpan } from "../obs/langfuse";
@@ -174,9 +174,16 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
     try {
       const normalized = relay.receive(data.toString());
       if (!normalized) return;
+      const message = JSON.parse(normalized);
+      // Cartesia and Sarvam deliver a whole sentence in this one message, and
+      // on a slow link it takes seconds to arrive. Say so first: a client that
+      // hears nothing for its startup budget swaps in the robotic browser voice.
+      const finalContextId = message.contextId ?? message.context_id;
+      if (message.isFinal && typeof message.audio === "string" && message.audio.length > 0 && typeof finalContextId === "string") {
+        client.send(JSON.stringify({ type: TTS_AUDIO_IN_TRANSIT_TYPE, contextId: finalContextId }));
+      }
       client.send(normalized);
       for (const payload of relay.drain?.() ?? []) vendor.send(JSON.stringify(payload));
-      const message = JSON.parse(normalized);
       if (message.isFinal) {
         const id = message.contextId ?? message.context_id;
         const spend = pending.get(id);

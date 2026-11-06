@@ -97,6 +97,13 @@ async function main() {
   assert.equal(delivered[0].contextId, "segment_1");
   assert.equal(Buffer.from(delivered[0].audio, "base64").subarray(0, 4).toString(), "RIFF");
   assert.equal(delivered[0].alignment, undefined);
+  // The whole sentence is in that one message; the client hears it is coming
+  // first, so a slow download is not mistaken for a stalled voice.
+  const messages = ws.sent.map((raw) => JSON.parse(raw));
+  const finalAt = messages.findIndex((m) => m.isFinal);
+  assert.deepEqual(messages[finalAt - 1], { type: "audio-in-transit", contextId: "segment_1" },
+    "the in-transit notice immediately precedes the sentence's audio");
+  assert.equal(messages.filter((m) => m.type === "audio-in-transit").length, 1, "one notice per sentence");
   assert.deepEqual(texts(vendor), ["पहला sentence.", "दूसरा sentence."], "the next queued sentence follows the final");
   assert.deepEqual(events, ["refunded", "charged"], "the spoken sentence is charged at its final");
 
