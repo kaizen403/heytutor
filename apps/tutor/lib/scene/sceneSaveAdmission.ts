@@ -12,6 +12,7 @@
  * once recomputed here (engineDerivedValues); a figure built on a display
  * default is not.
  */
+import { FIGURE_QUESTION_CHARS, figureQuestionChars } from "@/lib/scene/figureQuestion";
 import {
   displayedSceneQuantityTexts,
   certifyVseprSourceDocument,
@@ -220,6 +221,9 @@ export function liveSceneSaveFailure(input: {
   turnPlan: TurnPlanV3 | null;
   tier: SaveAdmissionTier;
 }): string | null {
+  if (input.turnPlan && figureQuestionChars(input.question) > FIGURE_QUESTION_CHARS) {
+    return `scene question is over the ${FIGURE_QUESTION_CHARS} character figure size`;
+  }
   if (input.tier === "exact_verified" && input.turnPlan) {
     const proofIssues = validateTurnPlanSceneProofs(input.document, input.turnPlan);
     if (proofIssues.some((issue) => issue.severity === "fatal")) {

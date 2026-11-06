@@ -480,6 +480,21 @@ try {
     throw new Error("every optics lane was wrong, yet planTurnV3 returned a plan");
   }
 
+  // A plan fresh from the model is refused when its chain is one the reader misreads and disagrees.
+  const doubtPlan = (sourceText: string, value: number, unit?: string) => JSON.stringify({
+    schemaVersion: "turn-plan/v3", question: "Doubt row.", givens: [], unknowns: [{ id: "x", symbol: "x", ...(unit ? { unit } : {}) }],
+    derived: [{ id: "x", symbol: "x", value, ...(unit ? { unit } : {}), sourceText, provenance: "derived" }],
+    qualitativeClaims: [], lawIds: ["law"], assumptions: [], visualRequirement: "optional",
+  });
+  for (const [source, value, unit] of [["x = 180° − 50° − 60° = 70°", 70, "°"], ["x = 5, SP = 0.96 × 5 = 4.8", 5, undefined], ["2x + 3 = 11, so x = 4", 4, undefined], ["x = 6 m × 30°", 6, "m"]] as const) {
+    if (parseTurnPlanV3Content(doubtPlan(source, value, unit), "Doubt row.") !== null) {
+      throw new Error(`a fresh plan with a doubtful chain was not refused: ${source}`);
+    }
+  }
+  if (parseTurnPlanV3Content(doubtPlan("x = 180 − 50 − 60 = 70°", 70, "°"), "Doubt row.")?.derived[0]?.value !== 70) {
+    throw new Error("a plain degree chain must still read as it always did");
+  }
+
   console.log("turn planner V3 verification passed");
 } finally {
   globalThis.fetch = originalFetch;

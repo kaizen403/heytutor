@@ -1,0 +1,1 @@
+tsx scripts/verify/verify-figure-question-size.ts

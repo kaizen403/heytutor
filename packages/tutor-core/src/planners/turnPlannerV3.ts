@@ -601,7 +601,7 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
         declined: reconciled.declined.map((item) => ({ quantity_id: item.quantityId, reason: item.reason })),
       });
     }
-    const validation = validateTurnPlanV3(reconciled.plan, question);
+    const validation = validateTurnPlanV3(reconciled.plan, question, { freshFromModel: true });
     let result = validation;
     if (validation.plan) {
       // The optics audit never changes a plan value. A value that disagrees

@@ -145,6 +145,9 @@ jobs:
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-sentry-log-privacy.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-tts-relay-cancellation.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-scene-text-limits.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-figure-question-size.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-presentation-label-refusal.ts
+          pnpm --filter @heytutor/tutor exec node --experimental-test-module-mocks --import tsx scripts/verify/verify-presentation-throw-escapes.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-worker-failure-log.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-billing-failure-telemetry.ts
           pnpm --filter @heytutor/tutor exec node --experimental-test-module-mocks --import tsx scripts/verify/verify-teaching-reservation-budget.ts

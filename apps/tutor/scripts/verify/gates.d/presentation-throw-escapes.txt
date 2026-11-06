@@ -1,0 +1,1 @@
+node --experimental-test-module-mocks --import tsx scripts/verify/verify-presentation-throw-escapes.ts
