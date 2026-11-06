@@ -71,6 +71,22 @@ const offset = (delta: number) => {
 const delta = 0.001 * 1.5 / offset(0.001);
 assert(offset(delta) > 1.2 && offset(delta) < 2, `the fixture's dot sits about 1.5 px off the ring's centre: ${offset(delta)}`);
 assert.deepEqual(radii(piecewise({ join: 3 - delta })), [6], "a filled point 1.5 px from the ring's centre keeps radius 6");
+// A drawn circle centred on a filled point is not an open end, and keeps its size.
+{
+  const raw: Row = {
+    schemaVersion: SCENE_DOCUMENT_VERSION, visualDecision: { mode: "scene", reason: "figure" },
+    source: { question: "Draw a circle of radius 3 about O.", nonMetric: true, representationTier: "qualitative_verified", diagramYieldPolicy: "verified_parts" },
+    quantities: [], relations: [], assertions: [], teachingTimeline: [],
+    entities: [{ id: "o", kind: "point", role: "centre", label: "O" }, { id: "ring", kind: "circle", role: "circle" }],
+    constructions: [{ id: "make_o", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["o"] }, { id: "make_ring", operator: "circle", inputs: { center: "o", radius: 3 }, outputs: ["ring"] }],
+    annotations: [{ id: "centre", kind: "endpoint", targetIds: ["o"], style: { pointStyle: "filled" } }],
+    requiredEntityIds: ["o", "ring"], revealGroups: [{ id: "g", entityIds: ["o", "ring"], dependsOn: [], narrationCue: "The circle." }],
+  };
+  const validated = validateSceneDocument(raw);
+  assert(validated.document, "the circle fixture is valid");
+  const circle = compiled(validated.document).find((p) => p.entityId === "ring" && p.kind === "circle")!;
+  assert(circle.radius! > 20, `a circle centred on a filled point keeps its drawn radius: ${circle.radius}`);
+}
 // 4. With verified parts off nothing changes: the ring was already radius 2.
 assert.deepEqual(radii(piecewise({ yield: false })), [2], "verified parts off draws radius 2 as before");
 assert.deepEqual(radii(piecewise({ yield: false, right: "6*x-5" })), [2], "for a jump too");
