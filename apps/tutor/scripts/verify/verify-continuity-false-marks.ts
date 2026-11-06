@@ -49,13 +49,21 @@ assert(anchorCompile(0.5, { entity: "P" }).ok, "a plain name is not this check")
 console.log("PASS f(a): a labelled point must sit at its stated abscissa");
 
 // 2. A secant on a straight stretch of a curve that bends elsewhere.
-const lineOn = (expression: string, construction: Row) => base("Draw the line on the curve.",
+const lineOn = (expression: string, construction: Row, xMin = -2, xMax = 2) => base("Draw the line on the curve.",
   [{ id: "curve", kind: "polyline", role: "curve" }, { id: "line", kind: "line", role: "line" }],
-  [{ id: "c1", operator: "function_curve", inputs: { expression, xMin: -2, xMax: 2 }, outputs: ["curve"] }, { id: "c2", ...construction, outputs: ["line"] }]);
-const lineIssues = (expression: string, construction: Row) => fatal(validateSceneDocument(lineOn(expression, construction)));
+  [{ id: "c1", operator: "function_curve", inputs: { expression, xMin, xMax }, outputs: ["curve"] }, { id: "c2", ...construction, outputs: ["line"] }]);
+const lineIssues = (expression: string, construction: Row, xMin = -2, xMax = 2) => fatal(validateSceneDocument(lineOn(expression, construction, xMin, xMax)));
 assert(lineIssues("abs(x)", { operator: "curve_secant", inputs: { curve: "curve", first: 0, second: 1 } }).includes("invalid_curve_secant_geometry"), "a secant along one arm of |x| is refused");
 assert.deepEqual(lineIssues("x^2", { operator: "curve_secant", inputs: { curve: "curve", first: 0, second: 1 } }), [], "a secant of a parabola is kept");
 assert.deepEqual(lineIssues("2*x+1", { operator: "curve_secant", inputs: { curve: "curve", first: 0, second: 1 } }), [], "a secant of a straight line that never bends is kept");
+const secant01 = { operator: "curve_secant", inputs: { curve: "curve", first: 0, second: 1 } };
+// Straightness comes from the expression, never from samples that happen to agree.
+assert.deepEqual(lineIssues("cos(48*pi*x)", secant01, -1, 1), [], "a secant of a fast cosine whose samples all agree is kept");
+assert(lineIssues("x + abs(x-1.51) + abs(x-1.53) - 2*abs(x-1.52)", secant01).includes("invalid_curve_secant_geometry"), "a bend narrower than any sample spacing, outside the secant, still counts");
+assert.deepEqual(lineIssues("x + abs(x-0.51) + abs(x-0.53) - 2*abs(x-0.52)", secant01), [], "and one inside the secant means the stretch is not straight");
+assert(lineIssues("abs(x-0.5) + abs(x+0.5)", { operator: "curve_secant", inputs: { curve: "curve", first: -0.25, second: 0.25 } }).includes("invalid_curve_secant_geometry"), "a secant on the flat floor between two corners is refused");
+assert.deepEqual(lineIssues("abs(x-0.5) + abs(x+0.5)", secant01), [], "one across a corner is kept");
+for (const curved of ["x*abs(x)", "1/(x+3)", "sin(x)"]) assert.deepEqual(lineIssues(curved, secant01), [], `a secant of ${curved}, which is not built from straight pieces, is kept`);
 console.log("PASS straight stretch: a secant drawn along a bending curve's straight piece is refused");
 
 // 3. A straight line's name that hugs another stroke is omitted in live validation; the figure draws.
@@ -92,6 +100,15 @@ assert.equal(validateStraightLineNames(doc, [own, near, name("own", 510, 300)]).
 const far = straight("rival", { x: 900, y: 100 }, { x: 900, y: 500 });
 assert.equal(validateStraightLineNames(doc, [own, far, name("own", 700, 300)]).length, 0, "a name floating clear of every stroke is read by elimination");
 assert.equal(validateStraightLineNames(doc, [curved("own"), rival, name("own", 570, 300)]).length, 0, "a curve's name, however far, is not this rule");
+// Measured to the ink another stroke draws: a ring by its circumference, a closed shape by every edge.
+const ring = (cx: number, cy: number, radius: number, kind = "circle", extra: Row = {}): RenderPrimitive => ({ id: "rival_ring", entityId: "rival", kind, points: [{ x: cx, y: cy }], radius, ...extra } as unknown as RenderPrimitive);
+assert.equal(validateStraightLineNames(doc, [own, ring(600, 312, 150), name("own", 570, 300)]).length, 0, "a name near the centre of a wide ring is far from its ink");
+assert.equal(validateStraightLineNames(doc, [own, ring(720, 312, 80), name("own", 570, 300)]).length, 1, "a name 10 px from a ring's circumference is flagged");
+assert.equal(validateStraightLineNames(doc, [own, ring(720, 312, 80, "arc", { startAngle: Math.PI / 2, endAngle: 3 * Math.PI / 2 }), name("own", 570, 300)]).length, 1, "and 10 px from an arc's");
+assert.equal(validateStraightLineNames(doc, [own, ring(720, 312, 80, "arc", { startAngle: -Math.PI / 2, endAngle: Math.PI / 2 }), name("own", 570, 300)]).length, 0, "but not when the arc's ink is on the far side");
+const closed = (kind: string, points: Row[]): RenderPrimitive => ({ id: "rival_shape", entityId: "rival", kind, points } as unknown as RenderPrimitive);
+assert.equal(validateStraightLineNames(doc, [own, closed("polygon", [{ x: 640, y: 100 }, { x: 900, y: 300 }, { x: 640, y: 500 }]), name("own", 570, 300)]).length, 1, "a name beside a triangle's closing edge is flagged");
+assert.equal(validateStraightLineNames(doc, [own, closed("rectangle", [{ x: 640, y: 100 }, { x: 900, y: 100 }, { x: 900, y: 500 }, { x: 640, y: 500 }]), name("own", 570, 300)]).length, 1, "and beside a rectangle's last side");
 console.log("PASS rule: flagged only when the name's box hugs another stroke and sits nearer it than its own straight line");
 
 // Rule 3: a saved figure is judged by the save path, where the name rule does not run.

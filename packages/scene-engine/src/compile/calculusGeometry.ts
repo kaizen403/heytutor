@@ -1,4 +1,5 @@
-import { parseMathExpression } from "../math/expression";
+import { parseMathExpression, piecewiseLinearCorners } from "../math/expression";
+import { isLabelWorkSpent } from "./figureWork";
 import { evaluateKinematicsConstruction } from "./kinematicsGeometry";
 import { evaluateWavesConstruction } from "./wavesGeometry";
 import { evaluateElasticityConstruction } from "./elasticityGeometry";
@@ -256,17 +257,21 @@ function analyticReplayContext(document: SceneDocument, constructionByOutput: Ma
  * Is a function curve exactly straight over [low, high] but not that same line
  * over its whole domain? A secant there coincides with the curve,
  * and drawn edge to edge it reads as more of the curve (|x| drawn as an X).
+ * Straightness is read from the expression's corners, never from samples:
+ * any expression other than a piecewise straight one is left alone.
  */
-function alongStraightStretchOfBendingCurve(curve: CalculusCurveDefinition, low: number, high: number): boolean {
-  if (curve.curveKind !== "function" || !(high > low)) return false;
+function alongStraightStretchOfBendingCurve(curve: CalculusCurveDefinition, expression: unknown, low: number, high: number): boolean {
+  if (curve.curveKind !== "function" || typeof expression !== "string" || !(high > low)) return false;
+  let corners: number[] | null;
+  try { corners = piecewiseLinearCorners(expression, curve.parameterMin, curve.parameterMax); } catch (error) { if (isLabelWorkSpent(error)) throw error; return false; }
+  if (!corners) return false;
   const a = curve.evaluate(low), b = curve.evaluate(high);
   const dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy);
   if (!(length > 0)) return false;
   const off = (t: number) => { const p = curve.evaluate(t); return Math.abs((p.x - a.x) * dy - (p.y - a.y) * dx) / length; };
-  const samples = (from: number, to: number, count: number) => Array.from({ length: count + 1 }, (_, index) => from + (to - from) * index / count);
-  const scale = Math.max(length, 1e-9);
-  if (samples(low, high, 24).some((t) => off(t) > 1e-9 * scale)) return false;
-  return samples(curve.parameterMin, curve.parameterMax, 96).some((t) => off(t) > 1e-3 * scale);
+  // Straight between neighbouring corners, so the corners alone decide both questions.
+  if (corners.filter((t) => t > low && t < high).some((t) => off(t) > 1e-9 * length)) return false;
+  return corners.some((t) => off(t) > 1e-3 * length);
 }
 
 export function validateCalculusConstruction(construction: SceneConstruction, index: number, document: SceneDocument, constructionByOutput: Map<string, SceneConstruction>, issues: SceneIssue[]): void {
@@ -281,7 +286,9 @@ export function validateCalculusConstruction(construction: SceneConstruction, in
       const curve = curveReference(construction.inputs.curve, context);
       const first = parameter(construction.inputs.first, "first", curve, context);
       const second = parameter(construction.inputs.second, "second", curve, context);
-      if (alongStraightStretchOfBendingCurve(curve, Math.min(first, second), Math.max(first, second))) {
+      const source = constructionByOutput.get(construction.inputs.curve as string);
+      const expression = source?.operator === "function_curve" ? source.inputs.expression : undefined;
+      if (alongStraightStretchOfBendingCurve(curve, expression, Math.min(first, second), Math.max(first, second))) {
         add("geometry", "a secant along a straight stretch of a curve that bends elsewhere is drawn on the curve past the bend");
       }
     }
