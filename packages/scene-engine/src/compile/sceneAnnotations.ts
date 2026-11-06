@@ -171,19 +171,13 @@ const RING_OVER_FILLED_POINT_PX = 1;
  */
 function narrowRingsOverFilledPoints(primitives: RenderPrimitive[]): void {
   const filled = primitives.filter((primitive) => primitive.kind === "point" && primitive.points[0]);
-  const narrowed = new Set<string>();
-  for (const ring of primitives) {
-    const centre = ring.points[0];
-    if (ring.kind !== "circle" || ring.provenance?.pointStyle !== "open" || !centre) continue;
-    if (!filled.some((dot) => Math.hypot(dot.points[0]!.x - centre.x, dot.points[0]!.y - centre.y) <= RING_OVER_FILLED_POINT_PX)) continue;
-    narrowed.add(`${Math.round(centre.x * 100)},${Math.round(centre.y * 100)}`);
-  }
-  if (!narrowed.size) return;
   for (let index = 0; index < primitives.length; index++) {
     const ring = primitives[index]!;
     const centre = ring.points[0];
     if (ring.kind !== "circle" || ring.provenance?.pointStyle !== "open" || !centre) continue;
-    if (narrowed.has(`${Math.round(centre.x * 100)},${Math.round(centre.y * 100)}`)) primitives[index] = { ...ring, radius: 2 };
+    if (filled.some((dot) => Math.hypot(dot.points[0]!.x - centre.x, dot.points[0]!.y - centre.y) <= RING_OVER_FILLED_POINT_PX)) {
+      primitives[index] = { ...ring, radius: 2 };
+    }
   }
 }
 
