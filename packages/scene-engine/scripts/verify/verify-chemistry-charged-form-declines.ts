@@ -40,6 +40,7 @@ for (const question of [
   "Draw the sodium salt of benzoic acid.",
   "Draw deprotonated acetic acid.",
   "Glycine is an inner salt. Draw it.",
+  "Alanine is an internal salt. Draw it.",
   "Draw the cation of aniline.",
 ]) {
   check(`no neutral structure for: ${question}`, () => {
@@ -62,13 +63,19 @@ for (const question of [
   check(`a plain structure still draws: ${question}`, () => assert.equal(synthesizeFamilyScene({ question })?.family, "chem_organic"));
 }
 
-// A condition on a reaction, or a reason in an explanation, is no ask for another form.
+// These conditions and reasons are no ask for another form, and they draw. Not every
+// such wording does: "protonated", "deprotonated", "at pH" and "salt of" still decline
+// a stem that uses them for a reason or a condition, a known cost stated beside the
+// regex. The aniline row passes only because "protonation" is a noun. The pH and salt
+// rows stop a later widening of "at pH" or "salt of" to any pH or any salt.
 for (const question of [
   "Toluene on treatment with KMnO4 in acidic medium gives benzoic acid.",
   "Ethanol on treatment with K2Cr2O7 in acidic medium gives acetic acid.",
   "Why is p-nitrophenol more acidic than phenol? Compare their conjugate bases.",
   "Why is benzoic acid stronger than acetic acid? Explain using the carboxylate ion.",
   "Draw the structure of aniline. Why is it less basic after protonation?",
+  "Draw the structure of acetic acid. What is the pH at half neutralisation?",
+  "Draw the structure of glycine. Is it a salt?",
 ]) {
   check(`a condition or a reason still draws: ${question}`, () => assert.equal(synthesizeFamilyScene({ question })?.family, "chem_organic"));
 }
