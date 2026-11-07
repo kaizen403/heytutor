@@ -62,8 +62,8 @@ function parallel(positiveAtTop: boolean, loadSense: string): Record<string, unk
   ]);
 }
 
-// Two cells in opposition in one loop: the 6 V cell drives the current into the 4 V cell's positive plate.
-const OPPOSED = "Two ideal cells of emfs 6 V and 4 V are connected in opposition in one loop with a 5 ohm resistor. Show the current direction and each cell's terminals.";
+// Two cells in opposition in one loop: the 9 V cell drives the current into the 3 V cell's positive plate.
+const OPPOSED = "Two ideal cells of emfs 9 V and 3 V are connected in opposition in one loop with a 4 ohm resistor. Show the current direction and each cell's terminals.";
 function opposed(marksAtLongPlates: boolean): Record<string, unknown> {
   // Points are drawn tl, bl, tr, br, so each pair of marks lands on its first listed point in that order.
   return document(OPPOSED, [
