@@ -154,16 +154,24 @@ export function validateProductionSceneCandidate(input: ProductionSceneCandidate
   const asDev = validateCandidateOnce({ ...input, curveLabels: false });
   if (!asDev.valid || !asDev.value || !documentHasFunctionCurve(asDev.value.document)) return asDev;
   const onStroke = validateCandidateOnce(input);
-  // Moved labels never cost the figure a label: any name dev keeps must survive on the stroke too.
-  const devOmitted = omittedLabels(asDev);
-  return onStroke.valid && [...omittedLabels(onStroke)].every((label) => devOmitted.has(label)) ? onStroke : asDev;
+  return onStrokeKeepsDevLabels(onStroke, asDev) ? onStroke : asDev;
 }
 
-/** The labels verified parts left out of a validated figure, by where each was written. */
-function omittedLabels(result: SceneCandidateValidation<ValidatedSceneCandidate>): Set<string> {
-  return new Set((result.errors ?? [])
-    .filter((issue) => issue.code === "yield_label_omitted")
-    .map((issue) => issue.path ?? JSON.stringify(issue.entityIds ?? [])));
+/**
+ * Moved labels never cost the figure a label: every label dev draws must be drawn on the stroke too, read from
+ * the drawn figures themselves (an omission's path is written against a document that shrinks as labels go).
+ */
+export function onStrokeKeepsDevLabels(
+  onStroke: SceneCandidateValidation<ValidatedSceneCandidate>,
+  asDev: SceneCandidateValidation<ValidatedSceneCandidate>,
+): boolean {
+  if (!onStroke.valid || !onStroke.value) return false;
+  const drawn = new Set(labelIds(onStroke.value));
+  return labelIds(asDev.value).every((id) => drawn.has(id));
+}
+
+function labelIds(value: ValidatedSceneCandidate | undefined): string[] {
+  return (value?.renderScene.primitives ?? []).filter((primitive) => primitive.kind === "label" || primitive.kind === "dimension").map((primitive) => primitive.id);
 }
 
 function validateCandidateOnce(input: ProductionSceneCandidateInput): SceneCandidateValidation<ValidatedSceneCandidate> {

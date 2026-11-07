@@ -18,7 +18,7 @@ import {
 } from "@heytutor/scene-engine";
 import { isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
 import { normalizeSceneDocumentModelOutput } from "@heytutor/tutor-core";
-import { validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
+import { onStrokeKeepsDevLabels, validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import { restoreVerifiedPresentationFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import { admitLessonFigures, admitStoredScene } from "../../lib/scene/sceneAdmission";
@@ -209,6 +209,13 @@ async function main() {
   assert(onRegion.valid && onRegion.value && !isCurveLabelPlacementOnStroke(onRegion.value.document), "so with the switch on, dev's figure stands");
   assert.deepEqual(omittedIn(onRegion), [], "with every label");
   assert.deepEqual(onRegion.value.renderScene, devRegion.value!.renderScene, "drawn exactly as dev");
+  // The guard reads the drawn labels. An omission's path names a slot in a document that shrinks as labels go, so two
+  // different omitted labels can share one path: the moved figure below loses c while its omissions look like dev's.
+  const drawnWith = (ids: string[], omitted: string[], valid = true) => ({ valid, errors: omitted.map((path) => ({ code: "yield_label_omitted", path, severity: "warning", message: "" })),
+    value: { renderScene: { primitives: ids.map((id) => ({ id, kind: "label", entityId: id, points: [] })) } } }) as never;
+  assert.equal(onStrokeKeepsDevLabels(drawnWith(["a", "b", "c", "d"], ["annotations[7].text"]), drawnWith(["a", "b", "c"], ["annotations[7].text"])), true, "keeping every label dev draws passes");
+  assert.equal(onStrokeKeepsDevLabels(drawnWith(["a", "b"], ["annotations[7].text", "annotations[7].text"]), drawnWith(["a", "b", "c"], ["annotations[7].text"])), false, "losing one fails, though its omission repeats dev's path");
+  assert.equal(onStrokeKeepsDevLabels(drawnWith(["a", "b", "c"], [], false), drawnWith(["a", "b", "c"], [])), false, "an invalid moved figure fails");
   // The switch fixes, it never admits: a figure dev refuses stays refused, even
   // when its moved label would have let it pass.
   const refusedByDev = { ...areaFigure(), assertions: [{ id: "curveLabelled", predicate: "label_attached", entities: ["curve"] }] } as unknown as Row;
