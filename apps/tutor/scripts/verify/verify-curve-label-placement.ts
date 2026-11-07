@@ -28,7 +28,7 @@ import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
 import { composeDoubtFigureQuestion, doubtFigureArtifacts } from "../../lib/boards/doubtFigure";
 import { LESSON_FIGURES_VERSION, lessonFigureSceneInput } from "../../lib/boards/lessonFigures";
 import { doubtPageCheck, LESSON_TURN_ID, pageRowsOf, stored } from "./fixtures/doubtFigureScene";
-import { bindPageLessonCurveLabels, memoryPageFigureStore } from "../../lib/scene/pageFigureLoader";
+import { bindPageLessonCurveLabels, memoryPageFigureStore, storedCurveLabels } from "../../lib/scene/pageFigureLoader";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -265,7 +265,24 @@ async function main() {
   assert.deepEqual(resumedOff.sceneDocument, savedOn.sceneDocument, "with the switch off, a stamped board's resume saves the lesson's own document");
   const forged = await savedDocument(resumeOf(withCurveLabelPlacement(devSaved.sceneDocument as SceneDocument, true)), { ...on, kind: "resume", loadPageLessonCurveLabels: pageOf(devSaved) });
   assert.deepEqual(forged.sceneDocument, devSaved.sceneDocument, "with it on, a dev board's resume drops a forged stamp and saves the lesson's own document");
-  console.log("PASS rule 3: a dev board resumes as dev with the switch on; a stamped board reopens and resumes as drawn with it off");
+  // A later checkpoint or close of a saved lesson (missing rows, late audio) is rebuilt with that row's own stamp.
+  assert.equal(storedCurveLabels(savedOn as never), true, "a stamped saved row reads as stamped");
+  assert.equal(storedCurveLabels(devSaved as never), false, "a dev saved row reads as unstamped");
+  assert.equal(storedCurveLabels({ visualStatus: "text_only", sceneDocument: null }), null, "a row with no figure has no stamp, so a first figure follows the switch");
+  assert.equal(storedCurveLabels(null), null, "nor does a turn with no row");
+  const ownRow = (saved: Row) => ({ curveLabelsEnabled: storedCurveLabels(saved as never)! });
+  const laterOff = await savedDocument(metadataOf(savedOn.sceneDocument as SceneDocument, { segments: savedOn.segments }), ownRow(savedOn));
+  assert.equal(resolveDiagramCurveLabels(), false, "the switch is off here");
+  assert.deepEqual(laterOff.sceneDocument, savedOn.sceneDocument, "with the switch off, a stamped lesson's later checkpoint saves its own document");
+  assert.deepEqual(inkOf(laterOff.segments), inkOf(savedOn.segments), "and the ink the student saw");
+  const laterOn = await savedDocument(metadataOf(withCurveLabelPlacement(devSaved.sceneDocument as SceneDocument, true), { segments: devSaved.segments }), ownRow(devSaved));
+  assert.deepEqual(laterOn.sceneDocument, devSaved.sceneDocument, "with it on, a dev lesson's later checkpoint stays as dev");
+  assert.deepEqual(inkOf(laterOn.segments), inkOf(devSaved.segments));
+  // The checkpoint and close routes pass that stamp to both of their saves.
+  const checkpoint = source("lib/boards/turnCheckpoint.ts");
+  assert.match(checkpoint, /const ownCurveLabels = storedCurveLabels\(before\);\n\s*const curveLabelsOption = ownCurveLabels === null \? \{\} : \{ curveLabelsEnabled: ownCurveLabels \};/);
+  assert.equal(checkpoint.match(/lessonFigureStart, kind: turnKind, \.\.\.curveLabelsOption \}\);/g)?.length, 2, "both checkpoint saves pass the row's own stamp");
+  console.log("PASS rule 3: a dev board resumes as dev with the switch on; a stamped board reopens, resumes and checkpoints as drawn with it off");
 
   // A doubt's own figure stays as dev draws it, even with the switch on.
   const lessonTurn = stored(LESSON_TURN_ID, 0, QUESTION, devSaved as never, { opensOnClear: true, kind: "lesson" });

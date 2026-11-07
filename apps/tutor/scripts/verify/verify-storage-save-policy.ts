@@ -145,7 +145,7 @@ function harness(nodeEnv: string, configured: boolean, uploadSucceeds: boolean) 
     "@/lib/obs/failedTurnSentry": { queueFailedTurnSentry: async () => null },
     "@/lib/boards/boardContinuation": boardContinuation,
     "@/lib/boards/doubtFigureRef": doubtFigureRef,
-    "@/lib/scene/pageFigureLoader": { pageFigureLoaderFor: () => async () => null, pageLessonFigureQuestionFor: () => async () => null, pageLessonCurveLabelsFor: () => async () => null, doubtFigurePageCheckFor: () => async () => false, lessonFigureStartFor: () => async () => "figure_1" },
+    "@/lib/scene/pageFigureLoader": { pageFigureLoaderFor: () => async () => null, pageLessonFigureQuestionFor: () => async () => null, pageLessonCurveLabelsFor: () => async () => null, storedCurveLabels: () => null, doubtFigurePageCheckFor: () => async () => false, lessonFigureStartFor: () => async () => "figure_1" },
     "@/lib/scene/turnPersistencePolicy": { isTurnMetadataPersistable: () => true },
     "@/lib/scene/referencePicturePersistence": { sceneKeepsReferencePictureRows },
     "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: (metadata: Row) =>

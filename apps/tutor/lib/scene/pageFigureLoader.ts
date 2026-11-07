@@ -577,14 +577,22 @@ export function bindPageLessonCurveLabels(
 ): PageLessonCurveLabelsLoader {
   return async () => {
     try {
-      const row = await pageLessonRow(context, deps);
-      if (!row || row.visualStatus !== "validated" || !row.sceneDocument || typeof row.sceneDocument !== "object") return null;
-      const source = (row.sceneDocument as { source?: unknown }).source;
-      return Boolean(source && typeof source === "object" && (source as Record<string, unknown>).curveLabelPlacement === "on_stroke");
+      return storedCurveLabels(await pageLessonRow(context, deps));
     } catch {
       return null;
     }
   };
+}
+
+/**
+ * Whether a stored row's figure was saved with the curve label stamp; null when
+ * the row holds no validated figure. A row saved with a figure is rebuilt with
+ * its own stamp, whatever the switch says now.
+ */
+export function storedCurveLabels(row: { visualStatus?: string | null; sceneDocument?: unknown } | null | undefined): boolean | null {
+  if (!row || row.visualStatus !== "validated" || !row.sceneDocument || typeof row.sceneDocument !== "object") return null;
+  const source = (row.sceneDocument as { source?: unknown }).source;
+  return Boolean(source && typeof source === "object" && (source as Record<string, unknown>).curveLabelPlacement === "on_stroke");
 }
 
 /** The production page lesson curve label stamp for one save. */
