@@ -315,6 +315,13 @@ async function main() {
   const switchOnRefusal = validateCandidate(structuredClone(refusedByDev), true);
   assert(!switchOnRefusal.valid, "with the switch on it is still refused");
   assert.deepEqual(switchOnRefusal, devRefusal, "with dev's refusal");
+  // The same with a moved name that does read as its own: dev cannot place the second piece's name, the switch can.
+  const piecewise = { ...graphsFigure("Sketch f(x) = x + 2 for x < 0 and f(x) = 2 - x^2 for x >= 0, with the line y = 1.", { xMin: -3, xMax: 3, yMin: -3, yMax: 3 },
+    [["p1", "x+2", -3, 0, "f(x) = x + 2"], ["p2", "2-x^2", 0, 2.2, "f(x) = 2 - x²"], ["h", "1", -3, 3, "y = 1"]]), assertions: [{ id: "pieceNamed", predicate: "label_attached", entities: ["p2"] }] };
+  const pieceDev = graphsCandidate(piecewise, false), pieceOn = graphsCandidate(piecewise, true);
+  assert(!pieceDev.valid, "dev refuses a figure whose required piece name it cannot place");
+  assert(!pieceOn.valid, "with the switch on it is still refused, though the moved name reads as its own");
+  assert.deepEqual(pieceOn, pieceDev, "with dev's refusal");
   const admitRefused = (sceneDocument: SceneDocument, curveLabels: boolean) => admitStoredScene({ sceneDocument, sceneQuestion: QUESTION, turnPlan: null, submittedTier: "qualitative_verified", curveLabels });
   // Saved figures carry the yield stamp live validation gives them.
   const yieldStamped = valid({ ...refusedByDev, source: { ...refusedByDev.source, diagramYieldPolicy: "verified_parts" } } as unknown as SceneDocument);
@@ -415,7 +422,7 @@ async function main() {
   const lessonTurn = stored(LESSON_TURN_ID, 0, QUESTION, devSaved as never, { opensOnClear: true, kind: "lesson" });
   const title = "Doubt: why is the area below the axis negative?";
   const composed = composeDoubtFigureQuestion(QUESTION, title);
-  const doubtFigure = withCurveLabelPlacement(valid(areaFigure(composed)), true);
+  const doubtFigure = withCurveLabelPlacement(valid(graphFigure(composed)), true);
   const doubt = await canonicalizeTurnSceneMetadata({
     question: title, rawResponse: "Here is the curve.", segments: rows, visualStatus: "validated", sceneDocument: doubtFigure,
     sceneArtifacts: { ...artifacts(composed), ...boardContinuationArtifacts(QUESTION), ...doubtFigureArtifacts(LESSON_TURN_ID) },
