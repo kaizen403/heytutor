@@ -135,6 +135,54 @@ export function evaluateMathExpression(source: string, x: number): number {
   return parseMathExpression(source).evaluate(x);
 }
 
+const MAX_LINEAR_CORNERS = 256;
+
+/**
+ * Where a function built only from x, numbers, + and -, scaling by a number
+ * and abs can bend on [xMin, xMax]: sorted, with both ends, and the function
+ * is straight between neighbours. Null for any other expression, whose
+ * straightness no set of samples proves.
+ */
+export function piecewiseLinearCorners(source: string, xMin: number, xMax: number): number[] | null {
+  if (!Number.isFinite(xMin) || !Number.isFinite(xMax) || !(xMin < xMax)) return null;
+  const root = new Parser(tokenize(normalizePlainMathSource(source).trim()), new Set(["x"])).parse();
+  const at = (node: ExpressionNode, x: number) => evaluateNode(node, { x, y: 0 }, { remaining: MAX_EVALUATION_STEPS });
+  const constant = (node: ExpressionNode): number | null => {
+    const free = (n: ExpressionNode): boolean => n.kind === "number" || (n.kind === "unary" ? free(n.value) : n.kind === "function" ? free(n.argument) : n.kind === "binary" && free(n.left) && free(n.right));
+    return free(node) ? at(node, xMin) : null;
+  };
+  const merge = (a: number[], b: number[]) => [...new Set([...a, ...b])].sort((p, q) => p - q);
+  const corners = (node: ExpressionNode): number[] | null => {
+    if (constant(node) !== null || node.kind === "variable") return [xMin, xMax];
+    if (node.kind === "unary") return corners(node.value);
+    if (node.kind === "function") {
+      if (node.name !== "abs") return null;
+      const inner = corners(node.argument);
+      if (!inner) return null;
+      const zeros: number[] = [];
+      for (let index = 1; index < inner.length; index += 1) {
+        const a = inner[index - 1]!, b = inner[index]!;
+        const va = at(node.argument, a), vb = at(node.argument, b);
+        if (va === 0) zeros.push(a);
+        if (vb === 0) zeros.push(b);
+        if (Math.sign(va) * Math.sign(vb) < 0) zeros.push(a + (b - a) * va / (va - vb));
+      }
+      return merge(inner, zeros);
+    }
+    if (node.kind !== "binary") return null;
+    const left = constant(node.left), right = constant(node.right);
+    let result: number[] | null;
+    if (node.operator === "+" || node.operator === "-") {
+      const a = corners(node.left), b = a && corners(node.right);
+      result = a && b ? merge(a, b) : null;
+    } else if (node.operator === "*") result = left !== null ? corners(node.right) : right !== null ? corners(node.left) : null;
+    else if (node.operator === "/") result = right !== null && right !== 0 ? corners(node.left) : null;
+    else result = right === 1 ? corners(node.left) : null;
+    return result && result.length <= MAX_LINEAR_CORNERS ? result : null;
+  };
+  return corners(root);
+}
+
 const SUPERSCRIPT_POWERS: Readonly<Record<string, string>> = {
   "⁰": "^0", "¹": "^1", "²": "^2", "³": "^3", "⁴": "^4",
   "⁵": "^5", "⁶": "^6", "⁷": "^7", "⁸": "^8", "⁹": "^9",

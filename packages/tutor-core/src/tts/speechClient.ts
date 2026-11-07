@@ -29,6 +29,12 @@ export interface SpeakSegmentOptions {
   /** Fires once for complete claimed provider bytes, before decode/load; not audibility. */
   onAudioReady?: () => void;
   /**
+   * The relay holds this sentence's complete audio and is sending it. On a
+   * slow link a whole sentence can take seconds to arrive, so this is the
+   * signal that the provider voice is coming and is not stalled.
+   */
+  onAudioInTransit?: () => void;
+  /**
    * Latency telemetry: the first provider audio bytes for this segment
    * arrived. `sinceRequestMs` counts from when the segment was requested,
    * which for a sentence generated ahead is the lookahead request. Never

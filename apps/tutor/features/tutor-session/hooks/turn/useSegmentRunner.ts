@@ -28,7 +28,7 @@ import {
 import { drawSegmentInk, planSegmentInk } from "../../lib/turn/segmentInk";
 import { guardDrawWithSpeech, incompleteCodeBeatFailure, requiredCodeBeatTargets, shouldFinishSegmentAfterHeardSpeechFailure, silentSentenceRemainingMs, voiceFailureDisposition, type SegmentRunOutcome } from "../../lib/turn/turnFailurePolicy";
 import { segmentWatchdogPlaybackRate, speakSegmentTimeoutMs } from "../../lib/turn/ttsSegmentTimeout";
-import { browserRecoveryPlaybackRate, createPauseAwareSpeechClock, requireSpeechStart, speakWithPauseOwnedFallback, speakWithStartupRecovery, speechPlaybackOverdue, type PauseAwareSpeechClock } from "../../lib/turn/speechStartup";
+import { browserRecoveryPlaybackRate, createPauseAwareSpeechClock, requireSpeechStart, SPEECH_AUDIO_IN_TRANSIT_GRACE_MS, speakWithPauseOwnedFallback, speakWithStartupRecovery, speechPlaybackOverdue, type PauseAwareSpeechClock } from "../../lib/turn/speechStartup";
 import { liveTurnSave } from "../../lib/turn/liveTurnSave";
 import { savedCommandFilter } from "../../lib/scene/lessonFigureSequence";
 import type { UseSegmentRunnerParams } from "./types";
@@ -705,6 +705,13 @@ export function useSegmentRunner({
         const spokenText = mathToSpeech(text);
         let slowestPlaybackRate = segmentWatchdogPlaybackRate(segmentPlaybackRate());
         let timeoutMs = speakSegmentTimeoutMs(spokenText, slowestPlaybackRate);
+        /**
+         * The relay said this sentence's audio is downloading. Startup waits
+         * for it (SPEECH_AUDIO_IN_TRANSIT_GRACE_MS), so the whole-segment
+         * budget restarts from the notice too: without this a short sentence
+         * whose audio lands late would be cut by its own 15 s timeout.
+         */
+        let inTransitTimeoutFloorMs = 0;
         let timedOut = false;
         let timeoutId: number | null = null;
         let playbackWatchId: number | null = null;
@@ -731,7 +738,7 @@ export function useSegmentRunner({
           }
           onSpeechStartupStatus?.(null);
         };
-        const speakPrimary = (onStart: () => boolean, onAudioReady: () => void) => {
+        const speakPrimary = (onStart: () => boolean, onAudioReady: () => void, onAudioInTransit: () => void) => {
           const attempt = ++primaryGeneration;
           const canAcceptPrimary = () => ownsPrimary && attempt === primaryGeneration && !isCancelled() && !speechAborted;
           tel?.mark("tts-startup-attempted", {
@@ -786,6 +793,15 @@ export function useSegmentRunner({
             onAudioReady: () => {
               if (!canAcceptPrimary()) return;
               onAudioReady();
+            },
+            onAudioInTransit: () => {
+              if (!canAcceptPrimary()) return;
+              tel?.mark("tts-audio-in-transit", { segment_index: index, turn_generation: turnGeneration });
+              inTransitTimeoutFloorMs = Math.max(inTransitTimeoutFloorMs,
+                // The grace is added so a browser takeover after a full wait still
+                // gets a whole sentence budget of its own.
+                clock.elapsedMs() + SPEECH_AUDIO_IN_TRANSIT_GRACE_MS + speakSegmentTimeoutMs(spokenText, slowestPlaybackRate));
+              onAudioInTransit();
             },
             onStart: () => {
               if (canAcceptPrimary() && permissionWaitOwnerRef.current === startupOwner && !isPausedRef.current) {
@@ -1015,7 +1031,7 @@ export function useSegmentRunner({
                 // the expanded deadline if speed rises again: elapsed slow
                 // playback cannot be judged against a shorter natural budget.
                 slowestPlaybackRate = Math.min(slowestPlaybackRate, segmentWatchdogPlaybackRate(segmentPlaybackRate()));
-                timeoutMs = Math.max(timeoutMs, speakSegmentTimeoutMs(spokenText, slowestPlaybackRate));
+                timeoutMs = Math.max(timeoutMs, speakSegmentTimeoutMs(spokenText, slowestPlaybackRate), inTransitTimeoutFloorMs);
                 if (clock.elapsedMs() >= timeoutMs) {
                   timedOut = true;
                   reject(new Error(`tts segment timeout after ${timeoutMs}ms`));

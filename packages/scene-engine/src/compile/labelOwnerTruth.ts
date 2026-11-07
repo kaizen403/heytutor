@@ -39,6 +39,107 @@ function distance(p: Point, primitive: RenderPrimitive, owner = false): number {
   if (closed && points.length > 2) distances.push(segmentDistance(p,points.at(-1)!,points[0]!));
   return Math.min(...distances);
 }
+const STRAIGHT_LINE_NAME_MARGIN_PX = 4;
+/** A name whose box is this close to another stroke reads as that stroke's. */
+const STRAIGHT_LINE_NAME_RIVAL_PX = 35;
+type Box = { x: number; y: number; width: number; height: number };
+function labelBox(label: RenderPrimitive): Box | null {
+  const bounds = label.provenance?.labelBounds as Partial<Box> | undefined;
+  if (!bounds || ![bounds.x, bounds.y, bounds.width, bounds.height].every(value => typeof value === "number" && Number.isFinite(value))) return null;
+  return bounds as Box;
+}
+function pointBoxDistance(p: Point, box: Box): number {
+  return Math.hypot(Math.max(box.x - p.x, 0, p.x - (box.x + box.width)), Math.max(box.y - p.y, 0, p.y - (box.y + box.height)));
+}
+function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
+  const side = (p: Point, q: Point, r: Point) => Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
+  return side(a, b, c) !== side(a, b, d) && side(c, d, a) !== side(c, d, b);
+}
+/** The straight pieces a primitive is stroked with. An arc is cut into chords of at most a pixel, within 1/(8r) px of its ink. */
+function strokePieces(primitive: RenderPrimitive): Array<[Point, Point]> {
+  let points = primitive.points;
+  if (!points.length) return [];
+  if (primitive.kind === "axes" && points.length === 4) return [[points[0]!, points[1]!], [points[2]!, points[3]!]];
+  if (primitive.kind === "arc") {
+    const centre = points[0]!, radius = primitive.radius ?? 0;
+    const start = primitive.startAngle ?? 0, sweep = (primitive.endAngle ?? start) - start;
+    const count = Math.min(4096, Math.max(8, Math.ceil(Math.abs(sweep) * radius)));
+    points = Array.from({ length: count + 1 }, (_, index) => {
+      const angle = start + sweep * index / count;
+      return { x: centre.x + radius * Math.cos(angle), y: centre.y + radius * Math.sin(angle) };
+    });
+  } else if (points.length === 1 || primitive.kind === "point") return [[points[0]!, points[0]!]];
+  else if (primitive.kind === "rectangle") {
+    const xs = points.map(q => q.x), ys = points.map(q => q.y);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    points = [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+  }
+  const pieces = points.slice(1).map((point, index) => [points[index]!, point] as [Point, Point]);
+  if ((primitive.kind === "polygon" || primitive.kind === "rectangle") && points.length > 2) pieces.push([points.at(-1)!, points[0]!]);
+  return pieces;
+}
+/** Distance from a box to a stroke: 0 when they touch, else the nearest gap between the box edges and the stroke. */
+function boxDistance(box: Box, primitive: RenderPrimitive): number {
+  const corners = [{ x: box.x, y: box.y }, { x: box.x + box.width, y: box.y }, { x: box.x + box.width, y: box.y + box.height }, { x: box.x, y: box.y + box.height }];
+  if (primitive.kind === "circle" && primitive.points[0]) {
+    // The circle's ink, not its centre: the gap from the box to the ring, inside or out.
+    const centre = primitive.points[0], radius = primitive.radius ?? 0;
+    const nearest = pointBoxDistance(centre, box), farthest = Math.max(...corners.map(corner => Math.hypot(corner.x - centre.x, corner.y - centre.y)));
+    return radius < nearest ? nearest - radius : radius > farthest ? radius - farthest : 0;
+  }
+  const edges = corners.map((corner, index) => [corner, corners[(index + 1) % 4]!] as const);
+  let best = Infinity;
+  for (const [a, b] of strokePieces(primitive)) {
+    if (pointBoxDistance(a, box) === 0 || pointBoxDistance(b, box) === 0) return 0;
+    if (edges.some(([c, d]) => segmentsCross(a, b, c, d))) return 0;
+    best = Math.min(best, pointBoxDistance(a, box), pointBoxDistance(b, box), ...corners.map(corner => segmentDistance(corner, a, b)));
+  }
+  return best;
+}
+/** A polyline of many samples that is one straight line, within a pixel. */
+function isStraightSampledPolyline(primitive: RenderPrimitive): boolean {
+  const points = primitive.points;
+  if (primitive.kind !== "polyline" || points.length <= 3) return false;
+  const start = points[0]!, end = points.at(-1)!;
+  const length = Math.hypot(end.x - start.x, end.y - start.y);
+  if (!(length > 1)) return false;
+  return points.every(p => Math.abs((p.x - start.x) * (end.y - start.y) - (p.y - start.y) * (end.x - start.x)) / length <= 0.75);
+}
+
+/**
+ * A straight line drawn as a sampled polyline (a graph of y = mx + c) is read
+ * like any straight stroke: an untethered name nearer another stroke than its
+ * own line, and close to it, names that stroke. Live candidate validation
+ * only (with figure consistency), so verified_parts omits the name from a new
+ * figure; a saved figure is not refused for it.
+ */
+export function validateStraightLineNames(document: SceneDocument, primitives: RenderPrimitive[]): SceneIssue[] {
+  const ink = primitives.filter(p => p.kind !== "label" && !p.provenance?.labelLeader);
+  const issues: SceneIssue[] = [];
+  for (const label of primitives) {
+    if (label.kind !== "label" || !label.points[0] || label.provenance?.usesLeader) continue;
+    const annotationId = label.provenance?.annotationId ?? (document.annotations.some(a => a.id === label.id) ? label.id : undefined);
+    const annotationIndex = document.annotations.findIndex(a => a.id === annotationId);
+    const annotation = document.annotations[annotationIndex];
+    const owners = annotation?.targetIds ?? [label.entityId];
+    const own = ink.filter(p => owners.includes(p.entityId));
+    if (!own.length || !own.every(isStraightSampledPolyline)) continue;
+    // Measured from the lettered box, not its anchor: a name is read by where its ink sits.
+    const box = labelBox(label);
+    if (!box) continue;
+    const ownDistance = Math.min(...own.map(p => boxDistance(box, p)));
+    // An axis is named at its ends, so a line's name beside one still reads as a plotted line's: not a rival.
+    const nearest = Math.min(...ink.filter(p => !owners.includes(p.entityId) && p.kind !== "axes").map(p => boxDistance(box, p)));
+    // A name floating clear of every stroke is read by elimination; one that hugs another stroke names it.
+    if (!(nearest <= STRAIGHT_LINE_NAME_RIVAL_PX && nearest + STRAIGHT_LINE_NAME_MARGIN_PX < ownDistance)) continue;
+    const entityIndex = document.entities.findIndex(e => e.id === label.entityId);
+    issues.push({ code: "label_owner_ambiguous", severity: "fatal", failureKind: "proof", entityIds: owners,
+      ...(annotation ? { path: `annotations[${annotationIndex}].text` } : entityIndex >= 0 ? { path: `entities[${entityIndex}].label` } : {}),
+      message: "A straight line's name sits nearer another stroke than its own line.", expected: ownDistance, actual: nearest });
+  }
+  return issues;
+}
+
 /** An untethered, displaced label cannot identify an unrelated nearby stroke.
  * This is a localized missing attachment proof, not a claim about the topic.
  */
