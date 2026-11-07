@@ -169,6 +169,76 @@ check("HF zigzags at the acceptor", () => {
   assert.ok(inner > 100 && inner < 140, `H-F...H is ${inner.toFixed(1)} degrees`);
 });
 
+// The drawn hydrogen bond, measured on the compiled board in px: the dashes run between
+// the two molecules and strike no letter, and the label beside them names them.
+type Box = { x: number; y: number; width: number; height: number };
+type Primitive = { kind: string; entityId?: string; text?: string; points?: Point[]; provenance?: { labelBounds?: Box } };
+
+function pointToSegment(point: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const t = dx === 0 && dy === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / (dx * dx + dy * dy)));
+  return distance(point, { x: a.x + t * dx, y: a.y + t * dy });
+}
+
+/** Distance in px from a segment to a box, 0 when the segment enters it. */
+function segmentToBox(a: Point, b: Point, box: Box): number {
+  const inside = (p: Point) => p.x >= box.x && p.x <= box.x + box.width && p.y >= box.y && p.y <= box.y + box.height;
+  const corners = [
+    { x: box.x, y: box.y }, { x: box.x + box.width, y: box.y },
+    { x: box.x + box.width, y: box.y + box.height }, { x: box.x, y: box.y + box.height },
+  ];
+  for (let step = 0; step <= 200; step += 1) {
+    if (inside({ x: a.x + (b.x - a.x) * step / 200, y: a.y + (b.y - a.y) * step / 200 })) return 0;
+  }
+  const toBox = (p: Point) => Math.hypot(Math.max(box.x - p.x, 0, p.x - box.x - box.width), Math.max(box.y - p.y, 0, p.y - box.y - box.height));
+  return Math.min(toBox(a), toBox(b), ...corners.map((corner) => pointToSegment(corner, a, b)));
+}
+
+for (const [name, document] of [["water", water], ["ammonia", ammonia], ["HF", hf]] as const) {
+  const primitives = (compileSceneDocument(document).renderScene?.primitives ?? []) as unknown as Primitive[];
+  const link = primitives.find((p) => p.kind === "line" && p.entityId === "hb");
+  const labels = primitives.filter((p) => p.kind === "label" && p.provenance?.labelBounds);
+  const box = (entityId: string) => labels.find((p) => p.entityId === entityId)?.provenance?.labelBounds;
+  const centre = (value: Box) => ({ x: value.x + value.width / 2, y: value.y + value.height / 2 });
+  check(`${name}: the hydrogen bond's dashes strike no letter or label`, () => {
+    assert.ok(link?.points?.length === 2, "no hydrogen bond line");
+    const [a, b] = link.points;
+    for (const label of labels) {
+      const gap = segmentToBox(a!, b!, label.provenance!.labelBounds!);
+      assert.ok(gap > 4, `${label.text} is ${gap.toFixed(1)} px from the dashes`);
+    }
+  });
+  check(`${name}: the hydrogen bond spans the gap from H to the acceptor, not a stub`, () => {
+    assert.ok(link?.points?.length === 2, "no hydrogen bond line");
+    const [a, b] = link.points;
+    const hydrogen = box("a_h");
+    const acceptor = box("b_x");
+    assert.ok(hydrogen && acceptor, "no donor H or acceptor label");
+    const gap = distance(centre(hydrogen), centre(acceptor));
+    assert.ok(distance(a!, b!) > 0.5 * gap, `dashes are ${distance(a!, b!).toFixed(1)} px of a ${gap.toFixed(1)} px gap`);
+    for (const end of [a!, b!]) {
+      assert.ok(pointToSegment(end, centre(hydrogen), centre(acceptor)) < 6, "dashes leave the line from H to the acceptor");
+    }
+  });
+  check(`${name}: the hydrogen bond label sits beside its dashes`, () => {
+    assert.ok(link?.points?.length === 2, "no hydrogen bond line");
+    const [a, b] = link.points;
+    const kind = box("kind");
+    assert.ok(kind, "no hydrogen bond label");
+    const at = centre(kind);
+    assert.ok(at.x > Math.min(a!.x, b!.x) && at.x < Math.max(a!.x, b!.x), "label is not alongside the dashes");
+    assert.ok(pointToSegment(at, a!, b!) < 140, `label is ${pointToSegment(at, a!, b!).toFixed(1)} px from the dashes`);
+  });
+  check(`${name}: every acceptor hydrogen points away from the donor`, () => {
+    const acceptor = pointOf(document, "b_x");
+    const donor = pointOf(document, "a_h");
+    for (const { hydrogen } of moleculeHydrogens(document, "b")) {
+      assert.ok(angleAt(acceptor, donor, pointOf(document, hydrogen)) > 100, `${hydrogen} points at the donor`);
+    }
+  });
+}
+
 // The fix moves no stem: on each fixture row head draws the family dev draws, including none.
 for (const [question, devFamily] of fixture.rows as Array<[string, string | null]>) {
   const family = (synthesizeFamilyScene({ question }) ?? synthesizeLastResortScene({ question }))?.family ?? null;

@@ -9,15 +9,15 @@
   "diagrams": [
     {
       "id": "vsepr-SF4",
-      "fullDiagramSha256": "af4239fd2193532734aecefc326d2c092ed30e0616fd150fd5edde3f0de713f9"
+      "fullDiagramSha256": "c4a929a26eaa8fb254dbd6aff0e4d8358fa16e206206685a22b475627eb33190"
     },
     {
       "id": "vsepr-NH3",
-      "fullDiagramSha256": "c81fe53349be6e1dbab37200429a3ded10932f6e66036df6f69c022a5261bd0e"
+      "fullDiagramSha256": "bb8c2ad019aa7f3b3d1e60b4378115f27b86c69197c801c788c8d69bd0bd738d"
     },
     {
       "id": "orbital-nitrogen",
-      "fullDiagramSha256": "a42986023dd2f006d068c2d8c20a48f696415ce155c133bd86a834450b123109"
+      "fullDiagramSha256": "2c55440545b52f40b647f2ad148b2d3052ee471aea4edd62224afe2cc9ab3f9c"
     },
     {
       "id": "kinetics-ln",

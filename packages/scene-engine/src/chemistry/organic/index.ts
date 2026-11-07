@@ -361,22 +361,26 @@ function factsLine(stem: string, molecule: Molecule): string {
 }
 
 /**
+ * Asked for a charged form of a named compound. This figure draws the neutral
+ * molecule, which is false for that form: "the zwitterion of glycine" drew NH2 and
+ * COOH. A name the parser cannot resolve ("anilinium") already declines; this is the
+ * name beside a word asking for another form. Decline only, so a wording missed here
+ * draws what it drew before. "conjugate base" and "in acidic medium" stay out: one
+ * explains an acidity, the other is where a reaction runs, and those stems draw true
+ * figures. Four words here have the same double use and do decline a true figure when
+ * a stem uses them for a reason or a condition: "protonated" and "deprotonated" ("Why
+ * is it protonated in acid?"), "at pH" ("hydrolysed at pH 7") and "salt of" ("sold as
+ * the sodium salt of benzoic acid"). They stay, because they cost no real stem a figure
+ * in the 4 Nov sweep; telling the uses apart would be one more word reader.
+ */
+const CHARGED_FORM_ASK = /zwitter|dipolar\s+ion|(?:inner|internal)\s+salt|isoelectric|\b(?:at|physiological)\s+ph\b|\b(?:de)?protonated\b|\b(?:an|cat)ions?\s+of\b|\bsalts?\s+of\b/;
+
+/**
  * The figure, or null. Reads named compounds in order of appearance; with a
  * reaction cue draws reactant, reagent arrow, and the named product or a
  * "?" box. The private source-reaction path first computes supported graph
  * transformations; other isomer/name requests retain the existing row path.
  */
-/**
- * Asked for a charged form of a named compound. This figure draws the neutral
- * molecule, which is false for that form: "the zwitterion of glycine" drew NH2 and
- * COOH. A name the parser cannot resolve ("anilinium") already declines; this is the
- * name beside a word asking for another form. Decline only, so a wording missed here
- * draws what it drew before. Words a stem also uses for a reason or a condition stay
- * out: "conjugate base" explains an acidity, and "in acidic medium" is where a reaction
- * runs, and those stems draw true figures.
- */
-const CHARGED_FORM_ASK = /zwitter|dipolar\s+ion|(?:inner|internal)\s+salt|isoelectric|\b(?:at|physiological)\s+ph\b|\b(?:de)?protonated\b|\b(?:an|cat)ions?\s+of\b|\bsalts?\s+of\b/;
-
 export function buildOrganicScene(question: string, _quantities: ChemPlanQuantity[], _schematic: boolean): SceneDocument | null {
   // A mechanism ask is answered by checked curly arrows or not at all: a
   // product row without arrows would read as the mechanism.

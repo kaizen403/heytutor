@@ -26,6 +26,17 @@ const currentBaseDiagrams = JSON.parse(readFileSync(new URL("./fixtures/organic-
 // generic curve. Keep both historical fixtures intact; this independently
 // reviewed one-case oracle includes physical scale/law checks below.
 const arrhenius203 = JSON.parse(readFileSync(new URL("./fixtures/organic-neighbourhood-pr203-arrhenius-parity.json", import.meta.url), "utf8")) as { schema: string; cases: typeof fixture.parityControls };
+// Re-pinned 8 Nov 2026 at dev 601083caa: the opening command and whole diagram hashes of
+// SF4, NH3, orbital nitrogen and the Arrhenius plot, 8 in all. The document and render
+// golds carry the science and are unchanged. All 8 moved at one commit, #183 (83393ae8c,
+// teaching order after subject), which reached the organic branch in dc341843e and dev
+// with #244 (ade3074cf); the gate was red from then on. On main, #183 moved them with the
+// documents fixed, and dc341843e's conflict fix kept both sides and added nothing. What
+// moved: SF4 and NH3 open with the same ink, the species name now before the centre atom;
+// orbital nitrogen opens with the same ink and labels, the panel now before the electrons,
+// with new spoken cues and narration; the Arrhenius plot opens with axes only, its 7
+// labels held until later in the lesson. The whole diagram hashes also carry #183's
+// narration and prompt text. A later move of any of these is again a red gate.
 assert.equal(arrhenius203.schema,"organic-neighbourhood-parity-pr203-arrhenius/v1");
 assert.equal(arrhenius203.cases.length,1);
 assert.equal(arrhenius203.cases[0]!.id,"kinetics-ln");

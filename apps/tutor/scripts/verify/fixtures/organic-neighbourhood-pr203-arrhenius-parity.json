@@ -15,8 +15,8 @@
       "question": "ln k = 5 - 2000/T. Draw the Arrhenius plot.",
       "documentSha256": "cda34fefb03bf28aac4e0b126ca4668c71db4fbe13ddfcd5dbff36ae30e2c509",
       "renderSha256": "1ae7c8a7389a8b0359bca7de8629880c23f3df81937992f29840e48130bc948d",
-      "openingCommandsSha256": "d5dc3264dae13ecf253e37e6d6fe34474547ef4c40d0ffac664612c503a2a36c",
-      "fullDiagramSha256": "edd53ec422a96aa495aea1d06b8c8b2a45eb326c0957bb144da1df510357f683"
+      "openingCommandsSha256": "b384b4277346ee1aa3e52e1669ce1866f4ced6e48f0d2454c85102343f61b836",
+      "fullDiagramSha256": "eb4d091406d9782fc120730c65d0ea403bc8ccfcaec9fb90b1d43d666eeb29c5"
     }
   ]
 }
