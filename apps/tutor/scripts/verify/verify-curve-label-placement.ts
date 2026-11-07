@@ -185,8 +185,8 @@ async function main() {
   // A stamp value the engine does not write changes nothing.
   const bogus = { ...area, source: { ...area.source, curveLabelPlacement: "elsewhere" } } as SceneDocument;
   assert.deepEqual(compileSceneDocument(bogus).renderScene, compileSceneDocument(area).renderScene, "an unknown stamp value is dev");
-  // Room is measured to the ink as drawn. A ring whose outline crosses the far end of the line, with its centre
-  // far from it: read as its centre, that end looks roomy and the label lands on the ring.
+  // Room is measured to the ink as drawn. A ring whose outline runs along the line's far end, with its centre
+  // well away: read as its centre, that end looks roomy and the name lands 8 px from the ring.
   const ringDoc = valid({
     schemaVersion: SCENE_DOCUMENT_VERSION, visualDecision: { mode: "scene", reason: "graph" },
     source: { question: "Sketch y = x and the circle.", nonMetric: true, representationTier: "qualitative_verified", curveLabelPlacement: "on_stroke" },
@@ -194,8 +194,8 @@ async function main() {
     constructions: [
       { id: "ka", operator: "axes", inputs: { xMin: 0, xMax: 6.5, yMin: 0, yMax: 6.5 }, outputs: ["axes"] },
       { id: "kl", operator: "function_curve", inputs: { expression: "x", xMin: 0, xMax: 6 }, outputs: ["line"] },
-      { id: "ko", operator: "point", inputs: { x: 2.5, y: 5.7, coordinateSpace: "world" }, outputs: ["o"] },
-      { id: "kr", operator: "circle", inputs: { center: "o", radius: 3.2 }, outputs: ["ring"] },
+      { id: "ko", operator: "point", inputs: { x: 3.5, y: 3, coordinateSpace: "world" }, outputs: ["o"] },
+      { id: "kr", operator: "circle", inputs: { center: "o", radius: 3.48 }, outputs: ["ring"] },
     ],
     requiredEntityIds: ["axes", "line", "o", "ring"], revealGroups: [{ id: "g", entityIds: ["axes", "line", "o", "ring"], dependsOn: [], narrationCue: "The line and the circle." }],
     assertions: [], annotations: [], quantities: [], relations: [], teachingTimeline: [],
@@ -205,7 +205,9 @@ async function main() {
   const lineName = labelOf(ringScene, "line")!.provenance!.labelBounds as unknown as { x: number; y: number; width: number; height: number };
   const centre = ringInk.points[0]!;
   const toCentre = Math.hypot(Math.max(lineName.x - centre.x, 0, centre.x - lineName.x - lineName.width), Math.max(lineName.y - centre.y, 0, centre.y - lineName.y - lineName.height));
-  assert(Math.abs(toCentre - ringInk.radius!) > 12, `the moved name keeps clear of the ring's outline: ${Math.abs(toCentre - ringInk.radius!).toFixed(1)} px`);
+  const farthest = Math.max(...[[lineName.x, lineName.y], [lineName.x + lineName.width, lineName.y], [lineName.x, lineName.y + lineName.height], [lineName.x + lineName.width, lineName.y + lineName.height]].map(([x, y]) => Math.hypot(x! - centre.x, y! - centre.y)));
+  const gapToRing = ringInk.radius! < toCentre ? toCentre - ringInk.radius! : ringInk.radius! > farthest ? ringInk.radius! - farthest : 0;
+  assert(gapToRing > 30, `the moved name keeps clear of the ring's outline: ${gapToRing.toFixed(1)} px`);
   // An axes primitive is its two lines, not one path through its four points.
   const axesInk = { id: "axes", entityId: "axes", kind: "axes", points: [{ x: 400, y: 350 }, { x: 1160, y: 350 }, { x: 780, y: 680 }, { x: 780, y: 20 }] };
   assert.deepEqual(strokePieces(axesInk as never), [[axesInk.points[0], axesInk.points[1]], [axesInk.points[2], axesInk.points[3]]], "axes are two strokes, with no line from the end of one to the start of the other");
