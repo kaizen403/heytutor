@@ -9,7 +9,11 @@
  */
 import assert from "node:assert/strict";
 import { SCENE_DOCUMENT_VERSION, compileSceneDocument, validateSceneDocument, type RenderPrimitive, type SceneDocument } from "@heytutor/scene-engine";
+import { isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
 import { admitStoredScene } from "../../lib/scene/sceneAdmission";
+import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
+import { sourceCheckedStoredTurn } from "../../lib/scene/storedSceneSource";
+import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
 import { restoreVerifiedPresentationFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,13 +35,13 @@ function piecewise(options: { right?: string; join?: number | null; openFirst?: 
   const raw: Row = {
     schemaVersion: SCENE_DOCUMENT_VERSION, visualDecision: { mode: "scene", reason: "figure" },
     source: { question: QUESTION, nonMetric: true, representationTier: "qualitative_verified", ...(options.yield === false ? {} : { diagramYieldPolicy: "verified_parts" }) },
-    quantities: join === null ? [] : [{ id: "x0", symbol: "x0", value: join }],
+    quantities: [],
     entities,
     constructions: [
       { id: "make_axes", operator: "axes", inputs: { xMin: 0, xMax: 5, yMin: 0, yMax: 22 }, outputs: ["axes"] },
       { id: "make_left", operator: "function_curve", inputs: { expression: "x^2", xMin: 0, xMax: 3, samples: 65 }, outputs: ["left"] },
       { id: "make_right", operator: "function_curve", inputs: { expression: options.right ?? "6*x-9", xMin: 3, xMax: 5, samples: 33 }, outputs: ["right"] },
-      ...(join === null ? [] : [{ id: "make_join", operator: "curve_anchor", inputs: { curve: "left", at: "x0" }, outputs: ["join"] }]),
+      ...(join === null ? [] : [{ id: "make_join", operator: "curve_anchor", inputs: { curve: "left", at: join }, outputs: ["join"] }]),
     ],
     annotations: options.openFirst ? [...open, ...filled] : [...filled, ...open],
     requiredEntityIds: entities.map((e) => e.id),
@@ -136,17 +140,42 @@ assert.deepEqual(radii(piecewise({ yield: false })), [2], "verified parts off dr
 assert.deepEqual(radii(piecewise({ yield: false, right: "6*x-5" })), [2], "for a jump too");
 console.log("PASS narrow ring: radius 2 only on another entity's filled point; holes keep radius 6");
 
-// 5. Rule 3. The save stores the drawn ink; reopen draws that ink, and rebuilds the figure only for pointing.
-for (const [name, document, expected] of [["the join", piecewise(), 2], ["a true hole", piecewise({ right: "6*x-5" }), 6]] as const) {
-  const admitted = admitStoredScene({ sceneDocument: document, sceneQuestion: QUESTION, turnPlan: null, submittedTier: "qualitative_verified" });
-  assert(admitted.ok, `${name} saved under dev passes its next resume save: ${admitted.ok ? "" : admitted.code}`);
-  const restored = restoreVerifiedPresentationFromTurn({ question: QUESTION, sceneDocument: document, sceneArtifacts: null } as never);
-  assert(restored, `${name} reopens with a figure to point at`);
-  const circles = restored.diagram.commands.filter((command) => command.type === "DRAW_CIRCLE").map((command) => command.params as number[]);
-  const centre = rings(compiled(document))[0]!.points[0]!;
-  const ring = circles.find(([x, y]) => Math.hypot(x! - centre.x, y! - centre.y) < 1e-6);
-  assert(ring, `${name}'s rebuilt ring keeps the saved ring's centre, so pointing lands where the saved ink is`);
-  assert.equal(ring[2], expected, `${name}'s rebuilt ring has radius ${expected}`);
+// 5. Rule 3. A saved turn stores the drawn ink in its intro rows; reopen draws those rows as stored, and rebuilds the
+// figure from the document only for pointing. A resume save admits the page's document again.
+const narrationRows = [{ orderIndex: 0, narration: "Here are the two pieces.", spokenText: "Here are the two pieces.", command: null }];
+const artifacts = { schemaVersion: "scene-artifacts/v3", representationTier: "qualitative_verified", nonMetric: true, diagramResultStatus: "ready",
+  turnPlan: { schemaVersion: "turn-plan/v3", question: QUESTION, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" } };
+const lessonOf = (document: SceneDocument, extra: Row = {}) => ({ question: QUESTION, rawResponse: "Here are the two pieces.", segments: narrationRows, visualStatus: "validated", sceneDocument: document, sceneArtifacts: artifacts, ...extra }) as unknown as SubmittedTurnSceneMetadata;
+const inkRows = (segments: Row[]) => segments.filter((segment) => isStoredCommandTrustedGeometry(segment.command));
+const circlesIn = (segments: Row[]) => inkRows(segments).flatMap((segment) => parseStoredSegmentCommands(segment.command)).filter((command) => command.type === "DRAW_CIRCLE").map((command) => command.params as number[]);
+async function ruleThree(): Promise<void> {
+  for (const [name, document, rebuilt] of [["the join", piecewise(), 2], ["a true hole", piecewise({ right: "6*x-5" }), 6]] as const) {
+    const centre = rings(compiled(document))[0]!.points[0]!;
+    const atRing = ([x, y]: number[]) => Math.hypot(x! - centre.x, y! - centre.y) < 1e-6;
+    // The board as dev saved it: the same intro ink with the ring at radius 6.
+    const savedNow = await canonicalizeTurnSceneMetadata(JSON.parse(JSON.stringify(lessonOf(document))));
+    assert(savedNow.ok && savedNow.value.visualStatus === "validated", `${name} saves: ${savedNow.ok ? savedNow.value.visualStatus : `${savedNow.code} ${savedNow.error}`}`);
+    const devSegments = savedNow.value.segments.map((segment) => isStoredCommandTrustedGeometry(segment.command)
+      ? { ...segment, command: serializeSegmentCommands(parseStoredSegmentCommands(segment.command).map((command) => command.type === "DRAW_CIRCLE" && atRing(command.params as number[]) ? { ...command, params: [...(command.params as number[]).slice(0, 2), 6, ...(command.params as number[]).slice(3)] } : command), { trustedDiagramGeometry: true }) }
+      : segment);
+    assert(circlesIn(devSegments).some((params) => atRing(params) && params[2] === 6), `${name}'s stored dev ink holds the ring at radius 6`);
+    const storedDev = { ...savedNow.value, id: "ring-lesson", kind: "lesson", status: "complete", segments: devSegments } as never;
+    // Its next resume save passes.
+    const resumed = await canonicalizeTurnSceneMetadata(JSON.parse(JSON.stringify(lessonOf(document, { sceneArtifacts: { ...artifacts, ...boardContinuationArtifacts(QUESTION) } }))), { kind: "resume" });
+    assert(resumed.ok && resumed.value.visualStatus === "validated", `${name} saved under dev passes its next resume save: ${resumed.ok ? "" : resumed.code}`);
+    assert(admitStoredScene({ sceneDocument: document, sceneQuestion: QUESTION, turnPlan: null, submittedTier: "qualitative_verified" }).ok, `${name}'s document is admitted again`);
+    // It reopens as saved: the stored rows, ring and all, are kept and drawn as they are.
+    const reopened = sourceCheckedStoredTurn(storedDev) as unknown as Row;
+    assert.equal(reopened.visualStatus, "validated", `${name} reopens with its figure`);
+    assert.deepEqual(reopened.segments, devSegments, `${name} reopens with the ink dev saved, ring at radius 6`);
+    // The figure rebuilt for pointing keeps the ring's centre.
+    const restored = restoreVerifiedPresentationFromTurn({ question: QUESTION, sceneDocument: document, sceneArtifacts: artifacts } as never);
+    assert(restored, `${name} rebuilds a figure to point at`);
+    const ring = restored.diagram.commands.filter((command) => command.type === "DRAW_CIRCLE").map((command) => command.params as number[]).find(atRing);
+    assert(ring && ring[2] === rebuilt, `${name}'s rebuilt ring sits at the saved ring's centre, radius ${rebuilt}`);
+  }
+  console.log("PASS rule 3: a board saved under dev with a join ring, and one with a true hole, pass their resume save and reopen as saved");
+  console.log("PASS narrow open rings: 2 groups");
 }
-console.log("PASS rule 3: a saved join and a saved hole pass their resume save and reopen; the ring keeps its centre");
-console.log("PASS narrow open rings: 2 groups");
+void ruleThree().catch((error) => { console.error(error); process.exitCode = 1; });
+
