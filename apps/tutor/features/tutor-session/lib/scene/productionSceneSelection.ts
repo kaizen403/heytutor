@@ -5,6 +5,7 @@
 import {
   prepareVerifiedParts, prepareVerifiedCircularParts, normalizeVerifiedPartsInputs, deferVerifiedAnswerLabels, type DiagramYieldPolicy,
   withCurveLabelPlacement,
+  curveLabelsNeverWorse,
   documentHasFunctionCurve,
   ARCHETYPES, blockFlowGroundingIssues, compileSceneDocument, completeSceneDocument, detectArchetype, refusedArchetypeLead, isChemistryQuestion, isChemistrySceneFamily, lawOnlyArchetypeLead,
   PLAN_EXAMPLE_PROVENANCE, buildPlanExampleDocument,
@@ -158,21 +159,18 @@ export function validateProductionSceneCandidate(input: ProductionSceneCandidate
 }
 
 /**
- * Moved labels never cost the figure a label: every label dev draws must be drawn on the stroke too, read from
- * the drawn figures themselves (an omission's path is written against a document that shrinks as labels go).
+ * Moved labels are kept only if the figure is never worse than dev's: it draws every label dev draws (read from
+ * the drawn figures; an omission's path names a slot in a document that shrinks as labels go), and each graph
+ * label still reads as its own curve's.
  */
 export function onStrokeKeepsDevLabels(
   onStroke: SceneCandidateValidation<ValidatedSceneCandidate>,
   asDev: SceneCandidateValidation<ValidatedSceneCandidate>,
 ): boolean {
   if (!onStroke.valid || !onStroke.value) return false;
-  const drawn = new Set(labelIds(onStroke.value));
-  return labelIds(asDev.value).every((id) => drawn.has(id));
+  return curveLabelsNeverWorse({ document: onStroke.value.document, primitives: onStroke.value.renderScene.primitives }, asDev.value?.renderScene.primitives ?? []);
 }
 
-function labelIds(value: ValidatedSceneCandidate | undefined): string[] {
-  return (value?.renderScene.primitives ?? []).filter((primitive) => primitive.kind === "label" || primitive.kind === "dimension").map((primitive) => primitive.id);
-}
 
 function validateCandidateOnce(input: ProductionSceneCandidateInput): SceneCandidateValidation<ValidatedSceneCandidate> {
   const { question, turnPlan: authoritativePlan } = input;

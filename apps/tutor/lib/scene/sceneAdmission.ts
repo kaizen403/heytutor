@@ -18,6 +18,7 @@ import {
   certifyVseprSourceDocument,
   chemistryTeachingFamilyId,
   compileSceneDocument,
+  curveLabelsNeverWorse,
   prepareVerifiedParts,
   validateSceneDocument,
   validateTurnPlanSceneProofs,
@@ -93,7 +94,7 @@ const memo = new Map<string, StoredSceneAdmission>();
 export function admitStoredScene(submitted: StoredSceneAdmissionInput): StoredSceneAdmission {
   // A curve label stamp is kept only with the server's switch on, and only on a
   // figure dev admits: a figure dev refuses stays refused, and if the moved
-  // labels would refuse it, dev's admission stands.
+  // labels would refuse it, lose a label, or name the wrong curve, dev's admission stands.
   const asDevDocument = withoutCurveLabelStamp(submitted.sceneDocument);
   if (asDevDocument === submitted.sceneDocument) return admitMemoized(submitted);
   // Live validation removed unprovable labels with the stamp on. Without it a
@@ -101,8 +102,9 @@ export function admitStoredScene(submitted: StoredSceneAdmissionInput): StoredSc
   // document through the same removal.
   const asDev = admitMemoized({ ...submitted, sceneDocument: asDevPrepared(asDevDocument) });
   if (submitted.curveLabels !== true || !asDev.ok) return asDev;
+  // A browser's stamp is never kept unchecked: the server's own compile must be never worse than dev's.
   const onStroke = admitMemoized(submitted);
-  return onStroke.ok ? onStroke : asDev;
+  return onStroke.ok && curveLabelsNeverWorse({ document: onStroke.document, primitives: onStroke.compiled.renderScene.primitives }, asDev.compiled.renderScene.primitives) ? onStroke : asDev;
 }
 
 /** An unstamped document as live validation leaves it: unprovable labels removed under verified_parts. */

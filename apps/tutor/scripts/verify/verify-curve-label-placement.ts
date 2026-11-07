@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-  SCENE_DOCUMENT_VERSION, compileSceneDocument, documentHasFunctionCurve, isCurveLabelPlacementOnStroke,
+  SCENE_DOCUMENT_VERSION, compileSceneDocument, curveLabelsReadAsOwn, documentHasFunctionCurve, isCurveLabelPlacementOnStroke,
   parseCurveLabelSwitch, prepareVerifiedParts, validateSceneDocument, withCurveLabelPlacement,
   type SceneDocument,
 } from "@heytutor/scene-engine";
@@ -65,6 +65,34 @@ function areaFigure(question = QUESTION): SceneDocument {
     ],
     assertions: [], annotations: [], quantities: [], relations: [], teachingTimeline: [],
   } as unknown as SceneDocument;
+}
+/** The same graph alone: with the switch on its label moves beside its stroke and still reads as its own. */
+function graphFigure(question = QUESTION): SceneDocument {
+  return {
+    schemaVersion: SCENE_DOCUMENT_VERSION, visualDecision: { mode: "scene", reason: "graph" },
+    source: { question, nonMetric: true, representationTier: "qualitative_verified" },
+    entities: [{ id: "axes", kind: "axes", role: "coordinate axes" }, { id: "curve", kind: "polyline", role: "given curve", label: "y=x²−4x−5" }],
+    constructions: [
+      { id: "makeAxes", operator: "axes", inputs: { xMin: -0.5, xMax: 6.5, yMin: -10, yMax: 8 }, outputs: ["axes"] },
+      { id: "makeCurve", operator: "function_curve", inputs: { expression: "x^2-4*x-5", xMin: 0, xMax: 6 }, outputs: ["curve"] },
+    ],
+    requiredEntityIds: ["axes", "curve"],
+    revealGroups: [{ id: "graph", entityIds: ["axes", "curve"], dependsOn: [], narrationCue: "Plot the curve." }],
+    assertions: [], annotations: [], quantities: [], relations: [], teachingTimeline: [],
+  } as unknown as SceneDocument;
+}
+/** Several labelled graphs on one pair of axes, as a planner draws them. */
+function graphsFigure(question: string, axes: Row, curves: Array<[string, string, number, number, string]>): Row {
+  const ids = ["axes", ...curves.map(([id]) => id)];
+  return {
+    schemaVersion: SCENE_DOCUMENT_VERSION, visualDecision: { mode: "scene", reason: "graph" },
+    source: { question, nonMetric: true, representationTier: "qualitative_verified" },
+    entities: [{ id: "axes", kind: "axes", role: "coordinate axes" }, ...curves.map(([id, , , , label]) => ({ id, kind: "polyline", role: "given curve", label }))],
+    constructions: [{ id: "makeAxes", operator: "axes", inputs: axes, outputs: ["axes"] },
+      ...curves.map(([id, expression, xMin, xMax]) => ({ id: `make_${id}`, operator: "function_curve", inputs: { expression, xMin, xMax }, outputs: [id] }))],
+    requiredEntityIds: ids, revealGroups: [{ id: "graphs", entityIds: ids, dependsOn: [], narrationCue: "The graphs." }],
+    assertions: [], annotations: [], quantities: [], relations: [], teachingTimeline: [],
+  };
 }
 /** A spring drawn as a planner polyline beside a graph: its label is not a graph's and never moves. */
 function springBesideGraph(): SceneDocument {
@@ -167,12 +195,12 @@ async function main() {
   console.log("PASS scope: a label that is not a graph's stays where dev puts it");
 
   // Engine only: a planner cannot write the stamp, and validation sets it from the switch alone.
-  const planned = normalizeSceneDocumentModelOutput({ ...areaFigure(), source: { ...areaFigure().source, curveLabelPlacement: "on_stroke" } } as never, QUESTION) as Row;
+  const planned = normalizeSceneDocumentModelOutput({ ...graphFigure(), source: { ...graphFigure().source, curveLabelPlacement: "on_stroke" } } as never, QUESTION) as Row;
   assert.equal(planned.source.curveLabelPlacement, undefined, "the planner's stamp is dropped");
   const validateCandidate = (candidate: Row, curveLabels: boolean) => validateProductionSceneCandidate({ candidate, question: QUESTION, turnPlan: plan(QUESTION) as never, yieldPolicy: "verified_parts", curveLabels });
-  const offResult = validateCandidate({ ...areaFigure(), source: { ...areaFigure().source, curveLabelPlacement: "on_stroke" } }, false);
+  const offResult = validateCandidate({ ...graphFigure(), source: { ...graphFigure().source, curveLabelPlacement: "on_stroke" } }, false);
   assert(offResult.valid && offResult.value && !isCurveLabelPlacementOnStroke(offResult.value.document), "switch off, a candidate's own stamp is removed");
-  const onResult = validateCandidate(areaFigure() as unknown as Row, true);
+  const onResult = validateCandidate(graphFigure() as unknown as Row, true);
   assert(onResult.valid && onResult.value && isCurveLabelPlacementOnStroke(onResult.value.document), "switch on, the engine stamps it");
   // Completion of an admitted figure validates its proposal with no switch: the figure's own stamp stays.
   const stampedValid = onResult.value!.document as unknown as Row;
@@ -212,10 +240,43 @@ async function main() {
   // The guard reads the drawn labels. An omission's path names a slot in a document that shrinks as labels go, so two
   // different omitted labels can share one path: the moved figure below loses c while its omissions look like dev's.
   const drawnWith = (ids: string[], omitted: string[], valid = true) => ({ valid, errors: omitted.map((path) => ({ code: "yield_label_omitted", path, severity: "warning", message: "" })),
-    value: { renderScene: { primitives: ids.map((id) => ({ id, kind: "label", entityId: id, points: [] })) } } }) as never;
+    value: { document: { constructions: [], annotations: [] }, renderScene: { primitives: ids.map((id) => ({ id, kind: "label", entityId: id, points: [] })) } } }) as never;
   assert.equal(onStrokeKeepsDevLabels(drawnWith(["a", "b", "c", "d"], ["annotations[7].text"]), drawnWith(["a", "b", "c"], ["annotations[7].text"])), true, "keeping every label dev draws passes");
   assert.equal(onStrokeKeepsDevLabels(drawnWith(["a", "b"], ["annotations[7].text", "annotations[7].text"]), drawnWith(["a", "b", "c"], ["annotations[7].text"])), false, "losing one fails, though its omission repeats dev's path");
   assert.equal(onStrokeKeepsDevLabels(drawnWith(["a", "b", "c"], [], false), drawnWith(["a", "b", "c"], [])), false, "an invalid moved figure fails");
+  // Never worse than dev: a moved graph label must still read as its own curve's. A label whose box sits nearer
+  // another stroke than its own, or whose leader crosses another stroke, hands the figure back to dev's.
+  const graphsCandidate = (doc: Row, curveLabels: boolean, yieldPolicy: "verified_parts" | undefined = "verified_parts") => validateProductionSceneCandidate({ candidate: structuredClone(doc), question: doc.source.question, turnPlan: plan(doc.source.question) as never, ...(yieldPolicy ? { yieldPolicy } : {}), curveLabels });
+  const steep = graphsFigure("Sketch y = 10x, y = x^5 and y = -8x near the origin.", { xMin: -2, xMax: 2, yMin: -12, yMax: 12 },
+    [["a", "10*x", -1.1, 1.1, "y = 10x"], ["b", "x^5", -1.6, 1.6, "y = x⁵"], ["c", "-8*x", -1.4, 1.4, "y = -8x"]]);
+  const cubicLine = graphsFigure("Sketch y = x^3 - 3x and y = x for -3 <= x <= 3.", { xMin: -3, xMax: 3, yMin: -4, yMax: 4 },
+    [["cubic", "x^3-3*x", -3, 3, "y = x³ - 3x"], ["line", "x", -3, 3, "y = x"]]);
+  for (const [name, doc] of [["steep lines and x⁵", steep], ["a cubic and a line", cubicLine], ["the area figure", areaFigure() as unknown as Row]] as const) {
+    const stampedOnly = prepareVerifiedParts(withCurveLabelPlacement(valid(doc as never), true), { enabled: true, figureConsistency: true });
+    const stampedScene = stampedOnly.compiledScene ?? compileSceneDocument(stampedOnly.document, { figureConsistency: true });
+    assert(stampedScene.ok && stampedScene.renderScene && !curveLabelsReadAsOwn(stampedOnly.document, stampedScene.renderScene.primitives), `${name}: a moved label reads as another curve's`);
+    const devResult = graphsCandidate(doc, false), onResult2 = graphsCandidate(doc, true);
+    assert(devResult.valid && onResult2.valid && onResult2.value && !isCurveLabelPlacementOnStroke(onResult2.value.document), `${name}: with the switch on, dev's figure stands`);
+    assert.deepEqual(onResult2.value.renderScene, devResult.value!.renderScene, `${name}: drawn exactly as dev`);
+    // The server never keeps a browser's stamp unchecked: a forged stamped copy is saved as dev's figure.
+    const asSent = valid({ ...doc, source: { ...doc.source, diagramYieldPolicy: "verified_parts" } } as never);
+    const forgedSave = admitStoredScene({ sceneDocument: withCurveLabelPlacement(asSent, true), sceneQuestion: doc.source.question, turnPlan: null, submittedTier: "qualitative_verified", curveLabels: true });
+    const devSave = admitStoredScene({ sceneDocument: withCurveLabelPlacement(asSent, true), sceneQuestion: doc.source.question, turnPlan: null, submittedTier: "qualitative_verified", curveLabels: false });
+    assert(forgedSave.ok && devSave.ok && !isCurveLabelPlacementOnStroke(forgedSave.document), `${name}: a forged stamp is saved as dev's figure`);
+    assert.deepEqual(forgedSave.presentation, devSave.presentation, `${name}: drawn as the server draws it with the switch off`);
+  }
+  // The rule on primitives: the box test alone, and which strokes are not rivals.
+  const stroke = (id: string, x: number): Row => ({ id: `${id}_ink`, entityId: id, kind: "polyline", points: Array.from({ length: 9 }, (_, k) => ({ x, y: 100 + k * 50 })) });
+  const nameOf = (owner: string, x: number): Row => ({ id: `${owner}_label`, entityId: owner, kind: "label", text: "y = f(x)", points: [{ x: x + 30, y: 312 }], provenance: { labelBounds: { x, y: 300, width: 60, height: 24 } } });
+  const docOf = (extra: Row[] = []) => ({ constructions: [{ id: "k", operator: "function_curve", outputs: ["own"] }, { id: "k2", operator: "function_curve", outputs: ["rival"] }, ...extra], annotations: [] }) as never;
+  assert.equal(curveLabelsReadAsOwn(docOf(), [stroke("own", 500), stroke("rival", 640), nameOf("own", 570)] as never), false, "a box nearer another curve than its own does not read as its own");
+  assert.equal(curveLabelsReadAsOwn(docOf(), [stroke("own", 500), stroke("rival", 640), nameOf("own", 510)] as never), true, "one beside its own curve does");
+  const axesAt = (x: number): Row => ({ id: "axes_ink", entityId: "axes", kind: "axes", points: [{ x: 400, y: 500 }, { x: 900, y: 500 }, { x, y: 500 }, { x, y: 100 }] });
+  assert.equal(curveLabelsReadAsOwn(docOf(), [stroke("own", 500), axesAt(640), nameOf("own", 570)] as never), true, "an axis is not a rival");
+  const shade: Row = { id: "shade_ink", entityId: "shade", kind: "polygon", points: [{ x: 640, y: 100 }, { x: 800, y: 100 }, { x: 800, y: 500 }, { x: 640, y: 500 }] };
+  assert.equal(curveLabelsReadAsOwn(docOf([{ id: "k3", operator: "function_region", outputs: ["shade"] }]), [stroke("own", 500), shade, nameOf("own", 570)] as never), true, "nor is a shaded region");
+  console.log("PASS never worse: a moved label nearer another curve, or with a leader across one, hands the figure back to dev, live and at the server");
+
   // The switch fixes, it never admits: a figure dev refuses stays refused, even
   // when its moved label would have let it pass.
   const refusedByDev = { ...areaFigure(), assertions: [{ id: "curveLabelled", predicate: "label_attached", entities: ["curve"] }] } as unknown as Row;
@@ -235,13 +296,15 @@ async function main() {
   console.log("PASS never admits: a figure dev refuses stays refused with the switch on, in validation and at the server");
 
   // The server keeps a submitted stamp only with its own switch on.
+  const graph = valid(graphFigure());
+  const graphStamped = withCurveLabelPlacement(graph, true);
   const admit = (sceneDocument: SceneDocument, curveLabels?: boolean) => admitStoredScene({ sceneDocument, sceneQuestion: QUESTION, turnPlan: null, submittedTier: "qualitative_verified", ...(curveLabels === undefined ? {} : { curveLabels }) });
-  const strippedAdmission = admit(stamped);
+  const strippedAdmission = admit(graphStamped);
   assert(strippedAdmission.ok && !isCurveLabelPlacementOnStroke(strippedAdmission.document), "admission drops a stamp by default");
-  const devAdmission = admit(area);
+  const devAdmission = admit(graph);
   assert(devAdmission.ok);
   assert.deepEqual(strippedAdmission.presentation, devAdmission.presentation, "and presents the figure as dev");
-  const keptAdmission = admit(stamped, true);
+  const keptAdmission = admit(graphStamped, true);
   assert(keptAdmission.ok && isCurveLabelPlacementOnStroke(keptAdmission.document), "with the switch on it keeps it");
   assert.notDeepEqual(keptAdmission.presentation.diagram.commands, devAdmission.presentation.diagram.commands, "and draws the new placement");
   // Later lesson figures stay as dev draws them.
@@ -265,8 +328,8 @@ async function main() {
   // Saves.
   const off = { curveLabelsEnabled: false };
   const on = { curveLabelsEnabled: true };
-  assert(!isCurveLabelPlacementOnStroke((await savedDocument(metadataOf(stamped), off)).sceneDocument as SceneDocument), "switch off, a save drops the stamp");
-  const savedOn = await savedDocument(metadataOf(stamped), on);
+  assert(!isCurveLabelPlacementOnStroke((await savedDocument(metadataOf(graphStamped), off)).sceneDocument as SceneDocument), "switch off, a save drops the stamp");
+  const savedOn = await savedDocument(metadataOf(graphStamped), on);
   assert(isCurveLabelPlacementOnStroke(savedOn.sceneDocument as SceneDocument), "switch on, the save keeps it");
   // The save rebuilds the figure's ink from its own compile and never compares the label positions it was sent.
   const presentedOn = buildVerifiedDiagramPresentation(savedOn.sceneDocument as SceneDocument, compileSceneDocument(savedOn.sceneDocument as SceneDocument).renderScene!, { originalQuestion: QUESTION, turnPlan: plan(QUESTION) as never });
@@ -274,13 +337,13 @@ async function main() {
     orderIndex, narration: segment.narration, spokenText: segment.narration,
     command: serializeSegmentCommands((segment.commands ?? []).map((command) => command.type === "LABEL" ? { ...command, params: command.params.map((value, index) => index < 2 ? value + 37 : value) } : command), { trustedDiagramGeometry: true }),
   }));
-  const resent = await savedDocument(metadataOf(stamped, { segments: shifted }), on);
+  const resent = await savedDocument(metadataOf(graphStamped, { segments: shifted }), on);
   const inkOf = (segments: Row[]) => segments.filter((segment) => isStoredCommandTrustedGeometry(segment.command)).map((segment) => parseStoredSegmentCommands(segment.command));
   assert.deepEqual(inkOf(resent.segments), inkOf(savedOn.segments), "label positions sent by the browser are replaced by the server's own");
   console.log("PASS save: the stamp follows the server's switch; submitted label positions are replaced, never compared");
 
   // Rule 3: a board saved under dev resumes with the switch on, as dev draws it.
-  const devSaved = await savedDocument(metadataOf(area), off);
+  const devSaved = await savedDocument(metadataOf(graph), off);
   const resumeOf = (sceneDocument: unknown) => metadataOf(sceneDocument as SceneDocument, { sceneArtifacts: { ...artifacts(QUESTION), ...boardContinuationArtifacts(QUESTION) } });
   const resumed = await savedDocument(resumeOf(devSaved.sceneDocument), { ...on, kind: "resume" });
   assert(!isCurveLabelPlacementOnStroke(resumed.sceneDocument as SceneDocument), "a dev board's resume save keeps it unstamped");
@@ -340,7 +403,7 @@ async function main() {
   assert.match(source("scripts/lecture-lab/lecturePipeline.ts"), /curveLabels: parseCurveLabelSwitch\(process\.env\.DIAGRAM_CURVE_LABELS\)/);
   assert.match(source(".env.example"), /^# DIAGRAM_CURVE_LABELS=on$/m);
   console.log("PASS plumbing: begin-turn, the browser's validation, the lab and .env.example");
-  console.log("PASS curve label placement: 11 groups");
+  console.log("PASS curve label placement: 12 groups");
 }
 
 void main().catch((error) => { console.error(error); process.exitCode = 1; });

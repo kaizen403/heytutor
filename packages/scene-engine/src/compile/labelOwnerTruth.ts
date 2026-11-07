@@ -56,13 +56,14 @@ function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
   return side(a, b, c) !== side(a, b, d) && side(c, d, a) !== side(c, d, b);
 }
 /** The straight pieces a primitive is stroked with. An arc is cut into chords of at most a pixel, within 1/(8r) px of its ink. */
-function strokePieces(primitive: RenderPrimitive): Array<[Point, Point]> {
+export function strokePieces(primitive: RenderPrimitive): Array<[Point, Point]> {
   let points = primitive.points;
   if (!points.length) return [];
   if (primitive.kind === "axes" && points.length === 4) return [[points[0]!, points[1]!], [points[2]!, points[3]!]];
-  if (primitive.kind === "arc") {
+  if (primitive.kind === "arc" || primitive.kind === "circle") {
     const centre = points[0]!, radius = primitive.radius ?? 0;
-    const start = primitive.startAngle ?? 0, sweep = (primitive.endAngle ?? start) - start;
+    const start = primitive.kind === "circle" ? 0 : primitive.startAngle ?? 0;
+    const sweep = primitive.kind === "circle" ? 2 * Math.PI : (primitive.endAngle ?? start) - start;
     const count = Math.min(4096, Math.max(8, Math.ceil(Math.abs(sweep) * radius)));
     points = Array.from({ length: count + 1 }, (_, index) => {
       const angle = start + sweep * index / count;
@@ -138,6 +139,42 @@ export function validateStraightLineNames(document: SceneDocument, primitives: R
       message: "A straight line's name sits nearer another stroke than its own line.", expected: ownDistance, actual: nearest });
   }
   return issues;
+}
+
+/**
+ * With graph labels placed by their own stroke, does each one still read as its own curve's? A graph label whose
+ * lettered box sits nearer another stroke than its own does not, and nor does one whose leader crosses another
+ * stroke. An axis is not a rival, as it is named at its ends, and nor is a shaded region, whose edge is the curves
+ * that bound it.
+ */
+export function curveLabelsReadAsOwn(document: SceneDocument, primitives: RenderPrimitive[]): boolean {
+  const curves = new Set(document.constructions.filter(c => c.operator === "function_curve").flatMap(c => c.outputs));
+  const regions = new Set(document.constructions.filter(c => /(^|_)region$/.test(c.operator)).flatMap(c => c.outputs));
+  const ink = primitives.filter(p => p.kind !== "label" && !p.provenance?.labelLeader);
+  for (const label of primitives) {
+    if (label.kind !== "label") continue;
+    const annotationId = label.provenance?.annotationId ?? (document.annotations.some(a => a.id === label.id) ? label.id : undefined);
+    const owners = document.annotations.find(a => a.id === annotationId)?.targetIds ?? [label.entityId];
+    if (!owners.some(id => curves.has(id))) continue;
+    const own = ink.filter(p => owners.includes(p.entityId));
+    const rivals = ink.filter(p => !owners.includes(p.entityId) && p.kind !== "axes" && !regions.has(p.entityId));
+    if (!own.length || !rivals.length) continue;
+    const box = labelBox(label);
+    if (box && Math.min(...rivals.map(p => boxDistance(box, p))) < Math.min(...own.map(p => boxDistance(box, p)))) return false;
+    const leader = primitives.find(p => p.id === `${label.id}_leader` && p.provenance?.labelLeader);
+    if (leader && strokePieces(leader).some(([a, b]) => rivals.some(rival => strokePieces(rival).some(([c, d]) => segmentsCross(a, b, c, d))))) return false;
+  }
+  return true;
+}
+
+/**
+ * Graph labels moved onto their stroke are kept only if the figure is never worse than dev's: it draws every
+ * label dev draws, and each graph label still reads as its own curve's.
+ */
+export function curveLabelsNeverWorse(onStroke: { document: SceneDocument; primitives: RenderPrimitive[] }, devPrimitives: RenderPrimitive[]): boolean {
+  const drawn = new Set(onStroke.primitives.filter(p => p.kind === "label" || p.kind === "dimension").map(p => p.id));
+  return devPrimitives.filter(p => p.kind === "label" || p.kind === "dimension").every(p => drawn.has(p.id)) &&
+    curveLabelsReadAsOwn(onStroke.document, onStroke.primitives);
 }
 
 /** An untethered, displaced label cannot identify an unrelated nearby stroke.

@@ -1,4 +1,4 @@
-import { validateLabelOwnerTruth, validateStraightLineNames } from "./labelOwnerTruth";
+import { strokePieces, validateLabelOwnerTruth, validateStraightLineNames } from "./labelOwnerTruth";
 import { validateFigureConsistency } from "./figureConsistency";
 import { validateLaunchVelocityTruth } from "./launchVelocityTruth";
 import { bindTrajectoryLabelPlacement } from "../labels/trajectoryLabelPlacement";
@@ -4335,14 +4335,10 @@ function functionCurveLabelPlacement(document: SceneDocument, entityId: string, 
   if (!own || own.points.length < 8) return {};
   const at = (t: number): RenderPoint => own.points[Math.min(own.points.length - 1, Math.max(0, Math.round(t * (own.points.length - 1))))]!;
   const candidates = [0.85, 0.15, 0.7, 0.3, 0.5, 0.95, 0.05].map(at);
-  const segments: Array<[RenderPoint, RenderPoint]> = [];
-  for (const primitive of primitives) {
-    if (primitive.kind === "label" || primitive.entityId === entityId) continue;
-    const points = primitive.points;
-    if (points.length === 1 || primitive.kind === "point") { segments.push([points[0]!, points[0]!]); continue; }
-    for (let index = 1; index < points.length; index += 1) segments.push([points[index - 1]!, points[index]!]);
-    if ((primitive.kind === "polygon" || primitive.kind === "rectangle") && points.length > 2) segments.push([points.at(-1)!, points[0]!]);
-  }
+  // Room is measured to the ink as drawn: axes as their two lines, circles and arcs along their outline.
+  const segments: Array<[RenderPoint, RenderPoint]> = primitives
+    .filter((primitive) => primitive.kind !== "label" && primitive.entityId !== entityId)
+    .flatMap((primitive) => strokePieces(primitive));
   const room = (point: RenderPoint): number => segments.length === 0
     ? Infinity
     : Math.min(...segments.map(([a, b]) => pointSegmentResidual(point, [a, b])));
