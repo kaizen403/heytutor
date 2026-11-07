@@ -147,14 +147,23 @@ type ProductionSceneCandidateInput = {
 /**
  * The curve label switch moves labels only on a figure dev already draws: the
  * candidate is validated as dev first, and a figure dev refuses stays refused.
- * If the moved labels would refuse it, dev's result stands.
+ * If the moved labels would refuse it, or leave out a label dev keeps, dev's result stands.
  */
 export function validateProductionSceneCandidate(input: ProductionSceneCandidateInput): SceneCandidateValidation<ValidatedSceneCandidate> {
   if (input.curveLabels !== true) return validateCandidateOnce(input);
   const asDev = validateCandidateOnce({ ...input, curveLabels: false });
   if (!asDev.valid || !asDev.value || !documentHasFunctionCurve(asDev.value.document)) return asDev;
   const onStroke = validateCandidateOnce(input);
-  return onStroke.valid ? onStroke : asDev;
+  // Moved labels never cost the figure a label: any name dev keeps must survive on the stroke too.
+  const devOmitted = omittedLabels(asDev);
+  return onStroke.valid && [...omittedLabels(onStroke)].every((label) => devOmitted.has(label)) ? onStroke : asDev;
+}
+
+/** The labels verified parts left out of a validated figure, by where each was written. */
+function omittedLabels(result: SceneCandidateValidation<ValidatedSceneCandidate>): Set<string> {
+  return new Set((result.errors ?? [])
+    .filter((issue) => issue.code === "yield_label_omitted")
+    .map((issue) => issue.path ?? JSON.stringify(issue.entityIds ?? [])));
 }
 
 function validateCandidateOnce(input: ProductionSceneCandidateInput): SceneCandidateValidation<ValidatedSceneCandidate> {

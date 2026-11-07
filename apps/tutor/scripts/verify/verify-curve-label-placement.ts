@@ -180,6 +180,35 @@ async function main() {
   assert(completed.valid && completed.value && isCurveLabelPlacementOnStroke(completed.value.document), "an absent switch leaves an admitted figure's stamp");
   console.log("PASS engine only: dropped from planner output; validation stamps from the switch alone; completion keeps it");
 
+  // Moved labels never cost a label: here the line's name moves into a spot that reads as another stroke's, so dev's figure stands.
+  const regionQuestion = "Shade the region between y = 7 - x^2 and y = x + 1.";
+  const between = {
+    schemaVersion: SCENE_DOCUMENT_VERSION, visualDecision: { mode: "scene", reason: "figure" },
+    source: { question: regionQuestion, nonMetric: true, representationTier: "qualitative_verified" },
+    quantities: [], relations: [], assertions: [], teachingTimeline: [], annotations: [],
+    entities: [{ id: "ax", kind: "axes", role: "coordinate axes" }, { id: "parab", kind: "polyline", role: "parabola", label: "y = 7 - x²" }, { id: "line", kind: "polyline", role: "line", label: "y = x + 1" },
+      { id: "left", kind: "point", role: "left intersection" }, { id: "right", kind: "point", role: "right intersection" }, { id: "region", kind: "polygon", role: "enclosed region" }],
+    constructions: [
+      { id: "kax", operator: "axes", inputs: { xMin: -4, xMax: 3, yMin: -7, yMax: 8 }, outputs: ["ax"] },
+      { id: "kparab", operator: "function_curve", inputs: { expression: "7-x^2", xMin: -3.5, xMax: 2.5 }, outputs: ["parab"] },
+      { id: "kline", operator: "function_curve", inputs: { expression: "1*x+1", xMin: -3.5, xMax: 2.5 }, outputs: ["line"] },
+      { id: "kleft", operator: "curve_anchor", inputs: { curve: "parab", at: -3 }, outputs: ["left"] },
+      { id: "kright", operator: "curve_anchor", inputs: { curve: "parab", at: 2 }, outputs: ["right"] },
+      { id: "kregion", operator: "function_region", inputs: { upper: "parab", lower: "line", xMin: -3, xMax: 2 }, outputs: ["region"] },
+    ],
+    requiredEntityIds: ["ax", "parab", "line", "left", "right", "region"],
+    revealGroups: [{ id: "g", entityIds: ["ax", "parab", "line", "left", "right", "region"], dependsOn: [], narrationCue: "The region." }],
+  } as unknown as Row;
+  const regionCandidate = (curveLabels: boolean) => validateProductionSceneCandidate({ candidate: structuredClone(between), question: regionQuestion, turnPlan: plan(regionQuestion) as never, yieldPolicy: "verified_parts", curveLabels });
+  const omittedIn = (result: ReturnType<typeof regionCandidate>) => result.errors.filter((issue) => issue.code === "yield_label_omitted").map((issue) => issue.path);
+  const devRegion = regionCandidate(false);
+  assert(devRegion.valid && omittedIn(devRegion).length === 0, `dev draws every label: ${JSON.stringify(devRegion.errors.filter((issue) => issue.severity === "fatal").map((issue) => issue.code))} ${JSON.stringify(omittedIn(devRegion))}`);
+  const plainStamp = prepareVerifiedParts(withCurveLabelPlacement(valid(between as never), true), { enabled: true, figureConsistency: true });
+  assert(plainStamp.issues.some((issue) => issue.code === "yield_label_omitted"), "the moved labels alone would leave a name out");
+  const onRegion = regionCandidate(true);
+  assert(onRegion.valid && onRegion.value && !isCurveLabelPlacementOnStroke(onRegion.value.document), "so with the switch on, dev's figure stands");
+  assert.deepEqual(omittedIn(onRegion), [], "with every label");
+  assert.deepEqual(onRegion.value.renderScene, devRegion.value!.renderScene, "drawn exactly as dev");
   // The switch fixes, it never admits: a figure dev refuses stays refused, even
   // when its moved label would have let it pass.
   const refusedByDev = { ...areaFigure(), assertions: [{ id: "curveLabelled", predicate: "label_attached", entities: ["curve"] }] } as unknown as Row;
