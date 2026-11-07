@@ -81,6 +81,28 @@ function openOnPoint(right: string): SceneDocument {
 }
 assert.deepEqual(radii(openOnPoint("6*x-9")), [2, 2], "an open end on a point: its own dot, now a ring, and the mark are both drawn at radius 2");
 assert.deepEqual(radii(openOnPoint("6*x-5")), [6, 6], "and at a jump both keep radius 6");
+// The same entity marked both included and excluded at one spot is not a join: its ring is left as drawn.
+{
+  const raw: Row = {
+    schemaVersion: SCENE_DOCUMENT_VERSION, visualDecision: { mode: "scene", reason: "figure" },
+    source: { question: "Show the set [1, 3) on a number line.", nonMetric: true, representationTier: "qualitative_verified", diagramYieldPolicy: "verified_parts" },
+    quantities: [], relations: [], assertions: [], teachingTimeline: [],
+    entities: [{ id: "line", kind: "axes", role: "axes" }, { id: "A", kind: "point", role: "lower end" }, { id: "C", kind: "point", role: "upper end" }, { id: "K", kind: "segment", role: "segment" }],
+    constructions: [
+      { id: "make_line", operator: "axes", inputs: { xMin: 0, xMax: 4, yMin: -1, yMax: 1 }, outputs: ["line"] },
+      { id: "make_a", operator: "point", inputs: { x: 1, y: 0, coordinateSpace: "world" }, outputs: ["A"] },
+      { id: "make_c", operator: "point", inputs: { x: 3, y: 0, coordinateSpace: "world" }, outputs: ["C"] },
+      { id: "make_k", operator: "segment", inputs: { start: "A", end: "C" }, outputs: ["K"] },
+    ],
+    // Each mark on the segment lands on its first point, so the open one sits on A too, over K's own filled mark.
+    annotations: [{ id: "closed", kind: "endpoint", targetIds: ["A", "K"], style: { pointStyle: "filled" } }, { id: "open", kind: "endpoint", targetIds: ["C", "K"], style: { pointStyle: "open" } }],
+    requiredEntityIds: ["line", "A", "C", "K"], revealGroups: [{ id: "g", entityIds: ["line", "A", "C", "K"], dependsOn: [], narrationCue: "The set." }],
+  };
+  const validated = validateSceneDocument(raw);
+  assert(validated.document, "the set fixture is valid");
+  const drawn = rings(compiled(validated.document));
+  assert(drawn.length >= 2 && drawn.every((ring) => ring.radius === 6), `a segment marked both ways keeps its rings at radius 6: ${JSON.stringify(drawn.map((ring) => ring.radius))}`);
+}
 // 2. True holes keep the wide ring.
 assert.deepEqual(radii(piecewise({ right: "6*x-5" })), [6], "a jump, its filled point elsewhere, keeps radius 6");
 assert.deepEqual(radii(piecewise({ join: null })), [6], "a hole with no filled point keeps radius 6");

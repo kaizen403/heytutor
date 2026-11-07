@@ -156,28 +156,34 @@ export function appendCompiledAnnotations(
     });
     entityToGroup.set(annotation.id, groupId);
   }
-  narrowRingsOverFilledPoints(primitives);
+  narrowRingsOverFilledPoints(document, primitives);
 }
 
 /** A filled dot this close to an open ring's centre is drawn under the ring. */
 const RING_OVER_FILLED_POINT_PX = 1;
 
 /**
- * An open endpoint drawn on a filled point is a join, not a hole: another
- * piece includes the point. The wide ring would read as a hole round that dot,
- * so draw it at the dot's own size, as before verified parts. A ring's own
- * point is already a ring, never a filled dot, and without verified parts
- * every ring is already this size, so this changes nothing there.
+ * An open endpoint drawn on another entity's filled point is a join, not a
+ * hole: another piece includes the point. The wide ring would read as a hole
+ * round that dot, so draw it at the dot's own size, as before verified parts.
+ * Where a filled mark there shares a target with the ring, the same entity is
+ * marked both included and excluded: that is not a join, and it is left as
+ * drawn. A ring's own point is already a ring, never a filled dot, and without
+ * verified parts every ring is already this size, so this changes nothing there.
  */
-function narrowRingsOverFilledPoints(primitives: RenderPrimitive[]): void {
+function narrowRingsOverFilledPoints(document: SceneDocument, primitives: RenderPrimitive[]): void {
+  const targetsOf = new Map(document.annotations.map((annotation) => [annotation.id, annotation.targetIds]));
+  const owners = (primitive: RenderPrimitive) => new Set(targetsOf.get(primitive.entityId) ?? [primitive.entityId]);
   const filled = primitives.filter((primitive) => primitive.kind === "point" && primitive.points[0]);
   for (let index = 0; index < primitives.length; index++) {
     const ring = primitives[index]!;
     const centre = ring.points[0];
     if (ring.kind !== "circle" || ring.provenance?.pointStyle !== "open" || !centre) continue;
-    if (filled.some((dot) => Math.hypot(dot.points[0]!.x - centre.x, dot.points[0]!.y - centre.y) <= RING_OVER_FILLED_POINT_PX)) {
-      primitives[index] = { ...ring, radius: 2 };
-    }
+    const under = filled.filter((dot) => Math.hypot(dot.points[0]!.x - centre.x, dot.points[0]!.y - centre.y) <= RING_OVER_FILLED_POINT_PX);
+    if (!under.length) continue;
+    const ringOwners = owners(ring);
+    if (under.some((dot) => [...owners(dot)].some((id) => ringOwners.has(id)))) continue;
+    primitives[index] = { ...ring, radius: 2 };
   }
 }
 
