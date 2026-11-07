@@ -8,10 +8,9 @@
  *   another's, so two branches read as joined.
  * - current_against_source_polarity: a current sense badge on a conductor in
  *   series with the only cell runs from its negative to its positive plate
- *   through the external circuit; or, with cells aligned in parallel, a badge
- *   on a load branch runs from the rail their negative plates share.
- * - polarity_mark_against_plates: a + written on a cell's terminals sits at
- *   its short plate.
+ *   through the external circuit.
+ * - polarity_mark_against_plates: a + written on a cell's two terminals sits
+ *   at its short plate.
  * - vector_collinear_overlap: two arrows share a line and overlap, so one
  *   hides the other and the reader cannot tell their lengths or ends apart.
  * - vector_without_label: an arrow carries no name, so it reads as an
@@ -168,8 +167,7 @@ function connected(edges: Conductor[], from: string, to: string): boolean {
  * annotations targeting the badge, since either one names the arrow on the page. */
 function declaresCurrent(role: string | undefined, labels: Array<string | undefined>): boolean {
   if (/\bcurrent\b/i.test(role ?? "")) return true;
-  // A letter subscript needs its underscore ("I_L", "I_{load}"), so a word such as "Image" is not read as a current.
-  return labels.some((label) => /\bcurrent\b/i.test(label ?? "") || /^I(?:_?\{?\d+\}?|_\{?[A-Za-z][A-Za-z0-9]*\}?)?(?:\s*=.*)?$/.test(String(label ?? "").trim()));
+  return labels.some((label) => /\bcurrent\b/i.test(label ?? "") || /^I(?:_?\{?\d+\}?)?(?:\s*=.*)?$/.test(String(label ?? "").trim()));
 }
 
 /** The document draws a cell's long (positive) plate at its start terminal. Conventional
@@ -225,115 +223,42 @@ export function validateCurrentSourcePolarity(document: SceneDocument): SceneIss
   return issues;
 }
 
-/** Elements whose steady current runs from the higher end to the lower. */
-const RESISTIVE = new Set(["resistor", "lamp", "bulb", "fuse", "ammeter", "wire", "switch", "rheostat"]);
-
-/** Follows series nodes from `node`, away from `from`, to the first junction. Null on a dead end. */
-function branchEnd<T extends Conductor>(edges: T[], junctions: Set<string>, from: T, node: string): { junction: string; passed: T[] } | null {
-  const passed = [from];
-  let previous = from;
-  while (!junctions.has(node)) {
-    const next = edges.filter((edge) => edge !== previous && (edge.start === node || edge.end === node));
-    if (next.length !== 1 || passed.includes(next[0]!)) return null;
-    previous = next[0]!;
-    passed.push(previous);
-    node = previous.start === node ? previous.end : previous.start;
-  }
-  return { junction: node, passed };
-}
-
-/** Cells aligned in parallel: every polarised cell sits in a branch between the same two junctions, its long plate
- * towards the same one. That junction is then the higher, since V = Σ(E/r) / (Σ1/r + Σ1/R) > 0 for positive EMFs
- * whatever their sizes, so the current in a resistive branch between them runs away from it. A cell's own branch may
- * carry current either way (a weaker cell is charged), and opposed cells fix nothing, so neither is judged. */
-export function validateParallelCellsLoadCurrent(document: SceneDocument): SceneIssue[] {
-  const symbols = document.constructions.filter((construction) => construction.operator === "symbol");
-  const cells = symbols.filter((construction) => POLARISED_SOURCES.has(symbolName(construction)));
-  if (cells.length < 2 || symbols.some((construction) => OTHER_SOURCES.has(symbolName(construction)))) return [];
-  const edges: Array<Conductor & { resistive: boolean }> = [];
-  for (const construction of document.constructions) {
-    if (!construction.outputs[0] || (construction.operator !== "symbol" && construction.operator !== "connect")) continue;
-    if (construction.operator === "symbol" && !conducts(construction)) continue;
-    const start = construction.inputs.start ?? construction.inputs.from ?? construction.inputs.a;
-    const end = construction.inputs.end ?? construction.inputs.to ?? construction.inputs.b;
-    if (typeof start !== "string" || typeof end !== "string" || start === end) continue;
-    edges.push({ id: construction.outputs[0], start, end, resistive: construction.operator === "connect" || RESISTIVE.has(symbolName(construction)) });
-  }
-  const degree = new Map<string, number>();
-  for (const edge of edges) for (const node of [edge.start, edge.end]) degree.set(node, (degree.get(node) ?? 0) + 1);
-  const junctions = new Set([...degree].filter(([, count]) => count >= 3).map(([node]) => node));
-  if (junctions.size !== 2) return [];
-  // Every cell's long plate (its start) faces the same junction.
-  let rails: { positive: string; negative: string } | null = null;
-  for (const cell of cells) {
-    const edge = edges.find((candidate) => candidate.id === cell.outputs[0]);
-    if (!edge) return [];
-    const positive = branchEnd(edges, junctions, edge, edge.start), negative = branchEnd(edges, junctions, edge, edge.end);
-    if (!positive || !negative || positive.junction === negative.junction) return [];
-    if (rails && (rails.positive !== positive.junction || rails.negative !== negative.junction)) return [];
-    rails = { positive: positive.junction, negative: negative.junction };
-  }
-  if (!rails) return [];
-  const issues: SceneIssue[] = [];
-  for (const badge of document.constructions) {
-    if (badge.operator !== "sign_badge" || !badge.outputs[0]) continue;
-    const entity = document.entities.find((candidate) => candidate.id === badge.outputs[0]);
-    const labels = [entity?.label, ...(document.annotations ?? [])
-      .filter((annotation) => annotation.kind === "label" && annotation.targetIds[0] === badge.outputs[0])
-      .map((annotation) => annotation.text)];
-    if (/electron/i.test(`${entity?.role ?? ""} ${labels.join(" ")}`)) continue;
-    if (!declaresCurrent(entity?.role, labels)) continue;
-    const sense = String(badge.inputs.sense ?? badge.inputs.kind ?? "").trim().toLowerCase();
-    if (sense !== "positive" && sense !== "negative") continue;
-    const target = badge.inputs.target ?? badge.inputs.axis ?? badge.inputs.path;
-    const edge = edges.find((candidate) => candidate.id === target);
-    if (!edge) continue;
-    const startSide = branchEnd(edges, junctions, edge, edge.start), endSide = branchEnd(edges, junctions, edge, edge.end);
-    if (!startSide || !endSide) continue;
-    // Only a load branch: resistive elements between the two rails. A cell is not resistive, so a cell's own branch,
-    // which may carry a charging current, is never judged.
-    if ([...startSide.passed, ...endSide.passed].some((member) => !member.resistive)) continue;
-    if (new Set([startSide.junction, endSide.junction]).size !== 2 || ![rails.positive, rails.negative].includes(startSide.junction)) continue;
-    const drawnForward = sense === "positive";
-    if (drawnForward === (startSide.junction === rails.positive)) continue;
-    issues.push({ code: "current_against_source_polarity", severity: "fatal", failureKind: "truth", entityIds: [badge.outputs[0], edge.id, ...cells.map((cell) => cell.outputs[0] ?? "")],
-      constructionId: badge.id,
-      message: `The current mark on ${edge.id} runs against the cells: every cell's positive plate faces ${rails.positive}, so the current in this branch runs from ${rails.positive} to ${rails.negative}.` });
-  }
-  return issues;
-}
-
 // ---------------------------------------------------------------------------
 // Polarity marks against the drawn plates
 
-/** A + written on one cell's terminals must sit at its long plate, the one the document draws at the start terminal.
- * Only an explicit pair the document writes is judged, never a default or a sign read from a role. */
-export function validateCellPolarityMarks(document: SceneDocument, primitives: RenderPrimitive[]): SceneIssue[] {
+/** A + written on a cell's two terminal points must sit at its long plate, the one the document draws at the start
+ * terminal. Only an explicit pair the document writes is judged, never a default or a sign read from a role. Marks
+ * targeting the cell itself are not judged: they land at its start terminal and long plate whatever the text says. */
+export function validateCellPolarityMarks(document: SceneDocument, primitives: RenderPrimitive[], terminalsOf?: SymbolTerminals): SceneIssue[] {
   const cells = document.constructions.filter((construction) => construction.operator === "symbol" && POLARISED_SOURCES.has(symbolName(construction)) && construction.outputs[0]);
   if (!cells.length) return [];
   const issues: SceneIssue[] = [];
   for (const annotation of document.annotations ?? []) {
     if (annotation.kind !== "polarity" || typeof annotation.text !== "string") continue;
     if (!/^(?:\+[-−]|[-−]\+)$/.test(annotation.text.trim())) continue;
-    const targets = annotation.targetIds;
-    const cell = cells.find((construction) => targets.length === 1
-      ? targets[0] === construction.outputs[0]
-      : targets.length === 2 && targets[0] !== targets[1] && targets.every((target) => target === construction.inputs.start || target === construction.inputs.end));
+    const [first, second] = annotation.targetIds;
+    if (annotation.targetIds.length !== 2 || first === second) continue;
+    const cell = cells.find((construction) => [first, second].every((target) => target === construction.inputs.start || target === construction.inputs.end));
     if (!cell) continue;
     const plus = primitives.find((primitive) => primitive.kind === "label" && primitive.entityId === annotation.id
       && primitive.provenance?.annotation === "polarity" && String(primitive.text ?? "").trim() === "+")?.points[0];
     if (!plus) continue;
-    // The glyph is two leads and two plates; the plates are its two shortest strokes, the longer one positive.
-    const strokes = primitives
-      .filter((primitive) => primitive.entityId === cell.outputs[0] && primitive.kind !== "label" && primitive.kind !== "point" && primitive.points.length === 2)
-      .map((primitive) => ({ mid: { x: (primitive.points[0]!.x + primitive.points[1]!.x) / 2, y: (primitive.points[0]!.y + primitive.points[1]!.y) / 2 }, size: length(sub(primitive.points[0]!, primitive.points[1]!)) }))
-      .sort((a, b) => a.size - b.size);
-    if (strokes.length < 4) continue;
-    const short = strokes[0]!, long = strokes[1]!;
+    // The plates are the glyph's strokes off its terminal axis, away from both terminals; leaders and lane
+    // connectors are not. The longer one is positive.
+    const id = cell.outputs[0]!;
+    const terminals = terminalsOf?.(id) ?? null;
+    const start = terminals?.[0] ?? renderedPoint(primitives, cell.inputs.start);
+    const end = terminals?.[1] ?? renderedPoint(primitives, cell.inputs.end);
+    if (!start || !end) continue;
+    const plates = (componentGlyph(id, start, end, primitives)?.segments ?? [])
+      .map(([a, b]) => ({ mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, size: length(sub(b, a)) }))
+      .sort((a, b) => b.size - a.size);
+    if (plates.length !== 2 || plates[0]!.size === plates[1]!.size) continue;
+    const [long, short] = plates as [typeof plates[0], typeof plates[0]];
     // Judged only when the + is plainly nearer the short plate.
     if (length(sub(plus, short.mid)) + 1 >= length(sub(plus, long.mid))) continue;
-    issues.push({ code: "polarity_mark_against_plates", severity: "fatal", failureKind: "truth", entityIds: [annotation.id, cell.outputs[0]!],
-      message: `The + on ${cell.outputs[0]} is drawn at its short plate: the long, positive plate is at its ${String(cell.inputs.start)} terminal.` });
+    issues.push({ code: "polarity_mark_against_plates", severity: "fatal", failureKind: "truth", entityIds: [annotation.id, id],
+      message: `The + on ${id} is drawn at its short plate: the long, positive plate is at its ${String(cell.inputs.start)} terminal.` });
   }
   return issues;
 }
@@ -578,8 +503,7 @@ export function validateFigureConsistency(document: SceneDocument, primitives: R
   return [
     ...validateComponentGlyphOverlap(document, primitives, terminalsOf),
     ...validateCurrentSourcePolarity(document),
-    ...validateParallelCellsLoadCurrent(document),
-    ...validateCellPolarityMarks(document, primitives),
+    ...validateCellPolarityMarks(document, primitives, terminalsOf),
     ...validateArrowOverlap(document, primitives),
     ...validateArrowLabels(document, primitives),
     ...validateRegionLabelPlacement(document, primitives),

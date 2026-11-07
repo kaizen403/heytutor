@@ -287,10 +287,9 @@ expect("a short line below does not stand in for the lower graph", halvesWithLin
 expect("a flat reference line below does not stand in for the lower graph", halvesWithLine(sameHalf, [0, -1], [8, -1]), "axes_frames_overlap", true);
 expect("a true split graph with a short line in one half is still admitted", halvesWithLine(decay, [3, 1], [4, 1.5]), "axes_frames_overlap", false);
 
-// --- cells in parallel: the load current ---------------------------------------------
+// --- two cells, for polarity marks -------------------------------------------------
 // Rails T (top) and B (bottom). Branch i: T -wire- Ti -resistor ri- Mi -cell- Bi -wire- B. A cell drawn from Mi to
-// Bi has its long plate at Mi, so its positive plate faces T. The load runs T to B. With every cell's positive plate
-// on T, T is the higher rail whatever the EMFs, so the load current runs T to B and a positive badge on it is right.
+// Bi has its long plate at Mi.
 function parallel(options: { up?: boolean[]; loadSense?: string; badgeOn?: string; badgeSense?: string; role?: string; label?: string; load?: string; ladder?: boolean } = {}): Doc {
   const up = options.up ?? [true, true];
   const parts: Array<[Entity, Construction]> = [point("T", 3, 4), point("B", 3, -4)];
@@ -314,39 +313,6 @@ function parallel(options: { up?: boolean[]; loadSense?: string; badgeOn?: strin
     { id: "make_flow", operator: "sign_badge", inputs: { target: options.badgeOn ?? "load", at: 0.5, sense: options.badgeSense ?? options.loadSense ?? "positive" }, outputs: ["flow"] }]);
   return build(parts);
 }
-const LOAD = "current_against_source_polarity";
-expect("parallel cells: a load current from the rail their positive plates share is admitted", parallel(), LOAD, false);
-expect("mutation: the load current reversed is refused", parallel({ loadSense: "negative" }), LOAD, true);
-expect("parallel cells drawn the other way: the load current reverses with them", parallel({ up: [false, false], loadSense: "negative" }), LOAD, false);
-expect("mutation: cells drawn the other way with the load current kept is refused", parallel({ up: [false, false], loadSense: "positive" }), LOAD, true);
-expect("a charging cell: current into its positive plate is true and not judged", parallel({ badgeOn: "r1", badgeSense: "positive", role: "branch current", label: "I2" }), LOAD, false);
-expect("a cell's own branch is not judged either way", parallel({ badgeOn: "r1", badgeSense: "negative", role: "branch current", label: "I2" }), LOAD, false);
-expect("cells in opposition fix no load direction, either way", parallel({ up: [true, false], loadSense: "negative" }), LOAD, false);
-expect("cells in opposition fix no load direction, the other way", parallel({ up: [true, false], loadSense: "positive" }), LOAD, false);
-expect("a load branch that is not resistive is not judged", parallel({ loadSense: "negative", load: "capacitor" }), LOAD, false);
-expect("more than two junctions is not judged", parallel({ ladder: true, loadSense: "negative" }), LOAD, false);
-expect("an electron flow mark on the load is not judged", parallel({ loadSense: "negative", role: "electron flow" }), LOAD, false);
-expect("mutation: a reversed load badge named I_L with a neutral role is judged", parallel({ loadSense: "negative", role: "direction marker", label: "I_L" }), LOAD, true);
-expect("a reversed load badge named Image is not read as a current", parallel({ loadSense: "negative", role: "direction marker", label: "Image" }), LOAD, false);
-// Scope: one cell feeding loads in parallel is the single cell rule's, which judges series conductors only.
-const oneCell = parallel({ up: [true], loadSense: "negative" });
-(oneCell.entities as Entity[]).push({ id: "load2", kind: "component", role: "load", label: "R2" });
-(oneCell.constructions as Construction[]).push({ id: "make_load2", operator: "symbol", inputs: { start: "T", end: "B", symbol: "resistor" }, outputs: ["load2"] });
-(oneCell.requiredEntityIds as string[]).push("load2");
-((oneCell.revealGroups as Array<{ entityIds: string[] }>)[0]!.entityIds).push("load2");
-expect("one cell with loads in parallel is left to the single cell rule", oneCell, LOAD, false);
-// Another kind of source fixes no polarity the plates can show, so the rule stands down.
-const withAc = parallel({ loadSense: "negative" });
-for (const [entity, construction] of [point("TA", 9, 4), point("BA", 9, -4),
-  [{ id: "wta", kind: "connector", role: "wire" }, { id: "make_wta", operator: "connect", inputs: { start: "T", end: "TA" }, outputs: ["wta"] }],
-  [{ id: "mains", kind: "component", role: "source", label: "V" }, { id: "make_mains", operator: "symbol", inputs: { start: "TA", end: "BA", symbol: "ac_source" }, outputs: ["mains"] }],
-  [{ id: "wba", kind: "connector", role: "wire" }, { id: "make_wba", operator: "connect", inputs: { start: "BA", end: "B" }, outputs: ["wba"] }],
-] as Array<[Entity, Construction]>) {
-  (withAc.entities as Entity[]).push(entity); (withAc.constructions as Construction[]).push(construction);
-  (withAc.requiredEntityIds as string[]).push(entity.id); ((withAc.revealGroups as Array<{ entityIds: string[] }>)[0]!.entityIds).push(entity.id);
-}
-expect("cells in parallel beside an AC source are not judged", withAc, LOAD, false);
-
 // --- polarity marks against the plates ----------------------------------------------
 // The loop's cell runs P to S, so its long plate is at P. Marks on terminal points land in the order the points are
 // drawn, P before S, whatever order the targets are listed in.
@@ -363,7 +329,9 @@ expect("the same marks listed the other way still land at the long plate", marke
 expect("mutation: a + written at the short plate is refused", marked("-+", ["P", "S"]), MARK, true);
 expect("mutation: a cell drawn the other way under the same marks is refused", marked("+-", ["P", "S"], true), MARK, true);
 expect("marks with no written text are not judged", marked(undefined, ["P", "S"], true), MARK, false);
-expect("marks on the cell itself are admitted", marked("+-", ["cell"]), MARK, false);
+// Marks on the cell itself land at its start terminal and its long plate whatever the text says, so they are not judged.
+expect("marks on the cell itself are not judged, written +-", marked("+-", ["cell"]), MARK, false);
+expect("marks on the cell itself are not judged, written -+", marked("-+", ["cell"]), MARK, false);
 expect("marks on a resistor are not judged", marked("-+", ["load"]), MARK, false);
 const twoMarked = parallel();
 (twoMarked.annotations as unknown[]).push({ id: "signs0", kind: "polarity", targetIds: ["M0", "B0"], text: "+-" }, { id: "signs1", kind: "polarity", targetIds: ["M1", "B1"], text: "-+" });
@@ -371,6 +339,26 @@ expect("mutation: one cell's marks right and the other's at its short plate is r
 const twoRight = parallel();
 (twoRight.annotations as unknown[]).push({ id: "signs0", kind: "polarity", targetIds: ["M0", "B0"], text: "+-" }, { id: "signs1", kind: "polarity", targetIds: ["M1", "B1"], text: "+-" });
 expect("both cells' marks at their long plates are admitted", twoRight, MARK, false);
+
+// A short cell between two resistors: its label's leader runs beside the plates and must not be read as one.
+function crowded(text: string): Doc {
+  const named = (id: string, symbol: string, start: string, end: string, role: string, label: string): [Entity, Construction] =>
+    [{ id, kind: "component", role, label }, { id: `make_${id}`, operator: "symbol", inputs: { start, end, symbol }, outputs: [id] }];
+  const join = (id: string, start: string, end: string): [Entity, Construction] =>
+    [{ id, kind: "connector", role: "wire" }, { id: `make_${id}`, operator: "connect", inputs: { start, end }, outputs: [id] }];
+  const document = build([
+    point("P", 0, 0), point("A", 0, 1.2), point("C", 0, 2.8), point("S", 0, 4),
+    point("P2", 0.9, 0), point("S2", 0.9, 4), point("R", 6, 4), point("Q", 6, 0),
+    join("w1", "P", "A"), named("cell", "cell", "C", "A", "source", "E"), join("w2", "C", "S"),
+    named("ra", "resistor", "P2", "S2", "resistor", "R_a = 2 Ω"), join("w3", "S", "S2"), join("w4", "P", "P2"),
+    point("L1", -0.9, 0), point("L2", -0.9, 4), named("rb", "resistor", "L1", "L2", "resistor", "R_b = 3 Ω"), join("w5", "L1", "P"), join("w6", "L2", "S"),
+    join("top", "S2", "R"), named("load", "resistor", "R", "Q", "resistor", "R"), join("bottom", "Q", "P2"),
+  ]);
+  // Points are drawn A before C, and the cell's long plate is at C, so "-+" puts the + at the long plate.
+  return annotate(document, { id: "signs", kind: "polarity", targetIds: ["A", "C"], text } as never);
+}
+expect("a true + at the long plate beside the cell's label leader is admitted", crowded("-+"), MARK, false);
+expect("mutation: the same crowded cell with the + at its short plate is refused", crowded("+-"), MARK, true);
 
 // Scope: without the option (engine built figures) the rules do not run.
 if (codes(loop("negative"), false).includes("current_against_source_polarity")) { failures.push("the rules ran without the figureConsistency option"); console.log("FAIL the rules ran without the figureConsistency option"); }

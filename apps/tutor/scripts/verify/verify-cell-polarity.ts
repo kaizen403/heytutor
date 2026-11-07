@@ -1,10 +1,9 @@
 /**
- * Cell polarity through production admission, strict selection, the save path and the family path.
+ * Cell polarity marks through production admission, strict selection, the save path and the family path.
  *
- * A planner figure drew two cells in parallel with their long plates on the bottom rail and the load current running
- * down, as if the top were positive. Another wrote + beside a cell's short plate. Both now refuse, while a true
- * charging circuit (current into the weaker cell's positive plate) and a true pair of cells in opposition keep
- * drawing. The rules run only on planner candidates, so a saved board resumes and a family figure builds as before.
+ * A planner figure wrote + beside a cell's short plate, while the engine draws the long, positive plate at the cell's
+ * start terminal. That now refuses, while a true pair of cells in opposition and a true charging circuit keep drawing.
+ * The rule runs only on planner candidates, so a saved board resumes and a family figure builds as before.
  *
  *   pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-cell-polarity.ts
  */
@@ -16,7 +15,6 @@ import { selectProductionScene, validateProductionSceneCandidate } from "../../f
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 
 const STRICT = ["planner", "verified_recovery", "linear_source", "text_only"];
-const LOAD = "current_against_source_polarity";
 const MARK = "polarity_mark_against_plates";
 let checks = 0;
 const failures: string[] = [];
@@ -93,14 +91,6 @@ async function main() {
     assert.deepEqual(fatal(admit(PARALLEL, parallel(true, "positive"))), []);
     assert.ok(drawn(PARALLEL, parallel(true, "positive")), "drawn");
   });
-  await check("the recorded shape, long plates on the bottom rail and the load current down, is refused", () => {
-    assert.ok(fatal(admit(PARALLEL, parallel(false, "positive"))).includes(LOAD));
-    assert.equal(drawn(PARALLEL, parallel(false, "positive")), null);
-  });
-  await check("long plates on the bottom rail with the load current up is admitted and drawn", () => {
-    assert.deepEqual(fatal(admit(PARALLEL, parallel(false, "negative"))), []);
-    assert.ok(drawn(PARALLEL, parallel(false, "negative")), "drawn");
-  });
   await check("a true pair of cells in opposition is admitted and drawn under strict", () => {
     assert.deepEqual(fatal(admit(OPPOSED, opposed(true))), []);
     assert.ok(drawn(OPPOSED, opposed(true)), "drawn");
@@ -113,28 +103,29 @@ async function main() {
   // Rule 3: the save path and the family path do not run these rules, so saved boards and family figures are as dev.
   await check("the save path never runs figure consistency", () => {
     const source = (path: string) => readFileSync(join(__dirname, "../..", path), "utf8");
-    assert.ok(!source("lib/scene/turnScenePersistence.ts").includes("figureConsistency"));
-    assert.ok(!source("lib/scene/sceneSaveAdmission.ts").includes("figureConsistency"));
+    for (const path of ["lib/scene/turnScenePersistence.ts", "lib/scene/sceneSaveAdmission.ts", "lib/scene/sceneAdmission.ts"]) {
+      assert.ok(!source(path).includes("figureConsistency"), path);
+    }
   });
-  for (const [name, candidate] of [["a true charging circuit", parallel(true, "positive")], ["a false one saved before this rule", parallel(false, "positive")]] as const) {
+  for (const [name, question, candidate] of [["a true pair of cells in opposition", OPPOSED, opposed(true)], ["one with its + at a short plate, saved before this rule", OPPOSED, opposed(false)]] as const) {
     await check(`a saved board holding ${name} passes its resume save`, async () => {
       const sceneDocument = validateSceneDocument(structuredClone(candidate)).document;
       assert.ok(sceneDocument, "the fixture validates");
       const result = await canonicalizeTurnSceneMetadata({
-        question: PARALLEL, sceneDocument, visualStatus: "validated",
-        sceneArtifacts: { schemaVersion: "scene-artifacts/v3", diagramResultStatus: "ready", representationTier: "qualitative_verified", nonMetric: true, figureSource: "planner", turnPlan: planFor(PARALLEL), boardContinuation: { schemaVersion: "board-continuation/v1", lessonQuestion: PARALLEL } },
+        question, sceneDocument, visualStatus: "validated",
+        sceneArtifacts: { schemaVersion: "scene-artifacts/v3", diagramResultStatus: "ready", representationTier: "qualitative_verified", nonMetric: true, figureSource: "planner", turnPlan: planFor(question), boardContinuation: { schemaVersion: "board-continuation/v1", lessonQuestion: question } },
         segments: [{ orderIndex: 0, narration: "Let us carry on.", command: null }],
       } as never, { kind: "resume" } as never);
       assert.ok(result.ok, result.ok ? "" : `${result.code}: ${result.error}`);
     });
   }
-  await check("the two loop family builds its two cell figure, and it passes both rules even when they run", () => {
+  await check("the two loop family builds its two cell figure, and it passes the rule even when it runs", () => {
     const question = "Use Kirchhoff's laws to find the branch currents. The left loop consists of a 12 V ideal battery, resistor R1 = 4 ohm, and shared resistor R3 = 8 ohm. The right loop consists of a 9 V ideal battery, resistor R2 = 6 ohm, and the same shared R3. Both battery positive terminals are at the top. Draw the two-loop network.";
     const attempt = attemptArchetypeScene({ question });
     assert.equal(attempt.match?.id, "two_loop_network");
     const sceneDocument = attempt.scene!.document as never;
     const codes = (figureConsistency: boolean) => compileSceneDocument(sceneDocument, { figureConsistency }).report.issues.filter((issue) => issue.severity === "fatal").map((issue) => issue.code);
-    assert.ok(!codes(true).includes(LOAD) && !codes(true).includes(MARK), codes(true).join(","));
+    assert.ok(!codes(true).includes(MARK), codes(true).join(","));
     assert.deepEqual(codes(false), [], "the family path compiles as before");
   });
 
@@ -143,7 +134,7 @@ async function main() {
     console.log(`${failures.length} failed of ${checks}`);
     process.exit(1);
   }
-  console.log(`pass: ${checks} checks, a load current against parallel cells and a + at a short plate refuse, charging and opposed cells draw, saved boards and family figures are as dev`);
+  console.log(`pass: ${checks} checks, a + at a short plate refuses, opposed and charging cells draw, saved boards and family figures are as dev`);
 }
 
 void main();
