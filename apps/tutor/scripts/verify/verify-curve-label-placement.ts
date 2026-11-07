@@ -317,7 +317,7 @@ async function main() {
   // The checkpoint and close routes pass that stamp to both of their saves.
   const checkpoint = source("lib/boards/turnCheckpoint.ts");
   assert.match(checkpoint, /const ownCurveLabels = storedCurveLabels\(before\);\n\s*const curveLabelsOption = ownCurveLabels === null \? \{\} : \{ curveLabelsEnabled: ownCurveLabels \};/);
-  assert.equal(checkpoint.match(/lessonFigureStart, kind: turnKind, \.\.\.curveLabelsOption \}\);/g)?.length, 2, "both checkpoint saves pass the row's own stamp");
+  assert.equal(checkpoint.match(/loadPageLessonCurveLabels, \.\.\.curveLabelsOption, lessonFigureStart, kind: turnKind \}\);/g)?.length, 2, "both checkpoint saves pass the row's own stamp");
   console.log("PASS rule 3: a dev board resumes as dev with the switch on; a stamped board reopens, resumes and checkpoints as drawn with it off");
 
   // A doubt's own figure stays as dev draws it, even with the switch on.
