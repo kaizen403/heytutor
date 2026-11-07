@@ -253,7 +253,7 @@ export function validateCellPolarityMarks(document: SceneDocument, primitives: R
     const plates = (componentGlyph(id, start, end, primitives)?.segments ?? [])
       .map(([a, b]) => ({ mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, size: length(sub(b, a)) }))
       .sort((a, b) => b.size - a.size);
-    if (plates.length !== 2 || plates[0]!.size === plates[1]!.size) continue;
+    if (plates.length < 2) continue;
     const [long, short] = plates as [typeof plates[0], typeof plates[0]];
     // Judged only when the + is plainly nearer the short plate.
     if (length(sub(plus, short.mid)) + 1 >= length(sub(plus, long.mid))) continue;

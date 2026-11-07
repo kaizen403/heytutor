@@ -333,6 +333,7 @@ expect("marks with no written text are not judged", marked(undefined, ["P", "S"]
 expect("marks on the cell itself are not judged, written +-", marked("+-", ["cell"]), MARK, false);
 expect("marks on the cell itself are not judged, written -+", marked("-+", ["cell"]), MARK, false);
 expect("marks on a resistor are not judged", marked("-+", ["load"]), MARK, false);
+expect("marks spread over three points are not judged", marked("+-", ["S", "P", "Q"], true), MARK, false);
 const twoMarked = parallel();
 (twoMarked.annotations as unknown[]).push({ id: "signs0", kind: "polarity", targetIds: ["M0", "B0"], text: "+-" }, { id: "signs1", kind: "polarity", targetIds: ["M1", "B1"], text: "-+" });
 expect("mutation: one cell's marks right and the other's at its short plate is refused", twoMarked, MARK, true);
