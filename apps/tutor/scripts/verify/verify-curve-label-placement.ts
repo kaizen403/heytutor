@@ -325,7 +325,7 @@ async function main() {
     const angle = index * 2.399963, reach = 1 + (index % 7) * 0.6;
     ringed.entities.push({ id: `c${index}`, kind: "point", role: "centre" }, { id: `r${index}`, kind: "circle", role: "circle" });
     ringed.constructions.push({ id: `kc${index}`, operator: "point", inputs: { x: reach * Math.cos(angle), y: reach * Math.sin(angle), coordinateSpace: "world" }, outputs: [`c${index}`] },
-      { id: `kr${index}`, operator: "circle", inputs: { center: `c${index}`, radius: 2.5 }, outputs: [`r${index}`] });
+      { id: `kr${index}`, operator: "circle", inputs: { center: `c${index}`, radius: 6 }, outputs: [`r${index}`] });
   }
   ringed.requiredEntityIds = ringed.entities.map((entity: Row) => entity.id);
   ringed.revealGroups = [{ id: "all", entityIds: ringed.requiredEntityIds, dependsOn: [], narrationCue: "The graph and the circles." }];
