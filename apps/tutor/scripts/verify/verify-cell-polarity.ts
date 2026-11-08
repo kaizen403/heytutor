@@ -45,20 +45,24 @@ const planFor = (question: string): TurnPlanV3 => ({ schemaVersion: "turn-plan/v
 
 // Two cells in parallel, positive to positive, feeding a load: the stronger one delivers, the weaker one is charged.
 const PARALLEL = "Two cells of unequal emf, each with internal resistance, are connected in parallel, positive terminal to positive terminal, and feed a load resistor. Show the current through each cell and the load.";
-function parallel(positiveAtTop: boolean, loadSense: string): Record<string, unknown> {
-  const cell = (id: string, mid: string, low: string, label: string) => positiveAtTop ? symbol(id, "battery", mid, low, "source", label) : symbol(id, "battery", low, mid, "source", label);
+function charging(): Record<string, unknown> {
+  // Points are drawn leftMid before leftBottom and rightMid before rightBottom, so each "+\u2212" pair puts its + at the
+  // battery's start terminal, its long plate.
   return document(PARALLEL, [
     point("top", 0, 2), point("bottom", 0, -2), point("leftTop", -3, 2), point("leftMid", -3, 0), point("leftBottom", -3, -2),
     point("rightTop", 3, 2), point("rightMid", 3, 0), point("rightBottom", 3, -2),
-    cell("source1", "leftMid", "leftBottom", "E1"), symbol("internal1", "resistor", "leftMid", "leftTop", "internal resistor", "r1"),
-    cell("source2", "rightMid", "rightBottom", "E2"), symbol("internal2", "resistor", "rightMid", "rightTop", "internal resistor", "r2"),
+    symbol("source1", "battery", "leftMid", "leftBottom", "source", "E1"), symbol("internal1", "resistor", "leftMid", "leftTop", "internal resistor", "r1"),
+    symbol("source2", "battery", "rightMid", "rightBottom", "source", "E2"), symbol("internal2", "resistor", "rightMid", "rightTop", "internal resistor", "r2"),
     symbol("load", "resistor", "top", "bottom", "load resistor", "R"),
     wire("wireLT", "leftTop", "top"), wire("wireLB", "leftBottom", "bottom"), wire("wireRT", "rightTop", "top"), wire("wireRB", "rightBottom", "bottom"),
     // The stronger cell delivers: current leaves its positive plate, up through r1.
     badge("sense1", "internal1", "positive", "source current", "I1"),
     // The weaker cell is charged: current runs down through r2 into its positive plate.
-    badge("sense2", "internal2", positiveAtTop ? "negative" : "positive", "source current", "I2"),
-    badge("senseLoad", "load", loadSense, "load current", "I_L"),
+    badge("sense2", "internal2", "negative", "source current", "I2"),
+    badge("senseLoad", "load", "positive", "load current", "I_L"),
+  ], [
+    { id: "marks1", kind: "polarity", targetIds: ["leftMid", "leftBottom"], text: "+\u2212" },
+    { id: "marks2", kind: "polarity", targetIds: ["rightMid", "rightBottom"], text: "+\u2212" },
   ]);
 }
 
@@ -87,9 +91,9 @@ const drawn = (question: string, candidate: Record<string, unknown>) => {
 };
 
 async function main() {
-  await check("a true charging circuit is admitted and drawn under strict", () => {
-    assert.deepEqual(fatal(admit(PARALLEL, parallel(true, "positive"))), []);
-    assert.ok(drawn(PARALLEL, parallel(true, "positive")), "drawn");
+  await check("a true charging circuit with + marks at both batteries' long plates is admitted and drawn under strict", () => {
+    assert.deepEqual(fatal(admit(PARALLEL, charging())), []);
+    assert.ok(drawn(PARALLEL, charging()), "drawn");
   });
   await check("a true pair of cells in opposition is admitted and drawn under strict", () => {
     assert.deepEqual(fatal(admit(OPPOSED, opposed(true))), []);

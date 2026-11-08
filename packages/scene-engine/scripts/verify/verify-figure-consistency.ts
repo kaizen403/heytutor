@@ -290,8 +290,7 @@ expect("a true split graph with a short line in one half is still admitted", hal
 // --- two cells, for polarity marks -------------------------------------------------
 // Rails T (top) and B (bottom). Branch i: T -wire- Ti -resistor ri- Mi -cell- Bi -wire- B. A cell drawn from Mi to
 // Bi has its long plate at Mi.
-function parallel(options: { up?: boolean[]; loadSense?: string; badgeOn?: string; badgeSense?: string; role?: string; label?: string; load?: string; ladder?: boolean } = {}): Doc {
-  const up = options.up ?? [true, true];
+function parallel(up: boolean[] = [true, true]): Doc {
   const parts: Array<[Entity, Construction]> = [point("T", 3, 4), point("B", 3, -4)];
   up.forEach((positiveUp, index) => {
     const x = index === 0 ? 0 : 6;
@@ -301,16 +300,7 @@ function parallel(options: { up?: boolean[]; loadSense?: string; badgeOn?: strin
       [{ id: `cell${index}`, kind: "component", role: "source", label: `E${index + 1}` }, { id: `make_cell${index}`, operator: "symbol", inputs: positiveUp ? { start: `M${index}`, end: `B${index}`, symbol: "cell" } : { start: `B${index}`, end: `M${index}`, symbol: "cell" }, outputs: [`cell${index}`] }],
       [{ id: `wb${index}`, kind: "connector", role: "wire" }, { id: `make_wb${index}`, operator: "connect", inputs: { start: `B${index}`, end: "B" }, outputs: [`wb${index}`] }]);
   });
-  if (options.ladder) {
-    parts.push(point("X", 3, 0),
-      [{ id: "load", kind: "component", role: "load resistor", label: "R" }, { id: "make_load", operator: "symbol", inputs: { start: "T", end: "X", symbol: "resistor" }, outputs: ["load"] }],
-      [{ id: "rb", kind: "component", role: "resistor", label: "Rb" }, { id: "make_rb", operator: "symbol", inputs: { start: "X", end: "B", symbol: "resistor" }, outputs: ["rb"] }],
-      [{ id: "rc", kind: "component", role: "resistor", label: "Rc" }, { id: "make_rc", operator: "symbol", inputs: { start: "X", end: "B", symbol: "resistor" }, outputs: ["rc"] }]);
-  } else {
-    parts.push([{ id: "load", kind: "component", role: "load", label: "R" }, { id: "make_load", operator: "symbol", inputs: { start: "T", end: "B", symbol: options.load ?? "resistor" }, outputs: ["load"] }]);
-  }
-  parts.push([{ id: "flow", kind: "sign_badge", role: options.role ?? "load current", label: options.label ?? "I" },
-    { id: "make_flow", operator: "sign_badge", inputs: { target: options.badgeOn ?? "load", at: 0.5, sense: options.badgeSense ?? options.loadSense ?? "positive" }, outputs: ["flow"] }]);
+  parts.push([{ id: "load", kind: "component", role: "load", label: "R" }, { id: "make_load", operator: "symbol", inputs: { start: "T", end: "B", symbol: "resistor" }, outputs: ["load"] }]);
   return build(parts);
 }
 // --- polarity marks against the plates ----------------------------------------------
@@ -334,6 +324,15 @@ expect("marks on the cell itself are not judged, written +-", marked("+-", ["cel
 expect("marks on the cell itself are not judged, written -+", marked("-+", ["cell"]), MARK, false);
 expect("marks on a resistor are not judged", marked("-+", ["load"]), MARK, false);
 expect("marks spread over three points are not judged", marked("+-", ["S", "P", "Q"], true), MARK, false);
+// Recorded pairs write the Unicode minus (U+2212), and some draw the source as a battery: both must be judged.
+function batteryMarked(text: string): Doc {
+  const document = marked(text, ["P", "S"]);
+  for (const construction of document.constructions as Construction[]) if (construction.id === "make_cell") construction.inputs = { ...construction.inputs, symbol: "battery" };
+  for (const entity of document.entities as Entity[]) if (entity.id === "cell") entity.role = "battery";
+  return document;
+}
+expect("a battery's + written with the Unicode minus at its long plate is admitted", batteryMarked("+\u2212"), MARK, false);
+expect("mutation: a battery's + written with the Unicode minus at its short plate is refused", batteryMarked("\u2212+"), MARK, true);
 const twoMarked = parallel();
 (twoMarked.annotations as unknown[]).push({ id: "signs0", kind: "polarity", targetIds: ["M0", "B0"], text: "+-" }, { id: "signs1", kind: "polarity", targetIds: ["M1", "B1"], text: "-+" });
 expect("mutation: one cell's marks right and the other's at its short plate is refused", twoMarked, MARK, true);
