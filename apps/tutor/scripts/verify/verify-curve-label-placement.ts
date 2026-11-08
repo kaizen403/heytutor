@@ -307,6 +307,12 @@ async function main() {
   assert.equal(curveLabelsReadAsOwn(docOf(), [stroke("own", 500), stroke("rival", 640), boxAt(540)] as never), false, "a box exactly as near the other curve as its own hands back");
   assert.equal(curveLabelsReadAsOwn(docOf(), [stroke("own", 500), stroke("rival", 640), boxAt(538.5)] as never), false, "and so does one only 3 px nearer its own");
   assert.equal(curveLabelsReadAsOwn(docOf(), [stroke("own", 500), stroke("rival", 640), boxAt(530)] as never), true, "one 20 px nearer its own reads as its own");
+  // A leader across a ring hands back too, the ring's outline met exactly: here the box sits beside its own curve.
+  const ringAt = (x: number): Row => ({ id: "ring_ink", entityId: "rival", kind: "circle", points: [{ x, y: 200 }], radius: 10 });
+  const ledName: Row = { ...nameOf("own", 510), provenance: { usesLeader: true, labelBounds: { x: 510, y: 300, width: 60, height: 24 } } };
+  const leaderInk: Row = { id: "own_label_leader", entityId: "own", kind: "line", points: [{ x: 500, y: 100 }, { x: 540, y: 300 }], provenance: { labelLeader: true } };
+  assert.equal(curveLabelsReadAsOwn(docOf(), [stroke("own", 500), ringAt(520), ledName, leaderInk] as never), false, "a leader through a ring hands back");
+  assert.equal(curveLabelsReadAsOwn(docOf(), [stroke("own", 500), ringAt(600), ledName, leaderInk] as never), true, "one clear of it does not");
   // A curve named by an annotation is checked the same way: its label's owner is the annotation's target.
   const annotated = { constructions: [{ id: "k", operator: "function_curve", outputs: ["own"] }, { id: "k2", operator: "function_curve", outputs: ["rival"] }], annotations: [{ id: "name", kind: "label", targetIds: ["own"], text: "y = f(x)" }] } as never;
   const noteAt = (x: number): Row => ({ id: "name", entityId: "name", kind: "label", text: "y = f(x)", points: [{ x: x + 30, y: 312 }], provenance: { annotationId: "name", labelBounds: { x, y: 300, width: 60, height: 24 } } });
