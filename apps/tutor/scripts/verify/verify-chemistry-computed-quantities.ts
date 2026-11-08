@@ -133,21 +133,16 @@ for (const question of ["Draw the Lewis structure of ozone O3.", "Draw the Lewis
   });
 }
 
-// A trend whose values do not all share one sign declines, and so does a radius trend
-// across a noble gas; no other family takes the turn. A radius list without one draws.
+// A trend whose values do not all share one sign declines, and no other family takes the turn.
 for (const question of [
   "Arrange the elements N, P, O and S in the order of increasing negative electron gain enthalpy.",
   "Arrange N, O, F and Ne in order of increasingly negative electron gain enthalpy.",
-  "Arrange the elements of period 3 in increasing order of atomic radius.",
 ]) {
   check(`declines, no runner up: ${question}`, () => {
     const scene = synthesizeFamilyScene({ question }) ?? synthesizeLastResortScene({ question });
     assert.equal(scene, null, `${scene?.family ?? ""} took the turn`);
   });
 }
-check("a radius list without a noble gas still draws", () => {
-  assert.equal(synthesizeFamilyScene({ question: RADIUS })?.family, "chem_periodic");
-});
 
 // 4. An all negative trend names which way is more negative; others keep their wording.
 for (const [question, title, lead] of [

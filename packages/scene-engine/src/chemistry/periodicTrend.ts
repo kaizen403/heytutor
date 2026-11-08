@@ -496,9 +496,6 @@ function readTrend(question: string, stem: string): TrendRequest | null {
   // and S electron gain enthalpies run from -200 to +7, and any "increasing" reads as
   // the reverse of "increasingly negative". Decline.
   if (!ordered.every((row) => row.value > 0) && !ordered.every((row) => row.value < 0)) return null;
-  // A radius trend across a noble gas mixes radius kinds (argon has no covalent radius
-  // in most syllabi), and the bare "r (pm)" axis cannot say which. Decline.
-  if (spec.property === "radius" && ordered.some((row) => row.element.group === 18)) return null;
   if (kind === "list") ordered = ordered.sort((a, b) => (direction === "asc" ? a.value - b.value : b.value - a.value) || a.element.z - b.element.z);
   // "Increasing" is ambiguous for values that are all negative: rising values are
   // less negative, the reverse of "increasingly negative". Name the sign instead.
