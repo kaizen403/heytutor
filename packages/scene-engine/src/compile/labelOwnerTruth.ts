@@ -56,7 +56,7 @@ function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
   return side(a, b, c) !== side(a, b, d) && side(c, d, a) !== side(c, d, b);
 }
 /** The straight pieces a primitive is stroked with. An arc is cut into chords of at most a pixel, within 1/(8r) px of its ink. */
-function strokePieces(primitive: RenderPrimitive): Array<[Point, Point]> {
+export function strokePieces(primitive: RenderPrimitive): Array<[Point, Point]> {
   let points = primitive.points;
   if (!points.length) return [];
   if (primitive.kind === "axes" && points.length === 4) return [[points[0]!, points[1]!], [points[2]!, points[3]!]];
@@ -138,6 +138,71 @@ export function validateStraightLineNames(document: SceneDocument, primitives: R
       message: "A straight line's name sits nearer another stroke than its own line.", expected: ownDistance, actual: nearest });
   }
   return issues;
+}
+
+/** A moved graph label this close to tying with another stroke is in doubt, and doubt hands the figure back. */
+const CURVE_LABEL_TIE_PX = 4;
+/** Does the segment a to b cross a circle's or an arc's outline? Solved exactly, never sampled. */
+function segmentCrossesRing(a: Point, b: Point, ring: RenderPrimitive): boolean {
+  const centre = ring.points[0], radius = ring.radius ?? 0;
+  if (!centre || !(radius > 0)) return false;
+  const dx = b.x - a.x, dy = b.y - a.y, fx = a.x - centre.x, fy = a.y - centre.y;
+  const qa = dx * dx + dy * dy, qb = 2 * (fx * dx + fy * dy), qc = fx * fx + fy * fy - radius * radius;
+  const disc = qb * qb - 4 * qa * qc;
+  if (!(qa > 0) || disc < 0) return false;
+  const root = Math.sqrt(disc);
+  for (const t of [(-qb - root) / (2 * qa), (-qb + root) / (2 * qa)]) {
+    if (t < 0 || t > 1) continue;
+    if (ring.kind === "circle") return true;
+    const angle = Math.atan2(a.y + t * dy - centre.y, a.x + t * dx - centre.x);
+    const start = ring.startAngle ?? 0, sweep = (ring.endAngle ?? start) - start, tau = 2 * Math.PI;
+    const along = (((sweep < 0 ? start - angle : angle - start) % tau) + tau) % tau;
+    if (Math.abs(sweep) >= tau || along <= Math.abs(sweep)) return true;
+  }
+  return false;
+}
+
+/**
+ * With graph labels placed by their own stroke, does each one still read as its own curve's? A graph label whose
+ * lettered box sits nearer another stroke than its own, or within a few pixels of a tie, does not, and nor does one
+ * whose leader crosses another stroke. An axis is not a rival, as it is named at its ends, and nor is a shaded region, whose edge is the curves
+ * that bound it.
+ */
+export function curveLabelsReadAsOwn(document: SceneDocument, primitives: RenderPrimitive[]): boolean {
+  const curves = new Set(document.constructions.filter(c => c.operator === "function_curve").flatMap(c => c.outputs));
+  const regions = new Set(document.constructions.filter(c => /(^|_)region$/.test(c.operator)).flatMap(c => c.outputs));
+  const ink = primitives.filter(p => p.kind !== "label" && !p.provenance?.labelLeader);
+  for (const label of primitives) {
+    if (label.kind !== "label") continue;
+    const annotationId = label.provenance?.annotationId ?? (document.annotations.some(a => a.id === label.id) ? label.id : undefined);
+    const owners = document.annotations.find(a => a.id === annotationId)?.targetIds ?? [label.entityId];
+    if (!owners.some(id => curves.has(id))) continue;
+    const own = ink.filter(p => owners.includes(p.entityId));
+    const rivals = ink.filter(p => !owners.includes(p.entityId) && p.kind !== "axes" && !regions.has(p.entityId));
+    if (!own.length || !rivals.length) continue;
+    const box = labelBox(label);
+    if (box) {
+      let nearestOwn = Infinity, nearestRival = Infinity;
+      for (const p of own) nearestOwn = Math.min(nearestOwn, boxDistance(box, p));
+      for (const p of rivals) nearestRival = Math.min(nearestRival, boxDistance(box, p));
+      if (nearestRival < nearestOwn + CURVE_LABEL_TIE_PX) return false;
+    }
+    const leader = primitives.find(p => p.id === `${label.id}_leader` && p.provenance?.labelLeader);
+    if (leader && strokePieces(leader).some(([a, b]) => rivals.some(rival => rival.kind === "circle" || rival.kind === "arc"
+      ? segmentCrossesRing(a, b, rival)
+      : strokePieces(rival).some(([c, d]) => segmentsCross(a, b, c, d))))) return false;
+  }
+  return true;
+}
+
+/**
+ * Graph labels moved onto their stroke are kept only if the figure is never worse than dev's: it draws every
+ * label dev draws, and each graph label still reads as its own curve's.
+ */
+export function curveLabelsNeverWorse(onStroke: { document: SceneDocument; primitives: RenderPrimitive[] }, devPrimitives: RenderPrimitive[]): boolean {
+  const drawn = new Set(onStroke.primitives.filter(p => p.kind === "label" || p.kind === "dimension").map(p => p.id));
+  return devPrimitives.filter(p => p.kind === "label" || p.kind === "dimension").every(p => drawn.has(p.id)) &&
+    curveLabelsReadAsOwn(onStroke.document, onStroke.primitives);
 }
 
 /** An untethered, displaced label cannot identify an unrelated nearby stroke.

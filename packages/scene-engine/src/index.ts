@@ -65,6 +65,8 @@ export * from "./dsa/familyTeaching";
 export * from "./completion/completeSceneDocument";
 
 export { prepareVerifiedParts, parseDiagramYieldPolicy, type DiagramYieldPolicy } from "./compile/verifiedParts";
+export { CURVE_LABEL_PLACEMENT, documentHasFunctionCurve, isCurveLabelPlacementOnStroke, parseCurveLabelSwitch, withCurveLabelPlacement } from "./compile/curveLabels";
+export { curveLabelsNeverWorse, curveLabelsReadAsOwn } from "./compile/labelOwnerTruth";
 export { normalizeVerifiedPartsInputs } from "./document/verifiedPartsInputs";
 export { validateRepairSurvivorship, validateRepairCandidateSetSurvivorship } from "./compile/repairSurvivorship";
 export { deferVerifiedAnswerLabels } from "./compile/answerLabels";

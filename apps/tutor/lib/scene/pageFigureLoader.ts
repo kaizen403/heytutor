@@ -551,32 +551,76 @@ export function bindPageLessonFigureQuestion(
 ): PageLessonFigureQuestionLoader {
   return async () => {
     try {
-      const self = context.turnId ? await deps.store.findTurn(context.turnId) : null;
-      if (self && (self.boardId !== context.boardId || self.userId !== context.userId)) return null;
-      const earlier = await deps.store.turnsBefore(context.boardId, self?.orderIndex ?? null);
-      let between = 0;
-      for (const turn of earlier) {
-        if (turn.id === context.turnId) continue;
-        if (storedTurnContinuesBoard(asContinuationTurn(turn))) {
-          between += 1;
-          if (between > PAGE_FIGURE_MAX_TURNS_BETWEEN) return null;
-          continue;
-        }
-        if (turn.boardId !== context.boardId || turn.userId !== context.userId) return null;
-        // The walk reads no scene document, so the lesson's own row is read once, as the route reads `before`.
-        const row = await deps.store.findTurn(turn.id);
-        if (!row) return null;
-        const plan = row.sceneArtifacts && typeof row.sceneArtifacts === "object"
-          ? (row.sceneArtifacts as Record<string, unknown>).turnPlan
-          : undefined;
-        if (row.visualStatus !== "validated" || row.sceneDocument == null || plan == null) return null;
-        return row.question;
-      }
-      return null;
+      const row = await pageLessonRow(context, deps);
+      if (!row) return null;
+      const plan = row.sceneArtifacts && typeof row.sceneArtifacts === "object"
+        ? (row.sceneArtifacts as Record<string, unknown>).turnPlan
+        : undefined;
+      if (row.visualStatus !== "validated" || row.sceneDocument == null || plan == null) return null;
+      return row.question;
     } catch {
       return null;
     }
   };
+}
+
+/**
+ * Whether the lesson that opened this page saved its figure with the curve
+ * label stamp, read from the server's own row; null when there is no such row.
+ * A resume of that lesson keeps the figure as the lesson saved it.
+ */
+export type PageLessonCurveLabelsLoader = () => Promise<boolean | null>;
+
+export function bindPageLessonCurveLabels(
+  context: PageFigureContext,
+  deps: { store: PageFigureStore },
+): PageLessonCurveLabelsLoader {
+  return async () => {
+    try {
+      return storedCurveLabels(await pageLessonRow(context, deps));
+    } catch {
+      return null;
+    }
+  };
+}
+
+/**
+ * Whether a stored row's figure was saved with the curve label stamp; null when
+ * the row holds no validated figure. A row saved with a figure is rebuilt with
+ * its own stamp, whatever the switch says now.
+ */
+export function storedCurveLabels(row: { visualStatus?: string | null; sceneDocument?: unknown } | null | undefined): boolean | null {
+  if (!row || row.visualStatus !== "validated" || !row.sceneDocument || typeof row.sceneDocument !== "object") return null;
+  const source = (row.sceneDocument as { source?: unknown }).source;
+  return Boolean(source && typeof source === "object" && (source as Record<string, unknown>).curveLabelPlacement === "on_stroke");
+}
+
+/** The production page lesson curve label stamp for one save. */
+export function pageLessonCurveLabelsFor(
+  context: PageFigureContext,
+  db: Parameters<typeof prismaPageFigureStore>[0],
+): PageLessonCurveLabelsLoader {
+  return bindPageLessonCurveLabels(context, { store: prismaPageFigureStore(db) });
+}
+
+/** The row of the lesson that opened this page, past the turns that continue it; null when none or not this owner's. */
+async function pageLessonRow(context: PageFigureContext, deps: { store: PageFigureStore }) {
+  const self = context.turnId ? await deps.store.findTurn(context.turnId) : null;
+  if (self && (self.boardId !== context.boardId || self.userId !== context.userId)) return null;
+  const earlier = await deps.store.turnsBefore(context.boardId, self?.orderIndex ?? null);
+  let between = 0;
+  for (const turn of earlier) {
+    if (turn.id === context.turnId) continue;
+    if (storedTurnContinuesBoard(asContinuationTurn(turn))) {
+      between += 1;
+      if (between > PAGE_FIGURE_MAX_TURNS_BETWEEN) return null;
+      continue;
+    }
+    if (turn.boardId !== context.boardId || turn.userId !== context.userId) return null;
+    // The walk reads no scene document, so the lesson's own row is read once, as the route reads `before`.
+    return (await deps.store.findTurn(turn.id)) ?? null;
+  }
+  return null;
 }
 
 /** The production page lesson question for one save. */

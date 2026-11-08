@@ -1,4 +1,4 @@
-import { parseDiagramYieldPolicy } from "@heytutor/scene-engine";
+import { parseCurveLabelSwitch, parseDiagramYieldPolicy } from "@heytutor/scene-engine";
 import { createHash } from "node:crypto";
 import { parseDiagramStrictSubjects } from "@heytutor/tutor-core";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
@@ -52,6 +52,11 @@ export function resolveDiagramStrategyAssignment(
 
 export function resolveDiagramYieldPolicy(raw = process.env.DIAGRAM_YIELD_POLICY) {
   return parseDiagramYieldPolicy(raw);
+}
+
+/** Switch for placing a graph's label by its own stroke: only `DIAGRAM_CURVE_LABELS=on` turns it on; default off. */
+export function resolveDiagramCurveLabels(raw = process.env.DIAGRAM_CURVE_LABELS): boolean {
+  return parseCurveLabelSwitch(raw);
 }
 
 /**

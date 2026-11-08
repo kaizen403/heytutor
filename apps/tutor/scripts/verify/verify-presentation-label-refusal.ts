@@ -206,7 +206,7 @@ function harness(options: { canonicalize?: (metadata: Row, options?: Row) => Pro
     "@/lib/obs/failedTurnSentry": { queueFailedTurnSentry: async () => null },
     "@/lib/boards/boardContinuation": boardContinuation,
     "@/lib/boards/doubtFigureRef": doubtFigureRef,
-    "@/lib/scene/pageFigureLoader": { pageFigureLoaderFor: () => async () => null, pageLessonFigureQuestionFor: () => async () => null, doubtFigurePageCheckFor: () => async () => false, lessonFigureStartFor: () => async () => "figure_1" },
+    "@/lib/scene/pageFigureLoader": { pageFigureLoaderFor: () => async () => null, pageLessonFigureQuestionFor: () => async () => null, pageLessonCurveLabelsFor: () => async () => null, storedCurveLabels: () => null, doubtFigurePageCheckFor: () => async () => false, lessonFigureStartFor: () => async () => "figure_1" },
     "@/lib/scene/turnPersistencePolicy": { isTurnMetadataPersistable: () => true },
     "@/lib/scene/referencePicturePersistence": { sceneKeepsReferencePictureRows },
     // Each route's own options reach the real canonicalizer: the kind, the stored question and the page loaders.

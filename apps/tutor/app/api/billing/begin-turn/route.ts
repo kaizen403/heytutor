@@ -4,6 +4,7 @@ import { cacheUsageOnUser } from "@/lib/billing/ledger";
 import {
   resolveDiagramStrictSubjects,
   resolveDiagramYieldPolicy,
+  resolveDiagramCurveLabels,
   resolveOpticsArchetypeInStrict,
   resolveSolverDisagreementStops,
   resolveReferencePictureEnabled,
@@ -39,6 +40,7 @@ export async function POST(request: Request): Promise<Response> {
     diagramStrategy: result.diagramStrategy,
     diagramStrictSubjects: resolveDiagramStrictSubjects(),
     diagramYieldPolicy: resolveDiagramYieldPolicy(),
+    diagramCurveLabels: resolveDiagramCurveLabels(),
     opticsArchetypeInStrict: resolveOpticsArchetypeInStrict(),
     ...(resolveSolverDisagreementStops() ? { solverDisagreementStops: true } : {}),
     referencePicture: resolveReferencePictureEnabled(),

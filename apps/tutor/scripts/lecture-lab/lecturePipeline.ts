@@ -1,4 +1,4 @@
-import { parseDiagramYieldPolicy } from "@heytutor/scene-engine";
+import { parseCurveLabelSwitch, parseDiagramYieldPolicy } from "@heytutor/scene-engine";
 /**
  * Runs one whole lecture turn without a browser.
  *
@@ -612,7 +612,7 @@ export async function runLecture(
       candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
     ): SceneCandidateValidation<ValidatedSceneCandidate> => {
       const startedAt = performance.now();
-      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY), blockFlowEligible });
+      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY), curveLabels: parseCurveLabelSwitch(process.env.DIAGRAM_CURVE_LABELS), blockFlowEligible });
       candidateClocks.set(candidate, performance.now() - startedAt);
       return validation;
     };

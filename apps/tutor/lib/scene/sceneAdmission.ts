@@ -18,6 +18,8 @@ import {
   certifyVseprSourceDocument,
   chemistryTeachingFamilyId,
   compileSceneDocument,
+  curveLabelsNeverWorse,
+  prepareVerifiedParts,
   validateSceneDocument,
   validateTurnPlanSceneProofs,
   type SceneDocument,
@@ -78,12 +80,41 @@ export interface StoredSceneAdmissionInput {
   planSubmitted?: boolean;
   /** Why the submitted plan failed validation, for the refusal message. */
   planIssues?: ReadonlyArray<{ code?: string; path?: string; message: string }>;
+  /**
+   * The server's curve label switch for this figure (`DIAGRAM_CURVE_LABELS`).
+   * A curve label stamp on a submitted document is kept only when this is on;
+   * otherwise the figure is admitted as dev draws it.
+   */
+  curveLabels?: boolean;
 }
 
 const MEMO_LIMIT = 64;
 const memo = new Map<string, StoredSceneAdmission>();
 
-export function admitStoredScene(input: StoredSceneAdmissionInput): StoredSceneAdmission {
+export function admitStoredScene(submitted: StoredSceneAdmissionInput): StoredSceneAdmission {
+  // A curve label stamp is kept only with the server's switch on, and only on a
+  // figure dev admits: a figure dev refuses stays refused, and if the moved
+  // labels would refuse it, lose a label, or name the wrong curve, dev's admission stands.
+  const asDevDocument = withoutCurveLabelStamp(submitted.sceneDocument);
+  if (asDevDocument === submitted.sceneDocument) return admitMemoized(submitted);
+  // Live validation removed unprovable labels with the stamp on. Without it a
+  // kept label sits where dev would put it, so dev's figure is the unstamped
+  // document through the same removal.
+  const asDev = admitMemoized({ ...submitted, sceneDocument: asDevPrepared(asDevDocument) });
+  if (submitted.curveLabels !== true || !asDev.ok) return asDev;
+  // A browser's stamp is never kept unchecked: the server's own compile must be never worse than dev's.
+  const onStroke = admitMemoized(submitted);
+  return onStroke.ok && curveLabelsNeverWorse({ document: onStroke.document, primitives: onStroke.compiled.renderScene.primitives }, asDev.compiled.renderScene.primitives) ? onStroke : asDev;
+}
+
+/** An unstamped document as live validation leaves it: unprovable labels removed under verified_parts. */
+function asDevPrepared(sceneDocument: unknown): unknown {
+  const validated = validateSceneDocument(sceneDocument);
+  if (!validated.document || validated.document.source.diagramYieldPolicy !== "verified_parts") return sceneDocument;
+  return prepareVerifiedParts(validated.document, { enabled: true, figureConsistency: true }).document;
+}
+
+function admitMemoized(input: StoredSceneAdmissionInput): StoredSceneAdmission {
   const key = createHash("sha256").update(JSON.stringify([
     input.sceneDocument ?? null,
     input.sceneQuestion,
@@ -344,6 +375,16 @@ function formatIssues(issues: ReadonlyArray<{ code?: string; path?: string; mess
   return issues.slice(0, 4).map((issue) =>
     `${issue.code ?? issue.path ?? "invalid"}: ${issue.message}`,
   ).join("; ");
+}
+
+/** The stamp is the engine's: a submitted one is dropped unless the server's switch is on. */
+function withoutCurveLabelStamp(sceneDocument: unknown): unknown {
+  if (!sceneDocument || typeof sceneDocument !== "object" || Array.isArray(sceneDocument)) return sceneDocument;
+  const source = (sceneDocument as { source?: unknown }).source;
+  if (!source || typeof source !== "object" || Array.isArray(source) || !("curveLabelPlacement" in source)) return sceneDocument;
+  const rest: Record<string, unknown> = { ...(source as Record<string, unknown>) };
+  delete rest.curveLabelPlacement;
+  return { ...(sceneDocument as Record<string, unknown>), source: rest };
 }
 
 function refuse(code: StoredSceneAdmissionCode, message: string): { ok: false; code: StoredSceneAdmissionCode; message: string } {

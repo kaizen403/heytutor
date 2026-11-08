@@ -1,5 +1,5 @@
 import { figureQuestionTooLong } from "@/lib/scene/figureQuestion";
-import type { PageLessonFigureQuestionLoader } from "@/lib/scene/pageFigureLoader";
+import type { PageLessonCurveLabelsLoader, PageLessonFigureQuestionLoader } from "@/lib/scene/pageFigureLoader";
 import {
   LocalDeterministicSolverProvider,
   FIGURE_SOURCES,
@@ -50,6 +50,7 @@ import {
   type DoubtFigureMarker,
 } from "@/lib/boards/doubtFigure";
 import type { TurnKind } from "@/lib/boards/turnStatus";
+import { resolveDiagramCurveLabels } from "@/lib/scene/diagramStrategy.server";
 import type { DoubtFigurePageCheck, LessonFigureStartLoader, PageFigureLoader } from "@/lib/scene/pageFigureLoader";
 import { resolveDoubtPointingEnabled } from "@/lib/scene/doubtPointingFlag";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
@@ -178,6 +179,14 @@ export async function canonicalizeTurnSceneMetadata(
     doubtPointingEnabled?: boolean;
     /** DIAGRAM_LESSON_FIGURES at save time; read from the environment when absent. */
     lessonFiguresEnabled?: boolean;
+    /** DIAGRAM_CURVE_LABELS at save time; read from the environment when absent. */
+    curveLabelsEnabled?: boolean;
+    /**
+     * Bound by the save route: whether the page's lesson saved its figure with
+     * the curve label stamp, from the server's own row. A resume keeps the
+     * figure as its lesson saved it, so replay finishes the figure.
+     */
+    loadPageLessonCurveLabels?: PageLessonCurveLabelsLoader;
     /**
      * Bound by the save route like `loadPageFigure`: the lesson figure the
      * stored page had reached, which a resume's teaching starts on. Absent, a
@@ -396,6 +405,18 @@ export async function canonicalizeTurnSceneMetadata(
   const narrationLanguage = metadata.segments.some((segment) =>
     isStoredCommandTrustedGeometry(segment.command) && /\p{Script=Devanagari}/u.test(segment.narration),
   ) ? "hinglish" as const : undefined;
+  // A resume teaches under its page's figure: its stamp follows the page
+  // lesson's own saved row, not the switch now. Elsewhere the switch decides.
+  let curveLabels = doubtFigure === null && (options.curveLabelsEnabled ?? resolveDiagramCurveLabels());
+  if (options.kind === "resume" && doubtContinuation && doubtFigure === null && options.loadPageLessonCurveLabels) {
+    let pageStamped: boolean | null = null;
+    try {
+      pageStamped = await options.loadPageLessonCurveLabels();
+    } catch {
+      pageStamped = null;
+    }
+    if (pageStamped !== null) curveLabels = pageStamped;
+  }
   const admitted = admitStoredScene({
     sceneDocument: metadata.sceneDocument,
     sceneQuestion,
@@ -404,6 +425,8 @@ export async function canonicalizeTurnSceneMetadata(
     narrationLanguage,
     planSubmitted: metadata.sceneArtifacts.turnPlan != null,
     planIssues: planResult.issues,
+    // A doubt's own figure and later lesson figures stay as dev draws them.
+    curveLabels,
   });
   if (!admitted.ok) return failure(admitted.code, admitted.message);
   const { document, presentation: expectedPresentation } = admitted;
