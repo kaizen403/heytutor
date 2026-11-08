@@ -54,17 +54,28 @@ for (const [question, family] of [
 // under any id, refuses the computed figure. A unit nobody recognises governs everything.
 const IE = "Arrange Li, Na, K in increasing order of first ionisation energy.";
 const RADIUS = "Arrange Na, Mg and Al in increasing order of atomic radius.";
+const EN = "Arrange F, Cl, Br and I in increasing order of electronegativity.";
 const SF6 = "Draw the Lewis structure of SF6.";
 for (const [label, question, id, unit, value] of [
   ["same unit", IE, "stated", "kJ/mol", 500],
   ["a plain count against counts", SF6, "stated", "", 7],
   ["nm against pm", RADIUS, "stated", "nm", 0.16],
   ["Å against pm", RADIUS, "stated", "Å", 1.6],
+  ["angstrom against pm", RADIUS, "stated", "angstrom", 1.6],
+  ["picometre against pm", RADIUS, "stated", "picometre", 160],
   ["J/mol against kJ/mol", IE, "stated", "J/mol", 496000],
+  ["kJ mol^-1 against kJ/mol", IE, "stated", "kJ mol^-1", 496],
+  ["kJ mol-1 against kJ/mol", IE, "stated", "kJ mol-1", 496],
+  ["kJ mol with a Unicode minus against kJ/mol", IE, "stated", "kJ mol−1", 496],
+  ["kJ·mol⁻¹ against kJ/mol", IE, "stated", "kJ·mol⁻¹", 496],
+  ["kJ per mol against kJ/mol", IE, "stated", "kJ per mol", 496],
+  ["kJ against kJ/mol", IE, "stated", "kJ", 496],
   ["kcal/mol against kJ/mol", IE, "stated", "kcal/mol", 118],
   ["eV against kJ/mol", IE, "stated", "eV", 5.1],
   ["another quantity id in the same dimension", IE, "first_ionisation_energy_of_sodium", "kJ/mol", 496],
   ["an unrecognised unit", IE, "stated", "kJ mol⁻¹", 496],
+  ["Pauling against electronegativity", EN, "stated", "Pauling", 3.98],
+  ["a plain number against electronegativity", EN, "stated", "", 3.98],
 ] as const) {
   check(`a plan number refuses, ${label}: ${question}`, () => {
     const givens = [{ id, symbol: "x", value, unit, provenance: "given" as const }];
@@ -78,10 +89,25 @@ for (const [label, question, unit, value, family] of [
   ["a plain count beside radii", RADIUS, "", 3, "chem_periodic"],
   ["a bond length beside bond counts", SF6, "Å", 1.56, "chem_lewis"],
   ["a molar energy in kcal/mol beside bond counts", SF6, "kcal/mol", 78, "chem_lewis"],
+  ["a time beside H2S, whose formula a reader could take for 2 s", "Draw the Lewis structure of H2S.", "s", 5, "chem_lewis"],
 ] as const) {
   check(`a plan number of another dimension still draws, ${label}: ${question}`, () => {
     const givens = [{ id: "stated", symbol: "x", value, unit, provenance: "given" as const }];
     assert.equal(select(question, plan(question, givens)).representation?.family, family);
+  });
+}
+
+// The question's own stated values govern even with no plan givens: these draw on the bare
+// family path, and selection refuses them. Decline only.
+for (const question of [
+  "The first ionisation enthalpies of Li, Na and K are 600, 450 and 350 kJ mol^-1. Arrange them in increasing order of ionisation enthalpy.",
+  "The atomic radii of Li, Be, B and C are 1.52, 1.11, 0.88 and 0.77 Å. Arrange them in decreasing order of atomic radius.",
+  "The electronegativities of F, Cl, Br and I are 4.0, 3.0, 2.8 and 2.5. Arrange them in increasing order of electronegativity.",
+  "The electron gain enthalpies of F, Cl, Br and I are −333, −349, −325 and −296 kJ mol−1. Arrange them in order of electron gain enthalpy.",
+]) {
+  check(`a question that states its own values refuses with no plan givens: ${question}`, () => {
+    assert.equal(synthesizeFamilyScene({ question })?.family, "chem_periodic", "the family path should draw it");
+    assert.equal(select(question, plan(question)).representation, null);
   });
 }
 
@@ -106,6 +132,22 @@ for (const question of ["Draw the Lewis structure of ozone O3.", "Draw the Lewis
     assert.ok(groupIds(document).includes("species_1"), "single structure");
   });
 }
+
+// A trend whose values do not all share one sign declines, and so does a radius trend
+// across a noble gas; no other family takes the turn. A radius list without one draws.
+for (const question of [
+  "Arrange the elements N, P, O and S in the order of increasing negative electron gain enthalpy.",
+  "Arrange N, O, F and Ne in order of increasingly negative electron gain enthalpy.",
+  "Arrange the elements of period 3 in increasing order of atomic radius.",
+]) {
+  check(`declines, no runner up: ${question}`, () => {
+    const scene = synthesizeFamilyScene({ question }) ?? synthesizeLastResortScene({ question });
+    assert.equal(scene, null, `${scene?.family ?? ""} took the turn`);
+  });
+}
+check("a radius list without a noble gas still draws", () => {
+  assert.equal(synthesizeFamilyScene({ question: RADIUS })?.family, "chem_periodic");
+});
 
 // 4. An all negative trend names which way is more negative; others keep their wording.
 for (const [question, title, lead] of [

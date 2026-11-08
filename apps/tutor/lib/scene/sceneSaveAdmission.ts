@@ -84,6 +84,26 @@ function measureDimension(unit: unknown): string {
   return signature;
 }
 
+/** Units a question may state a value in, read only to decline. One letter units need a space ("5 s", not "4s"). */
+const STATED_UNIT = /^\s*(?:k?J\b|MJ\b|kcal\b|cal\b|eV\b|pm\b|nm\b|Å|angstroms?\b|ångströms?\b|picomet(?:re|er)s?\b|nanomet(?:re|er)s?\b|pauling\b|debye\b|kPa\b|atm\b|bar\b|mol\b|mmol\b|mL\b|°C?|%|\s(?:s|K|D|M|V|L|g|m)\b)/iu;
+
+/**
+ * Whether the question states a value of its own: a decimal, or a number followed by a
+ * unit, outside formula notation. A digit after a letter (SF6, H2S, C2H4) or after a
+ * caret (SO4^2-) is notation, not a value; "period 3" and "group 17" carry no unit.
+ * Read only to decline: a computed figure never overrides numbers the question gave.
+ */
+export function questionStatesValue(question: string): boolean {
+  const text = question.normalize("NFKC").replace(/[−–]/g, "-");
+  for (const match of text.matchAll(/(?<![\p{L}\p{N}_^.])-?\d+(?:\.\d+)?/gu)) {
+    const number = match[0];
+    const after = text.slice(match.index! + number.length);
+    if (number.includes(".")) return true;
+    if (STATED_UNIT.test(after)) return true;
+  }
+  return false;
+}
+
 /**
  * Values the engine itself derives for this question, recomputed here from
  * the question and the validated plan alone (the same inputs on both sides of
@@ -119,8 +139,11 @@ function engineDerivedValues(question: string, turnPlan: TurnPlanV3): EngineDeri
   // that compute their quantities carry one in each unit they show, so refusing the
   // quantity refuses the figure; their texts hold no value MEASURED reads.
   const planDimensions = new Set([...turnPlan.givens, ...turnPlan.derived].map((quantity) => measureDimension(quantity.unit)));
+  // The question's own stated values govern too, with or without plan givens.
+  const questionStates = questionStatesValue(question);
   const computedButPlanStated = (id: string, unit: unknown): boolean => {
     if (slotSources[id] !== "computed") return false;
+    if (questionStates) return true;
     const dimension = measureDimension(unit);
     return planDimensions.has("unknown") || dimension === "unknown"
       ? planDimensions.size > 0
