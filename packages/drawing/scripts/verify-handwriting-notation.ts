@@ -113,6 +113,8 @@ const SCRIPT_CASES = [
   ["vₖ₍A₎", "v_(k)_(A)"],
   ["x²⁽A⁾", "x^2^(A)"],
   ["a₍(b)₎", "a_((b))"],
+  ["v₍A₁₎", "v_(A1)"],
+  ["x⁽A²⁾", "x^(A2)"],
 ] as const;
 // Everything else is written as before: a bracket with no closer or with an
 // unbalanced inside, a bracket whose inside already has script forms, digit
