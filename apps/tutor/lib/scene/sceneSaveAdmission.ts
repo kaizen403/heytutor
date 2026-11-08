@@ -94,8 +94,9 @@ function engineDerivedValues(question: string, turnPlan: TurnPlanV3): EngineDeri
   if (!slotSources) return regenerated;
   const sourced = (id: string): boolean => slotSources[id] === "stem" || slotSources[id] === "plan" || slotSources[id] === "computed";
   if (!fresh.document.quantities.every((quantity) => sourced(quantity.id))) return regenerated;
+  // The families that compute their quantities always carry one in each unit they show,
+  // so refusing the quantity refuses the figure; their texts hold no value MEASURED reads.
   const planUnits = new Set([...turnPlan.givens, ...turnPlan.derived].map((quantity) => unitKey(quantity.unit)));
-  const hasComputed = fresh.document.quantities.some((quantity) => slotSources[quantity.id] === "computed");
   const computedButPlanStated = (id: string, unit: unknown): boolean =>
     slotSources[id] === "computed" && planUnits.has(unitKey(unit));
   // This document was regenerated above, never supplied by the caller. These
@@ -118,7 +119,6 @@ function engineDerivedValues(question: string, turnPlan: TurnPlanV3): EngineDeri
   for (const text of displayedSceneText(fresh.document)) {
     const values = [...text.matchAll(MEASURED)].map((match) => ({ value: Number(match[1]), unit: unitKey(match[2]) }));
     if (values.some((value) => contradicts(value.value, value.unit))) continue;
-    if (hasComputed && values.some((value) => planUnits.has(value.unit))) continue;
     texts.add(text);
   }
   return { quantities, texts, document: fresh.document };
