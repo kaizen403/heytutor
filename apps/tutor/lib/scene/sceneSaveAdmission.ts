@@ -33,6 +33,7 @@ import {
   validateCircuitTerminalClosure,
   opticsArchetypeOf,
   opticsArchetypePlanAgreement,
+  sceneUnitSignature,
   type SceneDocument,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
@@ -66,6 +67,24 @@ function unitKey(unit: unknown): string {
 }
 
 /**
+ * The coarse dimension of a unit, wider than its exact signature so that no unit of the
+ * same kind slips past: every length is "length" (pm, nm, Å), every energy is "energy"
+ * (kJ/mol, J/mol, eV, kcal/mol), a plain number is "". Anything not recognised is
+ * "unknown", which the caller treats as governing everything.
+ */
+function measureDimension(unit: unknown): string {
+  const text = typeof unit === "string" ? unit.trim() : unit === undefined || unit === null ? "" : null;
+  if (text === null) return "unknown";
+  if (/^(?:å|angstroms?|ångströms?)$/i.test(text)) return "length";
+  if (/^k?cal(?:\s*(?:\/\s*mol|mol\^?-1))?$/i.test(text)) return "energy";
+  const signature = sceneUnitSignature(text);
+  if (signature === null) return "unknown";
+  if (signature === "m^1") return "length";
+  if (/^(?:J|eV)\^1(?:·mol\^-1)?$/.test(signature)) return "energy";
+  return signature;
+}
+
+/**
  * Values the engine itself derives for this question, recomputed here from
  * the question and the validated plan alone (the same inputs on both sides of
  * the save), never read from the submitted document. A figure counts only
@@ -94,11 +113,19 @@ function engineDerivedValues(question: string, turnPlan: TurnPlanV3): EngineDeri
   if (!slotSources) return regenerated;
   const sourced = (id: string): boolean => slotSources[id] === "stem" || slotSources[id] === "plan" || slotSources[id] === "computed";
   if (!fresh.document.quantities.every((quantity) => sourced(quantity.id))) return regenerated;
-  // The families that compute their quantities always carry one in each unit they show,
-  // so refusing the quantity refuses the figure; their texts hold no value MEASURED reads.
-  const planUnits = new Set([...turnPlan.givens, ...turnPlan.derived].map((quantity) => unitKey(quantity.unit)));
-  const computedButPlanStated = (id: string, unit: unknown): boolean =>
-    slotSources[id] === "computed" && planUnits.has(unitKey(unit));
+  // A computed value supports nothing once the plan states any number of its dimension,
+  // in any unit and under any id: radii in nm govern computed pm, J/mol governs kJ/mol.
+  // A plan number in a unit nobody recognises governs every computed value. The families
+  // that compute their quantities carry one in each unit they show, so refusing the
+  // quantity refuses the figure; their texts hold no value MEASURED reads.
+  const planDimensions = new Set([...turnPlan.givens, ...turnPlan.derived].map((quantity) => measureDimension(quantity.unit)));
+  const computedButPlanStated = (id: string, unit: unknown): boolean => {
+    if (slotSources[id] !== "computed") return false;
+    const dimension = measureDimension(unit);
+    return planDimensions.has("unknown") || dimension === "unknown"
+      ? planDimensions.size > 0
+      : planDimensions.has(dimension);
+  };
   // This document was regenerated above, never supplied by the caller. These
   // source programs check plan values by physical role before synthesis, then
   // validate the complete computed state. Different roles may share a unit

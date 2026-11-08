@@ -50,14 +50,38 @@ for (const [question, family] of [
   });
 }
 
-// 2. The plan's own numbers govern: a stated number in the unit refuses the computed figure.
-for (const [question, unit, value] of [
-  ["Arrange Li, Na, K in increasing order of first ionisation energy.", "kJ/mol", 500],
-  ["Draw the Lewis structure of SF6.", "", 7],
+// 2. The plan's own numbers govern: a stated number of the same dimension, in any unit and
+// under any id, refuses the computed figure. A unit nobody recognises governs everything.
+const IE = "Arrange Li, Na, K in increasing order of first ionisation energy.";
+const RADIUS = "Arrange Na, Mg and Al in increasing order of atomic radius.";
+const SF6 = "Draw the Lewis structure of SF6.";
+for (const [label, question, id, unit, value] of [
+  ["same unit", IE, "stated", "kJ/mol", 500],
+  ["a plain count against counts", SF6, "stated", "", 7],
+  ["nm against pm", RADIUS, "stated", "nm", 0.16],
+  ["Å against pm", RADIUS, "stated", "Å", 1.6],
+  ["J/mol against kJ/mol", IE, "stated", "J/mol", 496000],
+  ["kcal/mol against kJ/mol", IE, "stated", "kcal/mol", 118],
+  ["eV against kJ/mol", IE, "stated", "eV", 5.1],
+  ["another quantity id in the same dimension", IE, "first_ionisation_energy_of_sodium", "kJ/mol", 496],
+  ["an unrecognised unit", IE, "stated", "kJ mol⁻¹", 496],
 ] as const) {
-  check(`a plan number in the unit refuses: ${question}`, () => {
-    const givens = [{ id: "stated", symbol: "x", value, unit, provenance: "given" as const }];
+  check(`a plan number refuses, ${label}: ${question}`, () => {
+    const givens = [{ id, symbol: "x", value, unit, provenance: "given" as const }];
     assert.equal(select(question, plan(question, givens)).representation, null);
+  });
+}
+
+// A plan number of another dimension does not touch a computed value: these still draw.
+for (const [label, question, unit, value, family] of [
+  ["a temperature beside ionisation energies", IE, "K", 298, "chem_periodic"],
+  ["a plain count beside radii", RADIUS, "", 3, "chem_periodic"],
+  ["a bond length beside bond counts", SF6, "Å", 1.56, "chem_lewis"],
+  ["a molar energy in kcal/mol beside bond counts", SF6, "kcal/mol", 78, "chem_lewis"],
+] as const) {
+  check(`a plan number of another dimension still draws, ${label}: ${question}`, () => {
+    const givens = [{ id: "stated", symbol: "x", value, unit, provenance: "given" as const }];
+    assert.equal(select(question, plan(question, givens)).representation?.family, family);
   });
 }
 
