@@ -318,14 +318,15 @@ async function main() {
   const noteAt = (x: number): Row => ({ id: "name", entityId: "name", kind: "label", text: "y = f(x)", points: [{ x: x + 30, y: 312 }], provenance: { annotationId: "name", labelBounds: { x, y: 300, width: 60, height: 24 } } });
   assert.equal(curveLabelsReadAsOwn(annotated, [stroke("own", 500), stroke("rival", 640), noteAt(570)] as never), false, "an annotation's name beside another curve hands back");
   assert.equal(curveLabelsReadAsOwn(annotated, [stroke("own", 500), stroke("rival", 640), noteAt(510)] as never), true, "and beside its own curve reads as its own");
-  // Many strokes never crash the placement: 96 wide rings (the most a figure may hold) round a labelled graph compile, validate and save.
+  // Many strokes never crash the placement: 96 rings as wide as the board allows (the most a figure may hold) round a
+  // labelled graph compile, validate and save. Sampled along their outlines and spread into Math.min, they crashed it.
   const ringsQuestion = "Sketch y = x^2/4 among many circles.";
   const ringed = graphsFigure(ringsQuestion, { xMin: -6, xMax: 6, yMin: -6, yMax: 6 }, [["parab", "x^2/4", -4, 4, "y = x²/4"]]);
   for (let index = 0; index < 96; index += 1) {
-    const angle = index * 2.399963, reach = 1 + (index % 7) * 0.6;
+    const angle = index * 2.399963, reach = 0.05;
     ringed.entities.push({ id: `c${index}`, kind: "point", role: "centre" }, { id: `r${index}`, kind: "circle", role: "circle" });
     ringed.constructions.push({ id: `kc${index}`, operator: "point", inputs: { x: reach * Math.cos(angle), y: reach * Math.sin(angle), coordinateSpace: "world" }, outputs: [`c${index}`] },
-      { id: `kr${index}`, operator: "circle", inputs: { center: `c${index}`, radius: 6 }, outputs: [`r${index}`] });
+      { id: `kr${index}`, operator: "circle", inputs: { center: `c${index}`, radius: 6 - index * 0.004 }, outputs: [`r${index}`] });
   }
   ringed.requiredEntityIds = ringed.entities.map((entity: Row) => entity.id);
   ringed.revealGroups = [{ id: "all", entityIds: ringed.requiredEntityIds, dependsOn: [], narrationCue: "The graph and the circles." }];
