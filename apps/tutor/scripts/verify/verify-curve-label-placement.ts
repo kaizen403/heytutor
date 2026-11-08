@@ -211,7 +211,6 @@ async function main() {
   // An axes primitive is its two lines, not one path through its four points.
   const axesInk = { id: "axes", entityId: "axes", kind: "axes", points: [{ x: 400, y: 350 }, { x: 1160, y: 350 }, { x: 780, y: 680 }, { x: 780, y: 20 }] };
   assert.deepEqual(strokePieces(axesInk as never), [[axesInk.points[0], axesInk.points[1]], [axesInk.points[2], axesInk.points[3]]], "axes are two strokes, with no line from the end of one to the start of the other");
-  assert(strokePieces({ id: "c", entityId: "c", kind: "circle", points: [{ x: 500, y: 300 }], radius: 40 } as never).length > 8, "a circle is its outline, not its centre");
   console.log("PASS placement: unstamped as dev, stamped beside its stroke and kept");
 
   // Only graphs of y = f(x) move: the spring's label is where dev puts it.
@@ -303,6 +302,31 @@ async function main() {
   assert.equal(curveLabelsReadAsOwn(docOf(), [stroke("own", 500), axesAt(640), nameOf("own", 570)] as never), true, "an axis is not a rival");
   const shade: Row = { id: "shade_ink", entityId: "shade", kind: "polygon", points: [{ x: 640, y: 100 }, { x: 800, y: 100 }, { x: 800, y: 500 }, { x: 640, y: 500 }] };
   assert.equal(curveLabelsReadAsOwn(docOf([{ id: "k3", operator: "function_region", outputs: ["shade"] }]), [stroke("own", 500), shade, nameOf("own", 570)] as never), true, "nor is a shaded region");
+  // A tie is doubt, and doubt hands back: the box between the two curves, as near the other one as its own or within 4 px of it.
+  const boxAt = (x: number): Row => ({ ...nameOf("own", x), provenance: { labelBounds: { x, y: 300, width: 60, height: 24 } } });
+  assert.equal(curveLabelsReadAsOwn(docOf(), [stroke("own", 500), stroke("rival", 640), boxAt(540)] as never), false, "a box exactly as near the other curve as its own hands back");
+  assert.equal(curveLabelsReadAsOwn(docOf(), [stroke("own", 500), stroke("rival", 640), boxAt(538.5)] as never), false, "and so does one only 3 px nearer its own");
+  assert.equal(curveLabelsReadAsOwn(docOf(), [stroke("own", 500), stroke("rival", 640), boxAt(530)] as never), true, "one 20 px nearer its own reads as its own");
+  // A curve named by an annotation is checked the same way: its label's owner is the annotation's target.
+  const annotated = { constructions: [{ id: "k", operator: "function_curve", outputs: ["own"] }, { id: "k2", operator: "function_curve", outputs: ["rival"] }], annotations: [{ id: "name", kind: "label", targetIds: ["own"], text: "y = f(x)" }] } as never;
+  const noteAt = (x: number): Row => ({ id: "name", entityId: "name", kind: "label", text: "y = f(x)", points: [{ x: x + 30, y: 312 }], provenance: { annotationId: "name", labelBounds: { x, y: 300, width: 60, height: 24 } } });
+  assert.equal(curveLabelsReadAsOwn(annotated, [stroke("own", 500), stroke("rival", 640), noteAt(570)] as never), false, "an annotation's name beside another curve hands back");
+  assert.equal(curveLabelsReadAsOwn(annotated, [stroke("own", 500), stroke("rival", 640), noteAt(510)] as never), true, "and beside its own curve reads as its own");
+  // Many strokes never crash the placement: 96 wide rings (the most a figure may hold) round a labelled graph compile, validate and save.
+  const ringsQuestion = "Sketch y = x^2/4 among many circles.";
+  const ringed = graphsFigure(ringsQuestion, { xMin: -6, xMax: 6, yMin: -6, yMax: 6 }, [["parab", "x^2/4", -4, 4, "y = x²/4"]]);
+  for (let index = 0; index < 96; index += 1) {
+    const angle = index * 2.399963, reach = 1 + (index % 7) * 0.6;
+    ringed.entities.push({ id: `c${index}`, kind: "point", role: "centre" }, { id: `r${index}`, kind: "circle", role: "circle" });
+    ringed.constructions.push({ id: `kc${index}`, operator: "point", inputs: { x: reach * Math.cos(angle), y: reach * Math.sin(angle), coordinateSpace: "world" }, outputs: [`c${index}`] },
+      { id: `kr${index}`, operator: "circle", inputs: { center: `c${index}`, radius: 2.5 }, outputs: [`r${index}`] });
+  }
+  ringed.requiredEntityIds = ringed.entities.map((entity: Row) => entity.id);
+  ringed.revealGroups = [{ id: "all", entityIds: ringed.requiredEntityIds, dependsOn: [], narrationCue: "The graph and the circles." }];
+  const ringedStamped = withCurveLabelPlacement(valid(ringed as never), true);
+  assert.doesNotThrow(() => compileSceneDocument(ringedStamped), "a graph among 96 rings compiles with the switch on");
+  assert.doesNotThrow(() => graphsCandidate(ringed, true), "and validates");
+  assert.doesNotThrow(() => admitStoredScene({ sceneDocument: ringedStamped, sceneQuestion: ringsQuestion, turnPlan: null, submittedTier: "qualitative_verified", curveLabels: true }), "and saves");
   console.log("PASS never worse: a moved label nearer another curve, or with a leader across one, hands the figure back to dev, live and at the server");
 
   // The switch fixes, it never admits: a figure dev refuses stays refused, even

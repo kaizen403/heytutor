@@ -1,4 +1,5 @@
 import { strokePieces, validateLabelOwnerTruth, validateStraightLineNames } from "./labelOwnerTruth";
+import { circularStrokeDistance } from "./circularStrokeDistance";
 import { validateFigureConsistency } from "./figureConsistency";
 import { validateLaunchVelocityTruth } from "./launchVelocityTruth";
 import { bindTrajectoryLabelPlacement } from "../labels/trajectoryLabelPlacement";
@@ -4335,13 +4336,18 @@ function functionCurveLabelPlacement(document: SceneDocument, entityId: string, 
   if (!own || own.points.length < 8) return {};
   const at = (t: number): RenderPoint => own.points[Math.min(own.points.length - 1, Math.max(0, Math.round(t * (own.points.length - 1))))]!;
   const candidates = [0.85, 0.15, 0.7, 0.3, 0.5, 0.95, 0.05].map(at);
-  // Room is measured to the ink as drawn: axes as their two lines, circles and arcs along their outline.
-  const segments: Array<[RenderPoint, RenderPoint]> = primitives
-    .filter((primitive) => primitive.kind !== "label" && primitive.entityId !== entityId)
-    .flatMap((primitive) => strokePieces(primitive));
-  const room = (point: RenderPoint): number => segments.length === 0
-    ? Infinity
-    : Math.min(...segments.map(([a, b]) => pointSegmentResidual(point, [a, b])));
+  // Room is measured to the ink as drawn: axes as their two lines, circles and arcs along their outline (exactly,
+  // not sampled), every other stroke by its pieces. A loop, not a spread: a figure may hold many strokes.
+  const others = primitives.filter((primitive) => primitive.kind !== "label" && primitive.entityId !== entityId);
+  const rings = others.filter((primitive) => primitive.kind === "circle" || primitive.kind === "arc");
+  const segments = others.filter((primitive) => primitive.kind !== "circle" && primitive.kind !== "arc").flatMap((primitive) => strokePieces(primitive));
+  chargeLayoutSteps(candidates.length * (segments.length + rings.length), "curveRoom");
+  const room = (point: RenderPoint): number => {
+    let nearest = Infinity;
+    for (const segment of segments) nearest = Math.min(nearest, pointSegmentResidual(point, segment));
+    for (const ring of rings) nearest = Math.min(nearest, circularStrokeDistance(point, ring));
+    return nearest;
+  };
   let best = candidates[0]!;
   let bestRoom = room(best);
   for (const candidate of candidates.slice(1)) {

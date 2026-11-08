@@ -60,10 +60,9 @@ export function strokePieces(primitive: RenderPrimitive): Array<[Point, Point]> 
   let points = primitive.points;
   if (!points.length) return [];
   if (primitive.kind === "axes" && points.length === 4) return [[points[0]!, points[1]!], [points[2]!, points[3]!]];
-  if (primitive.kind === "arc" || primitive.kind === "circle") {
+  if (primitive.kind === "arc") {
     const centre = points[0]!, radius = primitive.radius ?? 0;
-    const start = primitive.kind === "circle" ? 0 : primitive.startAngle ?? 0;
-    const sweep = primitive.kind === "circle" ? 2 * Math.PI : (primitive.endAngle ?? start) - start;
+    const start = primitive.startAngle ?? 0, sweep = (primitive.endAngle ?? start) - start;
     const count = Math.min(4096, Math.max(8, Math.ceil(Math.abs(sweep) * radius)));
     points = Array.from({ length: count + 1 }, (_, index) => {
       const angle = start + sweep * index / count;
@@ -141,10 +140,32 @@ export function validateStraightLineNames(document: SceneDocument, primitives: R
   return issues;
 }
 
+/** A moved graph label this close to tying with another stroke is in doubt, and doubt hands the figure back. */
+const CURVE_LABEL_TIE_PX = 4;
+/** Does the segment a to b cross a circle's or an arc's outline? Solved exactly, never sampled. */
+function segmentCrossesRing(a: Point, b: Point, ring: RenderPrimitive): boolean {
+  const centre = ring.points[0], radius = ring.radius ?? 0;
+  if (!centre || !(radius > 0)) return false;
+  const dx = b.x - a.x, dy = b.y - a.y, fx = a.x - centre.x, fy = a.y - centre.y;
+  const qa = dx * dx + dy * dy, qb = 2 * (fx * dx + fy * dy), qc = fx * fx + fy * fy - radius * radius;
+  const disc = qb * qb - 4 * qa * qc;
+  if (!(qa > 0) || disc < 0) return false;
+  const root = Math.sqrt(disc);
+  for (const t of [(-qb - root) / (2 * qa), (-qb + root) / (2 * qa)]) {
+    if (t < 0 || t > 1) continue;
+    if (ring.kind === "circle") return true;
+    const angle = Math.atan2(a.y + t * dy - centre.y, a.x + t * dx - centre.x);
+    const start = ring.startAngle ?? 0, sweep = (ring.endAngle ?? start) - start, tau = 2 * Math.PI;
+    const along = (((sweep < 0 ? start - angle : angle - start) % tau) + tau) % tau;
+    if (Math.abs(sweep) >= tau || along <= Math.abs(sweep)) return true;
+  }
+  return false;
+}
+
 /**
  * With graph labels placed by their own stroke, does each one still read as its own curve's? A graph label whose
- * lettered box sits nearer another stroke than its own does not, and nor does one whose leader crosses another
- * stroke. An axis is not a rival, as it is named at its ends, and nor is a shaded region, whose edge is the curves
+ * lettered box sits nearer another stroke than its own, or within a few pixels of a tie, does not, and nor does one
+ * whose leader crosses another stroke. An axis is not a rival, as it is named at its ends, and nor is a shaded region, whose edge is the curves
  * that bound it.
  */
 export function curveLabelsReadAsOwn(document: SceneDocument, primitives: RenderPrimitive[]): boolean {
@@ -160,9 +181,16 @@ export function curveLabelsReadAsOwn(document: SceneDocument, primitives: Render
     const rivals = ink.filter(p => !owners.includes(p.entityId) && p.kind !== "axes" && !regions.has(p.entityId));
     if (!own.length || !rivals.length) continue;
     const box = labelBox(label);
-    if (box && Math.min(...rivals.map(p => boxDistance(box, p))) < Math.min(...own.map(p => boxDistance(box, p)))) return false;
+    if (box) {
+      let nearestOwn = Infinity, nearestRival = Infinity;
+      for (const p of own) nearestOwn = Math.min(nearestOwn, boxDistance(box, p));
+      for (const p of rivals) nearestRival = Math.min(nearestRival, boxDistance(box, p));
+      if (nearestRival < nearestOwn + CURVE_LABEL_TIE_PX) return false;
+    }
     const leader = primitives.find(p => p.id === `${label.id}_leader` && p.provenance?.labelLeader);
-    if (leader && strokePieces(leader).some(([a, b]) => rivals.some(rival => strokePieces(rival).some(([c, d]) => segmentsCross(a, b, c, d))))) return false;
+    if (leader && strokePieces(leader).some(([a, b]) => rivals.some(rival => rival.kind === "circle" || rival.kind === "arc"
+      ? segmentCrossesRing(a, b, rival)
+      : strokePieces(rival).some(([c, d]) => segmentsCross(a, b, c, d))))) return false;
   }
   return true;
 }
