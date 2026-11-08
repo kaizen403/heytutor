@@ -1,0 +1,2 @@
+# Chemistry families count their own computed quantities; unequal resonance forms; all negative trend wording.
+tsx scripts/verify/verify-chemistry-computed-quantities.ts

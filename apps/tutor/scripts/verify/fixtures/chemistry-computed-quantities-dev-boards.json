@@ -1,0 +1,3261 @@
+{
+ "note": "Built by dev e808ac939 for authored questions; each plan supports the board's quantities, as a board dev saved would have had.",
+ "boards": [
+  {
+   "question": "Draw the Lewis structure of N2O.",
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Draw the Lewis structure of N2O.",
+    "visualRequirement": "required",
+    "givens": [],
+    "unknowns": [],
+    "qualitativeClaims": [],
+    "lawIds": [],
+    "assumptions": [],
+    "derived": [
+     {
+      "id": "sigma_bonds",
+      "symbol": "σ",
+      "value": 2,
+      "unit": "",
+      "provenance": "derived"
+     },
+     {
+      "id": "pi_bonds",
+      "symbol": "π",
+      "value": 2,
+      "unit": "",
+      "provenance": "derived"
+     },
+     {
+      "id": "lone_pairs",
+      "symbol": "n_lp",
+      "value": 4,
+      "unit": "",
+      "provenance": "derived"
+     }
+    ]
+   },
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "Lewis structure of N_2O"
+    },
+    "source": {
+     "question": "Draw the Lewis structure of N2O.",
+     "synthesizedFamily": true,
+     "archetype": "chem_lewis",
+     "chemistryFamily": "chem_lewis"
+    },
+    "quantities": [
+     {
+      "id": "sigma_bonds",
+      "symbol": "σ",
+      "value": 2,
+      "unit": ""
+     },
+     {
+      "id": "pi_bonds",
+      "symbol": "π",
+      "value": 2,
+      "unit": ""
+     },
+     {
+      "id": "lone_pairs",
+      "symbol": "n_lp",
+      "value": 4,
+      "unit": ""
+     }
+    ],
+    "entities": [
+     {
+      "id": "s1_N1",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "N",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "s1_N2",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "N",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "s1_O1",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "O",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "s1_b_N2_N1_1",
+      "kind": "segment",
+      "role": "double bond"
+     },
+     {
+      "id": "s1_b_N2_N1_2",
+      "kind": "segment",
+      "role": "double bond stroke"
+     },
+     {
+      "id": "s1_b_N2_O1_1",
+      "kind": "segment",
+      "role": "double bond"
+     },
+     {
+      "id": "s1_b_N2_O1_2",
+      "kind": "segment",
+      "role": "double bond stroke"
+     },
+     {
+      "id": "s1_lp_N1_1_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_N1_1_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_N1_2_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_N1_2_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_fc_N1",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "-",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "s1_fc_N2",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "+",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "s1_lp_O1_1_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_O1_1_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_O1_2_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_O1_2_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_name",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "N_2O",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "s1_N1_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_N2_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_O1_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_N2_N1_1_s",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_N2_N1_1_e",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_N2_N1_2_s",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_N2_N1_2_e",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_N2_O1_1_s",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_N2_O1_1_e",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_N2_O1_2_s",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_N2_O1_2_e",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_fc_N1_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_fc_N2_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_name_p",
+      "kind": "point",
+      "role": "construction helper"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_s1_N1_p",
+      "operator": "point",
+      "inputs": {
+       "x": 0.122,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_N1_p"
+      ]
+     },
+     {
+      "id": "make_s1_N1",
+      "operator": "label",
+      "inputs": {
+       "target": "s1_N1_p",
+       "text": "N"
+      },
+      "outputs": [
+       "s1_N1"
+      ]
+     },
+     {
+      "id": "make_s1_N2_p",
+      "operator": "point",
+      "inputs": {
+       "x": 1.122,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_N2_p"
+      ]
+     },
+     {
+      "id": "make_s1_N2",
+      "operator": "label",
+      "inputs": {
+       "target": "s1_N2_p",
+       "text": "N"
+      },
+      "outputs": [
+       "s1_N2"
+      ]
+     },
+     {
+      "id": "make_s1_O1_p",
+      "operator": "point",
+      "inputs": {
+       "x": 2.122,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_O1_p"
+      ]
+     },
+     {
+      "id": "make_s1_O1",
+      "operator": "label",
+      "inputs": {
+       "target": "s1_O1_p",
+       "text": "O"
+      },
+      "outputs": [
+       "s1_O1"
+      ]
+     },
+     {
+      "id": "make_s1_b_N2_N1_1_s",
+      "operator": "point",
+      "inputs": {
+       "x": 1.0528,
+       "y": 0.0102,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_N2_N1_1_s"
+      ]
+     },
+     {
+      "id": "make_s1_b_N2_N1_1_e",
+      "operator": "point",
+      "inputs": {
+       "x": 0.1911,
+       "y": 0.0102,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_N2_N1_1_e"
+      ]
+     },
+     {
+      "id": "make_s1_b_N2_N1_1",
+      "operator": "segment",
+      "inputs": {
+       "start": "s1_b_N2_N1_1_s",
+       "end": "s1_b_N2_N1_1_e"
+      },
+      "outputs": [
+       "s1_b_N2_N1_1"
+      ]
+     },
+     {
+      "id": "make_s1_b_N2_N1_2_s",
+      "operator": "point",
+      "inputs": {
+       "x": 1.0528,
+       "y": -0.0102,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_N2_N1_2_s"
+      ]
+     },
+     {
+      "id": "make_s1_b_N2_N1_2_e",
+      "operator": "point",
+      "inputs": {
+       "x": 0.1911,
+       "y": -0.0102,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_N2_N1_2_e"
+      ]
+     },
+     {
+      "id": "make_s1_b_N2_N1_2",
+      "operator": "segment",
+      "inputs": {
+       "start": "s1_b_N2_N1_2_s",
+       "end": "s1_b_N2_N1_2_e"
+      },
+      "outputs": [
+       "s1_b_N2_N1_2"
+      ]
+     },
+     {
+      "id": "make_s1_b_N2_O1_1_s",
+      "operator": "point",
+      "inputs": {
+       "x": 1.1911,
+       "y": -0.0102,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_N2_O1_1_s"
+      ]
+     },
+     {
+      "id": "make_s1_b_N2_O1_1_e",
+      "operator": "point",
+      "inputs": {
+       "x": 2.0528,
+       "y": -0.0102,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_N2_O1_1_e"
+      ]
+     },
+     {
+      "id": "make_s1_b_N2_O1_1",
+      "operator": "segment",
+      "inputs": {
+       "start": "s1_b_N2_O1_1_s",
+       "end": "s1_b_N2_O1_1_e"
+      },
+      "outputs": [
+       "s1_b_N2_O1_1"
+      ]
+     },
+     {
+      "id": "make_s1_b_N2_O1_2_s",
+      "operator": "point",
+      "inputs": {
+       "x": 1.1911,
+       "y": 0.0102,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_N2_O1_2_s"
+      ]
+     },
+     {
+      "id": "make_s1_b_N2_O1_2_e",
+      "operator": "point",
+      "inputs": {
+       "x": 2.0528,
+       "y": 0.0102,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_N2_O1_2_e"
+      ]
+     },
+     {
+      "id": "make_s1_b_N2_O1_2",
+      "operator": "segment",
+      "inputs": {
+       "start": "s1_b_N2_O1_2_s",
+       "end": "s1_b_N2_O1_2_e"
+      },
+      "outputs": [
+       "s1_b_N2_O1_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_N1_1_1",
+      "operator": "point",
+      "inputs": {
+       "x": 0.0916,
+       "y": 0.081,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_N1_1_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_N1_1_2",
+      "operator": "point",
+      "inputs": {
+       "x": 0.0669,
+       "y": 0.0668,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_N1_1_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_N1_2_1",
+      "operator": "point",
+      "inputs": {
+       "x": 0.0669,
+       "y": -0.0668,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_N1_2_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_N1_2_2",
+      "operator": "point",
+      "inputs": {
+       "x": 0.0916,
+       "y": -0.081,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_N1_2_2"
+      ]
+     },
+     {
+      "id": "make_s1_fc_N1_p",
+      "operator": "point",
+      "inputs": {
+       "x": 0.1768,
+       "y": 0.0951,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_fc_N1_p"
+      ]
+     },
+     {
+      "id": "make_s1_fc_N1",
+      "operator": "label",
+      "inputs": {
+       "target": "s1_fc_N1_p",
+       "text": "-"
+      },
+      "outputs": [
+       "s1_fc_N1"
+      ]
+     },
+     {
+      "id": "make_s1_fc_N2_p",
+      "operator": "point",
+      "inputs": {
+       "x": 1.122,
+       "y": 0.1098,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_fc_N2_p"
+      ]
+     },
+     {
+      "id": "make_s1_fc_N2",
+      "operator": "label",
+      "inputs": {
+       "target": "s1_fc_N2_p",
+       "text": "+"
+      },
+      "outputs": [
+       "s1_fc_N2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_O1_1_1",
+      "operator": "point",
+      "inputs": {
+       "x": 2.1523,
+       "y": -0.081,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_O1_1_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_O1_1_2",
+      "operator": "point",
+      "inputs": {
+       "x": 2.177,
+       "y": -0.0668,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_O1_1_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_O1_2_1",
+      "operator": "point",
+      "inputs": {
+       "x": 2.177,
+       "y": 0.0668,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_O1_2_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_O1_2_2",
+      "operator": "point",
+      "inputs": {
+       "x": 2.1523,
+       "y": 0.081,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_O1_2_2"
+      ]
+     },
+     {
+      "id": "make_s1_name_p",
+      "operator": "point",
+      "inputs": {
+       "x": 1.122,
+       "y": -0.1908,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_name_p"
+      ]
+     },
+     {
+      "id": "make_s1_name",
+      "operator": "label",
+      "inputs": {
+       "target": "s1_name_p",
+       "text": "N_2O"
+      },
+      "outputs": [
+       "s1_name"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "label_s1_N1",
+      "predicate": "label_attached",
+      "entities": [
+       "s1_N1"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "label_s1_name",
+      "predicate": "label_attached",
+      "entities": [
+       "s1_name"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "figure_caption",
+      "kind": "callout",
+      "targetIds": [],
+      "text": "N_2O: σ = 2, π = 2, lone pairs = 4"
+     }
+    ],
+    "requiredEntityIds": [
+     "s1_N1",
+     "s1_N2",
+     "s1_O1",
+     "s1_b_N2_N1_1",
+     "s1_b_N2_N1_2",
+     "s1_b_N2_O1_1",
+     "s1_b_N2_O1_2",
+     "s1_lp_N1_1_1",
+     "s1_lp_N1_1_2",
+     "s1_lp_N1_2_1",
+     "s1_lp_N1_2_2",
+     "s1_fc_N1",
+     "s1_fc_N2",
+     "s1_lp_O1_1_1",
+     "s1_lp_O1_1_2",
+     "s1_lp_O1_2_1",
+     "s1_lp_O1_2_2",
+     "s1_name"
+    ],
+    "revealGroups": [
+     {
+      "id": "species_1",
+      "entityIds": [
+       "s1_N1",
+       "s1_N2",
+       "s1_O1",
+       "s1_b_N2_N1_1",
+       "s1_b_N2_N1_2",
+       "s1_b_N2_O1_1",
+       "s1_b_N2_O1_2",
+       "s1_lp_N1_1_1",
+       "s1_lp_N1_1_2",
+       "s1_lp_N1_2_1",
+       "s1_lp_N1_2_2",
+       "s1_fc_N1",
+       "s1_fc_N2",
+       "s1_lp_O1_1_1",
+       "s1_lp_O1_1_2",
+       "s1_lp_O1_2_1",
+       "s1_lp_O1_2_2",
+       "s1_name"
+      ],
+      "dependsOn": [],
+      "narrationCue": "Lewis structure of N_2O: σ = 2, π = 2, lone pairs = 4"
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "reveal_species_1",
+      "action": "reveal",
+      "targetId": "species_1",
+      "dependsOn": [],
+      "narrationIntent": "Lewis structure of N_2O: σ = 2, π = 2, lone pairs = 4"
+     }
+    ]
+   }
+  },
+  {
+   "question": "Arrange F, Cl, Br and I in order of increasingly negative electron gain enthalpy.",
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Arrange F, Cl, Br and I in order of increasingly negative electron gain enthalpy.",
+    "visualRequirement": "required",
+    "givens": [],
+    "unknowns": [],
+    "qualitativeClaims": [],
+    "lawIds": [],
+    "assumptions": [],
+    "derived": [
+     {
+      "id": "q_Cl0",
+      "symbol": "egh(Cl)",
+      "value": -349,
+      "unit": "kJ/mol",
+      "provenance": "derived"
+     },
+     {
+      "id": "q_F1",
+      "symbol": "egh(F)",
+      "value": -328,
+      "unit": "kJ/mol",
+      "provenance": "derived"
+     },
+     {
+      "id": "q_Br2",
+      "symbol": "egh(Br)",
+      "value": -325,
+      "unit": "kJ/mol",
+      "provenance": "derived"
+     },
+     {
+      "id": "q_I3",
+      "symbol": "egh(I)",
+      "value": -295,
+      "unit": "kJ/mol",
+      "provenance": "derived"
+     }
+    ]
+   },
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "Δ_(eg)H (kJ/mol) in increasing order, plotted from the periodic table"
+    },
+    "source": {
+     "question": "Arrange F, Cl, Br and I in order of increasingly negative electron gain enthalpy.",
+     "synthesizedFamily": true,
+     "archetype": "chem_periodic",
+     "chemistryFamily": "chem_periodic"
+    },
+    "quantities": [
+     {
+      "id": "q_Cl0",
+      "symbol": "egh(Cl)",
+      "value": -349,
+      "unit": "kJ/mol"
+     },
+     {
+      "id": "q_F1",
+      "symbol": "egh(F)",
+      "value": -328,
+      "unit": "kJ/mol"
+     },
+     {
+      "id": "q_Br2",
+      "symbol": "egh(Br)",
+      "value": -325,
+      "unit": "kJ/mol"
+     },
+     {
+      "id": "q_I3",
+      "symbol": "egh(I)",
+      "value": -295,
+      "unit": "kJ/mol"
+     }
+    ],
+    "entities": [
+     {
+      "id": "axes",
+      "kind": "axes",
+      "role": "Δ_(eg)H (kJ/mol) against element"
+     },
+     {
+      "id": "tick_m40000",
+      "kind": "segment",
+      "role": "axis tick"
+     },
+     {
+      "id": "tick_m40000_v",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "-400",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "tick_m30000",
+      "kind": "segment",
+      "role": "axis tick"
+     },
+     {
+      "id": "tick_m30000_v",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "-300",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "tick_m20000",
+      "kind": "segment",
+      "role": "axis tick"
+     },
+     {
+      "id": "tick_m20000_v",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "-200",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "tick_m10000",
+      "kind": "segment",
+      "role": "axis tick"
+     },
+     {
+      "id": "tick_m10000_v",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "-100",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "tick_0",
+      "kind": "segment",
+      "role": "axis tick"
+     },
+     {
+      "id": "tick_0_v",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "0",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "y_title",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "Δ_(eg)H (kJ/mol)",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "x_title",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "increasing order",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "p_Cl0",
+      "kind": "point",
+      "role": "Cl data point"
+     },
+     {
+      "id": "p_F1",
+      "kind": "point",
+      "role": "F data point"
+     },
+     {
+      "id": "p_Br2",
+      "kind": "point",
+      "role": "Br data point"
+     },
+     {
+      "id": "p_I3",
+      "kind": "point",
+      "role": "I data point"
+     },
+     {
+      "id": "trend",
+      "kind": "polyline",
+      "role": "Δ_(eg)H (kJ/mol) trend line"
+     },
+     {
+      "id": "lbl_Cl0",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "Cl",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "lbl_F1",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "F",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "lbl_Br2",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "Br",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "lbl_I3",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "I",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "tick_m40000_a",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "tick_m40000_b",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "tick_m40000_v_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "tick_m30000_a",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "tick_m30000_b",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "tick_m30000_v_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "tick_m20000_a",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "tick_m20000_b",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "tick_m20000_v_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "tick_m10000_a",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "tick_m10000_b",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "tick_m10000_v_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "tick_0_a",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "tick_0_b",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "tick_0_v_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "y_title_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "x_title_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "lbl_Cl0_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "lbl_F1_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "lbl_Br2_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "lbl_I3_p",
+      "kind": "point",
+      "role": "construction helper"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_axes",
+      "operator": "axes",
+      "inputs": {
+       "xMin": 0,
+       "xMax": 5.5,
+       "yMin": -3.9,
+       "yMax": 0.55
+      },
+      "outputs": [
+       "axes"
+      ]
+     },
+     {
+      "id": "make_tick_m40000_a",
+      "operator": "point",
+      "inputs": {
+       "x": -0.08,
+       "y": -3.6,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tick_m40000_a"
+      ]
+     },
+     {
+      "id": "make_tick_m40000_b",
+      "operator": "point",
+      "inputs": {
+       "x": 0.08,
+       "y": -3.6,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tick_m40000_b"
+      ]
+     },
+     {
+      "id": "make_tick_m40000",
+      "operator": "segment",
+      "inputs": {
+       "start": "tick_m40000_a",
+       "end": "tick_m40000_b"
+      },
+      "outputs": [
+       "tick_m40000"
+      ]
+     },
+     {
+      "id": "make_tick_m40000_v_p",
+      "operator": "point",
+      "inputs": {
+       "x": -0.5,
+       "y": -3.6,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tick_m40000_v_p"
+      ]
+     },
+     {
+      "id": "make_tick_m40000_v",
+      "operator": "label",
+      "inputs": {
+       "target": "tick_m40000_v_p",
+       "text": "-400"
+      },
+      "outputs": [
+       "tick_m40000_v"
+      ]
+     },
+     {
+      "id": "make_tick_m30000_a",
+      "operator": "point",
+      "inputs": {
+       "x": -0.08,
+       "y": -2.7,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tick_m30000_a"
+      ]
+     },
+     {
+      "id": "make_tick_m30000_b",
+      "operator": "point",
+      "inputs": {
+       "x": 0.08,
+       "y": -2.7,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tick_m30000_b"
+      ]
+     },
+     {
+      "id": "make_tick_m30000",
+      "operator": "segment",
+      "inputs": {
+       "start": "tick_m30000_a",
+       "end": "tick_m30000_b"
+      },
+      "outputs": [
+       "tick_m30000"
+      ]
+     },
+     {
+      "id": "make_tick_m30000_v_p",
+      "operator": "point",
+      "inputs": {
+       "x": -0.5,
+       "y": -2.7,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tick_m30000_v_p"
+      ]
+     },
+     {
+      "id": "make_tick_m30000_v",
+      "operator": "label",
+      "inputs": {
+       "target": "tick_m30000_v_p",
+       "text": "-300"
+      },
+      "outputs": [
+       "tick_m30000_v"
+      ]
+     },
+     {
+      "id": "make_tick_m20000_a",
+      "operator": "point",
+      "inputs": {
+       "x": -0.08,
+       "y": -1.8,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tick_m20000_a"
+      ]
+     },
+     {
+      "id": "make_tick_m20000_b",
+      "operator": "point",
+      "inputs": {
+       "x": 0.08,
+       "y": -1.8,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tick_m20000_b"
+      ]
+     },
+     {
+      "id": "make_tick_m20000",
+      "operator": "segment",
+      "inputs": {
+       "start": "tick_m20000_a",
+       "end": "tick_m20000_b"
+      },
+      "outputs": [
+       "tick_m20000"
+      ]
+     },
+     {
+      "id": "make_tick_m20000_v_p",
+      "operator": "point",
+      "inputs": {
+       "x": -0.5,
+       "y": -1.8,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tick_m20000_v_p"
+      ]
+     },
+     {
+      "id": "make_tick_m20000_v",
+      "operator": "label",
+      "inputs": {
+       "target": "tick_m20000_v_p",
+       "text": "-200"
+      },
+      "outputs": [
+       "tick_m20000_v"
+      ]
+     },
+     {
+      "id": "make_tick_m10000_a",
+      "operator": "point",
+      "inputs": {
+       "x": -0.08,
+       "y": -0.9,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tick_m10000_a"
+      ]
+     },
+     {
+      "id": "make_tick_m10000_b",
+      "operator": "point",
+      "inputs": {
+       "x": 0.08,
+       "y": -0.9,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tick_m10000_b"
+      ]
+     },
+     {
+      "id": "make_tick_m10000",
+      "operator": "segment",
+      "inputs": {
+       "start": "tick_m10000_a",
+       "end": "tick_m10000_b"
+      },
+      "outputs": [
+       "tick_m10000"
+      ]
+     },
+     {
+      "id": "make_tick_m10000_v_p",
+      "operator": "point",
+      "inputs": {
+       "x": -0.5,
+       "y": -0.9,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tick_m10000_v_p"
+      ]
+     },
+     {
+      "id": "make_tick_m10000_v",
+      "operator": "label",
+      "inputs": {
+       "target": "tick_m10000_v_p",
+       "text": "-100"
+      },
+      "outputs": [
+       "tick_m10000_v"
+      ]
+     },
+     {
+      "id": "make_tick_0_a",
+      "operator": "point",
+      "inputs": {
+       "x": -0.08,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tick_0_a"
+      ]
+     },
+     {
+      "id": "make_tick_0_b",
+      "operator": "point",
+      "inputs": {
+       "x": 0.08,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tick_0_b"
+      ]
+     },
+     {
+      "id": "make_tick_0",
+      "operator": "segment",
+      "inputs": {
+       "start": "tick_0_a",
+       "end": "tick_0_b"
+      },
+      "outputs": [
+       "tick_0"
+      ]
+     },
+     {
+      "id": "make_tick_0_v_p",
+      "operator": "point",
+      "inputs": {
+       "x": -0.5,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tick_0_v_p"
+      ]
+     },
+     {
+      "id": "make_tick_0_v",
+      "operator": "label",
+      "inputs": {
+       "target": "tick_0_v_p",
+       "text": "0"
+      },
+      "outputs": [
+       "tick_0_v"
+      ]
+     },
+     {
+      "id": "make_y_title_p",
+      "operator": "point",
+      "inputs": {
+       "x": 0.15,
+       "y": 0.85,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "y_title_p"
+      ]
+     },
+     {
+      "id": "make_y_title",
+      "operator": "label",
+      "inputs": {
+       "target": "y_title_p",
+       "text": "Δ_(eg)H (kJ/mol)"
+      },
+      "outputs": [
+       "y_title"
+      ]
+     },
+     {
+      "id": "make_x_title_p",
+      "operator": "point",
+      "inputs": {
+       "x": 5.4,
+       "y": -0.42,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "x_title_p"
+      ]
+     },
+     {
+      "id": "make_x_title",
+      "operator": "label",
+      "inputs": {
+       "target": "x_title_p",
+       "text": "increasing order"
+      },
+      "outputs": [
+       "x_title"
+      ]
+     },
+     {
+      "id": "make_p_Cl0",
+      "operator": "point",
+      "inputs": {
+       "x": 1,
+       "y": -3.141,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p_Cl0"
+      ]
+     },
+     {
+      "id": "make_p_F1",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": -2.952,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p_F1"
+      ]
+     },
+     {
+      "id": "make_p_Br2",
+      "operator": "point",
+      "inputs": {
+       "x": 3,
+       "y": -2.925,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p_Br2"
+      ]
+     },
+     {
+      "id": "make_p_I3",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": -2.655,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p_I3"
+      ]
+     },
+     {
+      "id": "make_trend",
+      "operator": "polyline",
+      "inputs": {
+       "points": [
+        "p_Cl0",
+        "p_F1",
+        "p_Br2",
+        "p_I3"
+       ]
+      },
+      "outputs": [
+       "trend"
+      ]
+     },
+     {
+      "id": "make_lbl_Cl0_p",
+      "operator": "point",
+      "inputs": {
+       "x": 0.6659,
+       "y": -3.2041,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "lbl_Cl0_p"
+      ]
+     },
+     {
+      "id": "make_lbl_Cl0",
+      "operator": "label",
+      "inputs": {
+       "target": "lbl_Cl0_p",
+       "text": "Cl"
+      },
+      "outputs": [
+       "lbl_Cl0"
+      ]
+     },
+     {
+      "id": "make_lbl_F1_p",
+      "operator": "point",
+      "inputs": {
+       "x": 1.9635,
+       "y": -2.614,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "lbl_F1_p"
+      ]
+     },
+     {
+      "id": "make_lbl_F1",
+      "operator": "label",
+      "inputs": {
+       "target": "lbl_F1_p",
+       "text": "F"
+      },
+      "outputs": [
+       "lbl_F1"
+      ]
+     },
+     {
+      "id": "make_lbl_Br2_p",
+      "operator": "point",
+      "inputs": {
+       "x": 2.9501,
+       "y": -2.5887,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "lbl_Br2_p"
+      ]
+     },
+     {
+      "id": "make_lbl_Br2",
+      "operator": "label",
+      "inputs": {
+       "target": "lbl_Br2_p",
+       "text": "Br"
+      },
+      "outputs": [
+       "lbl_Br2"
+      ]
+     },
+     {
+      "id": "make_lbl_I3_p",
+      "operator": "point",
+      "inputs": {
+       "x": 4.3282,
+       "y": -2.5664,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "lbl_I3_p"
+      ]
+     },
+     {
+      "id": "make_lbl_I3",
+      "operator": "label",
+      "inputs": {
+       "target": "lbl_I3_p",
+       "text": "I"
+      },
+      "outputs": [
+       "lbl_I3"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "label_y_title",
+      "predicate": "label_attached",
+      "entities": [
+       "y_title"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "label_x_title",
+      "predicate": "label_attached",
+      "entities": [
+       "x_title"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "label_lbl_Cl0",
+      "predicate": "label_attached",
+      "entities": [
+       "lbl_Cl0"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "label_lbl_F1",
+      "predicate": "label_attached",
+      "entities": [
+       "lbl_F1"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "label_lbl_Br2",
+      "predicate": "label_attached",
+      "entities": [
+       "lbl_Br2"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "label_lbl_I3",
+      "predicate": "label_attached",
+      "entities": [
+       "lbl_I3"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "figure_caption",
+      "kind": "callout",
+      "targetIds": [],
+      "text": "Δ_(eg)H (kJ/mol) in increasing order: Cl (-349) < F (-328) < Br (-325) < I (-295); most negative: Cl"
+     }
+    ],
+    "requiredEntityIds": [
+     "axes",
+     "tick_m40000",
+     "tick_m40000_v",
+     "tick_m30000",
+     "tick_m30000_v",
+     "tick_m20000",
+     "tick_m20000_v",
+     "tick_m10000",
+     "tick_m10000_v",
+     "tick_0",
+     "tick_0_v",
+     "y_title",
+     "x_title",
+     "p_Cl0",
+     "p_F1",
+     "p_Br2",
+     "p_I3",
+     "trend",
+     "lbl_Cl0",
+     "lbl_F1",
+     "lbl_Br2",
+     "lbl_I3"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "axes",
+       "tick_m40000",
+       "tick_m40000_v",
+       "tick_m30000",
+       "tick_m30000_v",
+       "tick_m20000",
+       "tick_m20000_v",
+       "tick_m10000",
+       "tick_m10000_v",
+       "tick_0",
+       "tick_0_v",
+       "y_title",
+       "x_title",
+       "p_Cl0",
+       "p_F1",
+       "p_Br2",
+       "p_I3",
+       "trend",
+       "lbl_Cl0",
+       "lbl_F1",
+       "lbl_Br2",
+       "lbl_I3"
+      ],
+      "dependsOn": [],
+      "narrationCue": "Δ_(eg)H (kJ/mol) in increasing order, plotted from the periodic table"
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "reveal_setup",
+      "action": "reveal",
+      "targetId": "setup",
+      "dependsOn": [],
+      "narrationIntent": "Δ_(eg)H (kJ/mol) in increasing order, plotted from the periodic table"
+     }
+    ]
+   }
+  },
+  {
+   "question": "Draw the Lewis structure of SF6.",
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Draw the Lewis structure of SF6.",
+    "visualRequirement": "required",
+    "givens": [],
+    "unknowns": [],
+    "qualitativeClaims": [],
+    "lawIds": [],
+    "assumptions": [],
+    "derived": [
+     {
+      "id": "sigma_bonds",
+      "symbol": "σ",
+      "value": 6,
+      "unit": "",
+      "provenance": "derived"
+     },
+     {
+      "id": "pi_bonds",
+      "symbol": "π",
+      "value": 0,
+      "unit": "",
+      "provenance": "derived"
+     },
+     {
+      "id": "lone_pairs",
+      "symbol": "n_lp",
+      "value": 18,
+      "unit": "",
+      "provenance": "derived"
+     }
+    ]
+   },
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "Lewis structure of SF_6"
+    },
+    "source": {
+     "question": "Draw the Lewis structure of SF6.",
+     "synthesizedFamily": true,
+     "archetype": "chem_lewis",
+     "chemistryFamily": "chem_lewis"
+    },
+    "quantities": [
+     {
+      "id": "sigma_bonds",
+      "symbol": "σ",
+      "value": 6,
+      "unit": ""
+     },
+     {
+      "id": "pi_bonds",
+      "symbol": "π",
+      "value": 0,
+      "unit": ""
+     },
+     {
+      "id": "lone_pairs",
+      "symbol": "n_lp",
+      "value": 18,
+      "unit": ""
+     }
+    ],
+    "entities": [
+     {
+      "id": "s1_S1",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "S",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "s1_F1",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "F",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "s1_F2",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "F",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "s1_F3",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "F",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "s1_F4",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "F",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "s1_F5",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "F",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "s1_F6",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "F",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "s1_b_S1_F1",
+      "kind": "segment",
+      "role": "single bond"
+     },
+     {
+      "id": "s1_b_S1_F2",
+      "kind": "segment",
+      "role": "single bond"
+     },
+     {
+      "id": "s1_b_S1_F3",
+      "kind": "segment",
+      "role": "single bond"
+     },
+     {
+      "id": "s1_b_S1_F4",
+      "kind": "segment",
+      "role": "single bond"
+     },
+     {
+      "id": "s1_b_S1_F5",
+      "kind": "segment",
+      "role": "single bond"
+     },
+     {
+      "id": "s1_b_S1_F6",
+      "kind": "segment",
+      "role": "single bond"
+     },
+     {
+      "id": "s1_lp_F1_1_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F1_1_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F1_2_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F1_2_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F1_3_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F1_3_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F2_1_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F2_1_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F2_2_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F2_2_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F2_3_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F2_3_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F3_1_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F3_1_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F3_2_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F3_2_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F3_3_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F3_3_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F4_1_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F4_1_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F4_2_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F4_2_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F4_3_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F4_3_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F5_1_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F5_1_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F5_2_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F5_2_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F5_3_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F5_3_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F6_1_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F6_1_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F6_2_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F6_2_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F6_3_1",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_lp_F6_3_2",
+      "kind": "point",
+      "role": "lone pair electron",
+      "provenance": {
+       "pointStyle": "filled"
+      }
+     },
+     {
+      "id": "s1_name",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "SF_6",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "s1_S1_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_F1_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_F2_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_F3_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_F4_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_F5_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_F6_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_S1_F1_s",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_S1_F1_e",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_S1_F2_s",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_S1_F2_e",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_S1_F3_s",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_S1_F3_e",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_S1_F4_s",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_S1_F4_e",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_S1_F5_s",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_S1_F5_e",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_S1_F6_s",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_b_S1_F6_e",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "s1_name_p",
+      "kind": "point",
+      "role": "construction helper"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_s1_S1_p",
+      "operator": "point",
+      "inputs": {
+       "x": 1.0295,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_S1_p"
+      ]
+     },
+     {
+      "id": "make_s1_S1",
+      "operator": "label",
+      "inputs": {
+       "target": "s1_S1_p",
+       "text": "S"
+      },
+      "outputs": [
+       "s1_S1"
+      ]
+     },
+     {
+      "id": "make_s1_F1_p",
+      "operator": "point",
+      "inputs": {
+       "x": 1.0295,
+       "y": 1,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_F1_p"
+      ]
+     },
+     {
+      "id": "make_s1_F1",
+      "operator": "label",
+      "inputs": {
+       "target": "s1_F1_p",
+       "text": "F"
+      },
+      "outputs": [
+       "s1_F1"
+      ]
+     },
+     {
+      "id": "make_s1_F2_p",
+      "operator": "point",
+      "inputs": {
+       "x": 0.1635,
+       "y": 0.5,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_F2_p"
+      ]
+     },
+     {
+      "id": "make_s1_F2",
+      "operator": "label",
+      "inputs": {
+       "target": "s1_F2_p",
+       "text": "F"
+      },
+      "outputs": [
+       "s1_F2"
+      ]
+     },
+     {
+      "id": "make_s1_F3_p",
+      "operator": "point",
+      "inputs": {
+       "x": 0.1635,
+       "y": -0.5,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_F3_p"
+      ]
+     },
+     {
+      "id": "make_s1_F3",
+      "operator": "label",
+      "inputs": {
+       "target": "s1_F3_p",
+       "text": "F"
+      },
+      "outputs": [
+       "s1_F3"
+      ]
+     },
+     {
+      "id": "make_s1_F4_p",
+      "operator": "point",
+      "inputs": {
+       "x": 1.0295,
+       "y": -1,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_F4_p"
+      ]
+     },
+     {
+      "id": "make_s1_F4",
+      "operator": "label",
+      "inputs": {
+       "target": "s1_F4_p",
+       "text": "F"
+      },
+      "outputs": [
+       "s1_F4"
+      ]
+     },
+     {
+      "id": "make_s1_F5_p",
+      "operator": "point",
+      "inputs": {
+       "x": 1.8955,
+       "y": -0.5,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_F5_p"
+      ]
+     },
+     {
+      "id": "make_s1_F5",
+      "operator": "label",
+      "inputs": {
+       "target": "s1_F5_p",
+       "text": "F"
+      },
+      "outputs": [
+       "s1_F5"
+      ]
+     },
+     {
+      "id": "make_s1_F6_p",
+      "operator": "point",
+      "inputs": {
+       "x": 1.8955,
+       "y": 0.5,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_F6_p"
+      ]
+     },
+     {
+      "id": "make_s1_F6",
+      "operator": "label",
+      "inputs": {
+       "target": "s1_F6_p",
+       "text": "F"
+      },
+      "outputs": [
+       "s1_F6"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F1_s",
+      "operator": "point",
+      "inputs": {
+       "x": 1.0295,
+       "y": 0.0926,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_S1_F1_s"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F1_e",
+      "operator": "point",
+      "inputs": {
+       "x": 1.0295,
+       "y": 0.9074,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_S1_F1_e"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F1",
+      "operator": "segment",
+      "inputs": {
+       "start": "s1_b_S1_F1_s",
+       "end": "s1_b_S1_F1_e"
+      },
+      "outputs": [
+       "s1_b_S1_F1"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F2_s",
+      "operator": "point",
+      "inputs": {
+       "x": 0.9493,
+       "y": 0.0463,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_S1_F2_s"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F2_e",
+      "operator": "point",
+      "inputs": {
+       "x": 0.2437,
+       "y": 0.4537,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_S1_F2_e"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F2",
+      "operator": "segment",
+      "inputs": {
+       "start": "s1_b_S1_F2_s",
+       "end": "s1_b_S1_F2_e"
+      },
+      "outputs": [
+       "s1_b_S1_F2"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F3_s",
+      "operator": "point",
+      "inputs": {
+       "x": 0.9493,
+       "y": -0.0463,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_S1_F3_s"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F3_e",
+      "operator": "point",
+      "inputs": {
+       "x": 0.2437,
+       "y": -0.4537,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_S1_F3_e"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F3",
+      "operator": "segment",
+      "inputs": {
+       "start": "s1_b_S1_F3_s",
+       "end": "s1_b_S1_F3_e"
+      },
+      "outputs": [
+       "s1_b_S1_F3"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F4_s",
+      "operator": "point",
+      "inputs": {
+       "x": 1.0295,
+       "y": -0.0926,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_S1_F4_s"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F4_e",
+      "operator": "point",
+      "inputs": {
+       "x": 1.0295,
+       "y": -0.9074,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_S1_F4_e"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F4",
+      "operator": "segment",
+      "inputs": {
+       "start": "s1_b_S1_F4_s",
+       "end": "s1_b_S1_F4_e"
+      },
+      "outputs": [
+       "s1_b_S1_F4"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F5_s",
+      "operator": "point",
+      "inputs": {
+       "x": 1.1097,
+       "y": -0.0463,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_S1_F5_s"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F5_e",
+      "operator": "point",
+      "inputs": {
+       "x": 1.8153,
+       "y": -0.4537,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_S1_F5_e"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F5",
+      "operator": "segment",
+      "inputs": {
+       "start": "s1_b_S1_F5_s",
+       "end": "s1_b_S1_F5_e"
+      },
+      "outputs": [
+       "s1_b_S1_F5"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F6_s",
+      "operator": "point",
+      "inputs": {
+       "x": 1.1097,
+       "y": 0.0463,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_S1_F6_s"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F6_e",
+      "operator": "point",
+      "inputs": {
+       "x": 1.8153,
+       "y": 0.4537,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_b_S1_F6_e"
+      ]
+     },
+     {
+      "id": "make_s1_b_S1_F6",
+      "operator": "segment",
+      "inputs": {
+       "start": "s1_b_S1_F6_s",
+       "end": "s1_b_S1_F6_e"
+      },
+      "outputs": [
+       "s1_b_S1_F6"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F1_1_1",
+      "operator": "point",
+      "inputs": {
+       "x": 1.144,
+       "y": 0.9809,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F1_1_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F1_1_2",
+      "operator": "point",
+      "inputs": {
+       "x": 1.144,
+       "y": 1.0191,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F1_1_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F1_2_1",
+      "operator": "point",
+      "inputs": {
+       "x": 1.0486,
+       "y": 1.1144,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F1_2_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F1_2_2",
+      "operator": "point",
+      "inputs": {
+       "x": 1.0104,
+       "y": 1.1144,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F1_2_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F1_3_1",
+      "operator": "point",
+      "inputs": {
+       "x": 0.9151,
+       "y": 1.0191,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F1_3_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F1_3_2",
+      "operator": "point",
+      "inputs": {
+       "x": 0.9151,
+       "y": 0.9809,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F1_3_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F2_1_1",
+      "operator": "point",
+      "inputs": {
+       "x": 0.2372,
+       "y": 0.5896,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F2_1_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F2_1_2",
+      "operator": "point",
+      "inputs": {
+       "x": 0.2042,
+       "y": 0.6086,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F2_1_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F2_2_1",
+      "operator": "point",
+      "inputs": {
+       "x": 0.0739,
+       "y": 0.5737,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F2_2_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F2_2_2",
+      "operator": "point",
+      "inputs": {
+       "x": 0.0548,
+       "y": 0.5407,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F2_2_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F2_3_1",
+      "operator": "point",
+      "inputs": {
+       "x": 0.0897,
+       "y": 0.4104,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F2_3_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F2_3_2",
+      "operator": "point",
+      "inputs": {
+       "x": 0.1228,
+       "y": 0.3914,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F2_3_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F3_1_1",
+      "operator": "point",
+      "inputs": {
+       "x": 0.1228,
+       "y": -0.3914,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F3_1_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F3_1_2",
+      "operator": "point",
+      "inputs": {
+       "x": 0.0897,
+       "y": -0.4104,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F3_1_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F3_2_1",
+      "operator": "point",
+      "inputs": {
+       "x": 0.0548,
+       "y": -0.5407,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F3_2_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F3_2_2",
+      "operator": "point",
+      "inputs": {
+       "x": 0.0739,
+       "y": -0.5737,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F3_2_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F3_3_1",
+      "operator": "point",
+      "inputs": {
+       "x": 0.2042,
+       "y": -0.6086,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F3_3_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F3_3_2",
+      "operator": "point",
+      "inputs": {
+       "x": 0.2372,
+       "y": -0.5896,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F3_3_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F4_1_1",
+      "operator": "point",
+      "inputs": {
+       "x": 0.9151,
+       "y": -0.9809,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F4_1_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F4_1_2",
+      "operator": "point",
+      "inputs": {
+       "x": 0.9151,
+       "y": -1.0191,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F4_1_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F4_2_1",
+      "operator": "point",
+      "inputs": {
+       "x": 1.0104,
+       "y": -1.1144,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F4_2_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F4_2_2",
+      "operator": "point",
+      "inputs": {
+       "x": 1.0486,
+       "y": -1.1144,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F4_2_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F4_3_1",
+      "operator": "point",
+      "inputs": {
+       "x": 1.144,
+       "y": -1.0191,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F4_3_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F4_3_2",
+      "operator": "point",
+      "inputs": {
+       "x": 1.144,
+       "y": -0.9809,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F4_3_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F5_1_1",
+      "operator": "point",
+      "inputs": {
+       "x": 1.8218,
+       "y": -0.5896,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F5_1_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F5_1_2",
+      "operator": "point",
+      "inputs": {
+       "x": 1.8548,
+       "y": -0.6086,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F5_1_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F5_2_1",
+      "operator": "point",
+      "inputs": {
+       "x": 1.9851,
+       "y": -0.5737,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F5_2_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F5_2_2",
+      "operator": "point",
+      "inputs": {
+       "x": 2.0042,
+       "y": -0.5407,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F5_2_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F5_3_1",
+      "operator": "point",
+      "inputs": {
+       "x": 1.9693,
+       "y": -0.4104,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F5_3_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F5_3_2",
+      "operator": "point",
+      "inputs": {
+       "x": 1.9362,
+       "y": -0.3914,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F5_3_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F6_1_1",
+      "operator": "point",
+      "inputs": {
+       "x": 1.9362,
+       "y": 0.3914,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F6_1_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F6_1_2",
+      "operator": "point",
+      "inputs": {
+       "x": 1.9693,
+       "y": 0.4104,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F6_1_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F6_2_1",
+      "operator": "point",
+      "inputs": {
+       "x": 2.0042,
+       "y": 0.5407,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F6_2_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F6_2_2",
+      "operator": "point",
+      "inputs": {
+       "x": 1.9851,
+       "y": 0.5737,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F6_2_2"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F6_3_1",
+      "operator": "point",
+      "inputs": {
+       "x": 1.8548,
+       "y": 0.6086,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F6_3_1"
+      ]
+     },
+     {
+      "id": "make_s1_lp_F6_3_2",
+      "operator": "point",
+      "inputs": {
+       "x": 1.8218,
+       "y": 0.5896,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_lp_F6_3_2"
+      ]
+     },
+     {
+      "id": "make_s1_name_p",
+      "operator": "point",
+      "inputs": {
+       "x": 1.0295,
+       "y": -1.2616,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "s1_name_p"
+      ]
+     },
+     {
+      "id": "make_s1_name",
+      "operator": "label",
+      "inputs": {
+       "target": "s1_name_p",
+       "text": "SF_6"
+      },
+      "outputs": [
+       "s1_name"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "label_s1_S1",
+      "predicate": "label_attached",
+      "entities": [
+       "s1_S1"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "label_s1_name",
+      "predicate": "label_attached",
+      "entities": [
+       "s1_name"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "figure_caption",
+      "kind": "callout",
+      "targetIds": [],
+      "text": "SF_6: σ = 6, π = 0, lone pairs = 18"
+     }
+    ],
+    "requiredEntityIds": [
+     "s1_S1",
+     "s1_F1",
+     "s1_F2",
+     "s1_F3",
+     "s1_F4",
+     "s1_F5",
+     "s1_F6",
+     "s1_b_S1_F1",
+     "s1_b_S1_F2",
+     "s1_b_S1_F3",
+     "s1_b_S1_F4",
+     "s1_b_S1_F5",
+     "s1_b_S1_F6",
+     "s1_lp_F1_1_1",
+     "s1_lp_F1_1_2",
+     "s1_lp_F1_2_1",
+     "s1_lp_F1_2_2",
+     "s1_lp_F1_3_1",
+     "s1_lp_F1_3_2",
+     "s1_lp_F2_1_1",
+     "s1_lp_F2_1_2",
+     "s1_lp_F2_2_1",
+     "s1_lp_F2_2_2",
+     "s1_lp_F2_3_1",
+     "s1_lp_F2_3_2",
+     "s1_lp_F3_1_1",
+     "s1_lp_F3_1_2",
+     "s1_lp_F3_2_1",
+     "s1_lp_F3_2_2",
+     "s1_lp_F3_3_1",
+     "s1_lp_F3_3_2",
+     "s1_lp_F4_1_1",
+     "s1_lp_F4_1_2",
+     "s1_lp_F4_2_1",
+     "s1_lp_F4_2_2",
+     "s1_lp_F4_3_1",
+     "s1_lp_F4_3_2",
+     "s1_lp_F5_1_1",
+     "s1_lp_F5_1_2",
+     "s1_lp_F5_2_1",
+     "s1_lp_F5_2_2",
+     "s1_lp_F5_3_1",
+     "s1_lp_F5_3_2",
+     "s1_lp_F6_1_1",
+     "s1_lp_F6_1_2",
+     "s1_lp_F6_2_1",
+     "s1_lp_F6_2_2",
+     "s1_lp_F6_3_1",
+     "s1_lp_F6_3_2",
+     "s1_name"
+    ],
+    "revealGroups": [
+     {
+      "id": "species_1",
+      "entityIds": [
+       "s1_S1",
+       "s1_F1",
+       "s1_F2",
+       "s1_F3",
+       "s1_F4",
+       "s1_F5",
+       "s1_F6",
+       "s1_b_S1_F1",
+       "s1_b_S1_F2",
+       "s1_b_S1_F3",
+       "s1_b_S1_F4",
+       "s1_b_S1_F5",
+       "s1_b_S1_F6",
+       "s1_lp_F1_1_1",
+       "s1_lp_F1_1_2",
+       "s1_lp_F1_2_1",
+       "s1_lp_F1_2_2",
+       "s1_lp_F1_3_1",
+       "s1_lp_F1_3_2",
+       "s1_lp_F2_1_1",
+       "s1_lp_F2_1_2",
+       "s1_lp_F2_2_1",
+       "s1_lp_F2_2_2",
+       "s1_lp_F2_3_1",
+       "s1_lp_F2_3_2",
+       "s1_lp_F3_1_1",
+       "s1_lp_F3_1_2",
+       "s1_lp_F3_2_1",
+       "s1_lp_F3_2_2",
+       "s1_lp_F3_3_1",
+       "s1_lp_F3_3_2",
+       "s1_lp_F4_1_1",
+       "s1_lp_F4_1_2",
+       "s1_lp_F4_2_1",
+       "s1_lp_F4_2_2",
+       "s1_lp_F4_3_1",
+       "s1_lp_F4_3_2",
+       "s1_lp_F5_1_1",
+       "s1_lp_F5_1_2",
+       "s1_lp_F5_2_1",
+       "s1_lp_F5_2_2",
+       "s1_lp_F5_3_1",
+       "s1_lp_F5_3_2",
+       "s1_lp_F6_1_1",
+       "s1_lp_F6_1_2",
+       "s1_lp_F6_2_1",
+       "s1_lp_F6_2_2",
+       "s1_lp_F6_3_1",
+       "s1_lp_F6_3_2",
+       "s1_name"
+      ],
+      "dependsOn": [],
+      "narrationCue": "Lewis structure of SF_6: σ = 6, π = 0, lone pairs = 18"
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "reveal_species_1",
+      "action": "reveal",
+      "targetId": "species_1",
+      "dependsOn": [],
+      "narrationIntent": "Lewis structure of SF_6: σ = 6, π = 0, lone pairs = 18"
+     }
+    ]
+   }
+  }
+ ]
+}
