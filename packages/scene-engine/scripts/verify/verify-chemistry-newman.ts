@@ -8,6 +8,7 @@
 import assert from "node:assert/strict";
 import "../../src/chemistry/families";
 import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synthesize/familyScene";
+import { newmanBinding } from "../../src/chemistry/organic/newman";
 import type { SceneDocument } from "../../src/types";
 
 let failed = 0;
@@ -94,10 +95,26 @@ for (const question of [
   "Draw the Newman projection of ethene.", "Draw the Newman projection of benzene.", "Draw the Newman projection of cyclohexane.",
   "Draw the Newman projection of hexane.", "Draw the Newman projections of ethane and propane.",
   "Draw the Newman projection along the C1–C2 bond of butane.", "Draw the Newman projection of 1,2-dichloroethane.",
+  "Draw the Newman projection of 2-methylpropane.",
 ]) {
   check(`declines, no runner up: ${question}`, () => {
     const result = scene(question);
     assert.equal(result, null, `${result?.family ?? ""} took the turn`);
+  });
+}
+
+// Each decline happens at the binding, for its own reason, so the organic cue does not fire.
+for (const [question, reason] of [
+  ["Draw the Newman projection of 1,2-dichloroethane.", "the name does not fit one board label"],
+  ["Draw the Newman projection along the C1–C2 bond of butane.", "the stem names another bond"],
+  ["Draw the Newman projection of hexane.", "the bond to look along is not determined"],
+  ["Draw the Newman projections of ethane and propane.", "more than one molecule is named"],
+  ["Draw the Newman projection of cyclohexane.", "the molecule has a ring"],
+  ["Draw the Newman projection of 2-methylpropane.", "a group the figure cannot label, or two heavy groups on one carbon"],
+] as const) {
+  check(`binding declines for its reason: ${question}`, () => {
+    const binding = newmanBinding(question);
+    assert.equal(binding.status === "declined" ? binding.reason : "bound", reason);
   });
 }
 

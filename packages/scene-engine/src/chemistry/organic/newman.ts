@@ -22,7 +22,7 @@ const ORGANIC_FAMILY = "chem_organic";
 interface Group { readonly label: string; readonly heavy: boolean }
 
 export type NewmanBinding =
-  | { status: "bound"; name: string; front: Group[]; back: Group[]; chain: boolean }
+  | { status: "bound"; name: string; front: Group[]; back: Group[] }
   | { status: "declined"; reason: string };
 
 const HALOGENS = new Set(["F", "Cl", "Br", "I"]);
@@ -119,18 +119,6 @@ export function newmanBinding(question: string): NewmanBinding {
   }
   if (!chosen) return { status: "declined", reason: "the bond to look along is not determined" };
 
-  // Locants are read only to decline: a stated bond must be the computed one.
-  const positions = chainPositions(molecule);
-  for (const match of question.normalize("NFKC").matchAll(LOCANT_PAIR)) {
-    if (!positions) return { status: "declined", reason: "locants on a branched molecule" };
-    const stated = [Number(match[1]), Number(match[2])].sort((x, y) => x - y);
-    const n = positions.size;
-    const here = [positions.get(chosen.a)!, positions.get(chosen.b)!].sort((x, y) => x - y);
-    const mirror = here.map((p) => n + 1 - p).sort((x, y) => x - y);
-    const same = (p: number[]) => p[0] === stated[0] && p[1] === stated[1];
-    if (!same(here) && !same(mirror)) return { status: "declined", reason: "the stem names another bond" };
-  }
-
   const front = endGroups(molecule, chosen.a, chosen.b);
   const back = endGroups(molecule, chosen.b, chosen.a);
   if (!front || !back) return { status: "declined", reason: "a group the figure cannot label, or two heavy groups on one carbon" };
@@ -138,7 +126,22 @@ export function newmanBinding(question: string): NewmanBinding {
   // a board label holds 16 characters, so a longer name declines rather than shortens.
   const name = molecule.name ?? text;
   if (name.length > 16) return { status: "declined", reason: "the name does not fit one board label" };
-  return { status: "bound", name, front, back, chain: positions !== null };
+
+  // Locants are read only to decline: a stated bond must be the computed one. Each carbon of
+  // the bond carries at most one group, CH3 or C2H5 at most, so a bound molecule is an
+  // unbranched chain of at most six carbons and always has chain positions.
+  const positions = chainPositions(molecule);
+  // Unreachable by the group rule above; a decline, not a throw, if that rule ever changes.
+  if (!positions) return { status: "declined", reason: "locants on a branched molecule" };
+  for (const match of question.normalize("NFKC").matchAll(LOCANT_PAIR)) {
+    const stated = [Number(match[1]), Number(match[2])].sort((x, y) => x - y);
+    const n = positions.size;
+    const here = [positions.get(chosen.a)!, positions.get(chosen.b)!].sort((x, y) => x - y);
+    const mirror = here.map((p) => n + 1 - p).sort((x, y) => x - y);
+    const same = (p: number[]) => p[0] === stated[0] && p[1] === stated[1];
+    if (!same(here) && !same(mirror)) return { status: "declined", reason: "the stem names another bond" };
+  }
+  return { status: "bound", name, front, back };
 }
 
 /** Every distinct conformer and its name, from the dihedral between the leading groups. */

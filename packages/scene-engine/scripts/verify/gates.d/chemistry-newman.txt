@@ -1,0 +1,2 @@
+# Newman projections computed from the molecule graph.
+tsx scripts/verify/verify-chemistry-newman.ts
