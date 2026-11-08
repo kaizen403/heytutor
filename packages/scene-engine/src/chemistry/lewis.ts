@@ -1058,6 +1058,17 @@ function overlapFacts(question: string): OverlapFacts | null {
   return { label: result.label, sigma: result.sigmaBonds, pi: result.piBonds, hybridLabel };
 }
 
+/** Whether a species' counted resonance forms put formal charges on different elements. */
+function unequalResonanceForms(result: LewisResult): boolean {
+  if (result.resonanceCount < 2 || result.resonanceForms.length < 2) return false;
+  const chargeSet = (form: LewisForm): string => form.atoms
+    .map((atom) => `${atom.element.symbol}${atom.formalCharge}`)
+    .sort()
+    .join(",");
+  const first = chargeSet(result.resonanceForms[0]!);
+  return result.resonanceForms.some((form) => chargeSet(form) !== first);
+}
+
 export function buildLewisScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
   void quantities;
   void schematic;
@@ -1083,7 +1094,13 @@ export function buildLewisScene(question: string, quantities: ChemPlanQuantity[]
 
   const wantsResonance = RESONANCE_CUE.test(stem);
   const single = species[0]!;
-  if (species.length === 1 && wantsResonance && single.resonanceCount > 1 && single.resonanceForms.length > 1) {
+  // A species whose resonance forms differ in where the formal charges sit (N2O, NCO-,
+  // SCN-) has no one form that is its structure: one form drawn alone reads as the
+  // answer to "which is more stable". So it always draws all its counted forms, and a
+  // figure of several species declines rather than show one of its forms. Equivalent
+  // forms (O3, CO3^2-) are the same structure turned, so one form still stands alone.
+  if (species.length > 1 && species.some(unequalResonanceForms)) return null;
+  if (species.length === 1 && (wantsResonance || unequalResonanceForms(single)) && single.resonanceCount > 1 && single.resonanceForms.length > 1) {
     const c = new ChemScene(question, `Resonance structures of ${single.label}`, LEWIS_FAMILY);
     const forms = single.resonanceForms.slice(0, 3);
     const { offsets, cosmetics } = rowLayout(forms, 70);

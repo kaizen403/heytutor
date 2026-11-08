@@ -493,8 +493,16 @@ function readTrend(question: string, stem: string): TrendRequest | null {
   if (rows.some((row) => row.value === null) || rows.length < 3 || rows.length > 8) return null;
   let ordered = rows.map((row) => ({ element: row.element, value: row.value! }));
   if (kind === "list") ordered = ordered.sort((a, b) => (direction === "asc" ? a.value - b.value : b.value - a.value) || a.element.z - b.element.z);
-  const lead = kind === "period" ? `across period ${index}` : kind === "group" ? `down group ${index}` : `in ${direction === "asc" ? "increasing" : "decreasing"} order`;
-  const xTitle = kind === "period" ? `across period ${index}` : kind === "group" ? `down group ${index}` : direction === "asc" ? "increasing order" : "decreasing order";
+  // "Increasing" is ambiguous for values that are all negative: rising values are
+  // less negative, the reverse of "increasingly negative". Name the sign instead.
+  const allNegative = ordered.every((row) => row.value < 0);
+  const listOrder = allNegative
+    ? direction === "asc" ? "most negative first" : "least negative first"
+    : direction === "asc" ? "increasing order" : "decreasing order";
+  const lead = kind === "period" ? `across period ${index}` : kind === "group" ? `down group ${index}` : allNegative ? `ordered ${listOrder}` : `in ${listOrder}`;
+  // Board labels hold 16 characters, so the axis says which way is more negative.
+  const negativeTitle = direction === "asc" ? "← more negative" : "more negative →";
+  const xTitle = kind === "period" ? `across period ${index}` : kind === "group" ? `down group ${index}` : allNegative ? negativeTitle : listOrder;
   return {
     spec,
     points: ordered.map((row) => ({ label: row.element.symbol, value: row.value, symbol: row.element.symbol, z: row.element.z })),

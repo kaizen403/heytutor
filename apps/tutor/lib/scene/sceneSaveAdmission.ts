@@ -69,10 +69,13 @@ function unitKey(unit: unknown): string {
  * Values the engine itself derives for this question, recomputed here from
  * the question and the validated plan alone (the same inputs on both sides of
  * the save), never read from the submitted document. A figure counts only
- * when every quantity it carries came from the stem or the plan; a figure
- * holding a display default (a stock angle) supports nothing. A value that
- * contradicts a plan-derived value of the same unit is not supported either,
- * so a stale narration scalar can never pair with the engine's figure.
+ * when every quantity it carries came from the stem or the plan, or was
+ * computed by the family itself (a bond count from its own structure, a value
+ * from the periodic table); a figure holding a display default (a stock angle)
+ * supports nothing. A value that contradicts a plan-derived value of the same
+ * unit is not supported either, so a stale narration scalar can never pair
+ * with the engine's figure. A computed value supports nothing when the plan
+ * states any number in its unit: the question's own numbers govern then.
  */
 function engineDerivedValues(question: string, turnPlan: TurnPlanV3): EngineDerived {
   const empty: EngineDerived = { quantities: new Map(), texts: new Set() };
@@ -89,8 +92,12 @@ function engineDerivedValues(question: string, turnPlan: TurnPlanV3): EngineDeri
     ? source.slotSources as Record<string, unknown>
     : null;
   if (!slotSources) return regenerated;
-  const sourced = (id: string): boolean => slotSources[id] === "stem" || slotSources[id] === "plan";
+  const sourced = (id: string): boolean => slotSources[id] === "stem" || slotSources[id] === "plan" || slotSources[id] === "computed";
   if (!fresh.document.quantities.every((quantity) => sourced(quantity.id))) return regenerated;
+  const planUnits = new Set([...turnPlan.givens, ...turnPlan.derived].map((quantity) => unitKey(quantity.unit)));
+  const hasComputed = fresh.document.quantities.some((quantity) => slotSources[quantity.id] === "computed");
+  const computedButPlanStated = (id: string, unit: unknown): boolean =>
+    slotSources[id] === "computed" && planUnits.has(unitKey(unit));
   // This document was regenerated above, never supplied by the caller. These
   // source programs check plan values by physical role before synthesis, then
   // validate the complete computed state. Different roles may share a unit
@@ -104,12 +111,14 @@ function engineDerivedValues(question: string, turnPlan: TurnPlanV3): EngineDeri
   const quantities = new Map<string, { value: unknown; unit: unknown }>();
   for (const quantity of fresh.document.quantities) {
     if (typeof quantity.value === "number" && contradicts(quantity.value, unitKey(quantity.unit))) continue;
+    if (computedButPlanStated(quantity.id, quantity.unit)) continue;
     quantities.set(quantity.id, { value: quantity.value, unit: quantity.unit });
   }
   const texts = new Set<string>();
   for (const text of displayedSceneText(fresh.document)) {
     const values = [...text.matchAll(MEASURED)].map((match) => ({ value: Number(match[1]), unit: unitKey(match[2]) }));
     if (values.some((value) => contradicts(value.value, value.unit))) continue;
+    if (hasComputed && values.some((value) => planUnits.has(value.unit))) continue;
     texts.add(text);
   }
   return { quantities, texts, document: fresh.document };

@@ -266,9 +266,21 @@ export class ChemScene {
       document.annotations.push({ id: "figure_caption", kind: "callout", targetIds: [], text: extra.caption });
     }
     document.source = { ...document.source, chemistryFamily: this.family };
+    // These families compute every quantity they carry: bond and lone pair counts from
+    // the structure they drew, trend values from the periodic table. Tagged "computed",
+    // never "stem", so the save audit can tell them from values a question or plan gave.
+    if (COMPUTED_QUANTITY_FAMILIES.has(this.family) && document.quantities.length > 0) {
+      document.source = {
+        ...document.source,
+        slotSources: Object.fromEntries(document.quantities.map((quantity) => [quantity.id, "computed"])),
+      };
+    }
     return document;
   }
 }
+
+/** Families whose quantities are all computed by the family itself, none read from the stem. */
+const COMPUTED_QUANTITY_FAMILIES: ReadonlySet<string> = new Set(["chem_lewis", "chem_periodic"]);
 
 export { round };
 export type { Vec2 };
