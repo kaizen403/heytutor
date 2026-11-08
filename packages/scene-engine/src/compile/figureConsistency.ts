@@ -9,6 +9,8 @@
  * - current_against_source_polarity: a current sense badge on a conductor in
  *   series with the only cell runs from its negative to its positive plate
  *   through the external circuit.
+ * - polarity_mark_against_plates: a + written on a cell's two terminals sits
+ *   at its short plate.
  * - vector_collinear_overlap: two arrows share a line and overlap, so one
  *   hides the other and the reader cannot tell their lengths or ends apart.
  * - vector_without_label: an arrow carries no name, so it reads as an
@@ -217,6 +219,46 @@ export function validateCurrentSourcePolarity(document: SceneDocument): SceneIss
     issues.push({ code: "current_against_source_polarity", severity: "fatal", failureKind: "truth", entityIds: [badge.outputs[0], edge.id, source.outputs[0] ?? ""],
       constructionId: badge.id,
       message: `The current mark on ${edge.id} runs against the cell: conventional current leaves the positive plate at ${positive} and reaches ${edge.id} from its ${startSide ? "start" : "end"}.` });
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// Polarity marks against the drawn plates
+
+/** A + written on a cell's two terminal points must sit at its long plate, the one the document draws at the start
+ * terminal. Only an explicit pair the document writes is judged, never a default or a sign read from a role. Marks
+ * targeting the cell itself are not judged: they land at its start terminal and long plate whatever the text says. */
+export function validateCellPolarityMarks(document: SceneDocument, primitives: RenderPrimitive[], terminalsOf?: SymbolTerminals): SceneIssue[] {
+  const cells = document.constructions.filter((construction) => construction.operator === "symbol" && POLARISED_SOURCES.has(symbolName(construction)) && construction.outputs[0]);
+  if (!cells.length) return [];
+  const issues: SceneIssue[] = [];
+  for (const annotation of document.annotations ?? []) {
+    if (annotation.kind !== "polarity" || typeof annotation.text !== "string") continue;
+    if (!/^(?:\+[-−]|[-−]\+)$/.test(annotation.text.trim())) continue;
+    const [first, second] = annotation.targetIds;
+    if (annotation.targetIds.length !== 2 || first === second) continue;
+    const cell = cells.find((construction) => [first, second].every((target) => target === construction.inputs.start || target === construction.inputs.end));
+    if (!cell) continue;
+    const plus = primitives.find((primitive) => primitive.kind === "label" && primitive.entityId === annotation.id
+      && primitive.provenance?.annotation === "polarity" && String(primitive.text ?? "").trim() === "+")?.points[0];
+    if (!plus) continue;
+    // The plates are the glyph's strokes off its terminal axis, away from both terminals; leaders and lane
+    // connectors are not. The longer one is positive.
+    const id = cell.outputs[0]!;
+    const terminals = terminalsOf?.(id) ?? null;
+    const start = terminals?.[0] ?? renderedPoint(primitives, cell.inputs.start);
+    const end = terminals?.[1] ?? renderedPoint(primitives, cell.inputs.end);
+    if (!start || !end) continue;
+    const plates = (componentGlyph(id, start, end, primitives)?.segments ?? [])
+      .map(([a, b]) => ({ mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, size: length(sub(b, a)) }))
+      .sort((a, b) => b.size - a.size);
+    if (plates.length < 2) continue;
+    const [long, short] = plates as [typeof plates[0], typeof plates[0]];
+    // Judged only when the + is plainly nearer the short plate.
+    if (length(sub(plus, short.mid)) + 1 >= length(sub(plus, long.mid))) continue;
+    issues.push({ code: "polarity_mark_against_plates", severity: "fatal", failureKind: "truth", entityIds: [annotation.id, id],
+      message: `The + on ${id} is drawn at its short plate: the long, positive plate is at its ${String(cell.inputs.start)} terminal.` });
   }
   return issues;
 }
@@ -461,6 +503,7 @@ export function validateFigureConsistency(document: SceneDocument, primitives: R
   return [
     ...validateComponentGlyphOverlap(document, primitives, terminalsOf),
     ...validateCurrentSourcePolarity(document),
+    ...validateCellPolarityMarks(document, primitives, terminalsOf),
     ...validateArrowOverlap(document, primitives),
     ...validateArrowLabels(document, primitives),
     ...validateRegionLabelPlacement(document, primitives),
