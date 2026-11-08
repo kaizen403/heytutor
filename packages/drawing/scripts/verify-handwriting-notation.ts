@@ -109,7 +109,6 @@ const SCRIPT_CASES = [
   ["Fₛ = μₛN", "F_(s) = μ_(s)N"],
   ["vₘₐₓ", "v_(max)"],
   ["θᵢ = θᵣ", "θ_(i) = θ_(r)"],
-  ["kᵦ", "k_(β)"],
   ["vₖ₍A₎", "v_(k)_(A)"],
   ["x²⁽A⁾", "x^2^(A)"],
   ["a₍(b)₎", "a_((b))"],
@@ -118,7 +117,8 @@ const SCRIPT_CASES = [
 ] as const;
 // Everything else is written as before: a bracket with no closer or with an
 // unbalanced inside, a bracket whose inside already has script forms, digit
-// runs, superscript letters and other letters with no script form.
+// runs, superscript letters, Greek subscripts (the hand's small γ reads as y)
+// and other letters with no script form.
 const KEPT_CASES = [
   ["v₍A", "v_(A"],
   ["a₍b)₎", "a_(b)_)"],
@@ -133,6 +133,9 @@ const KEPT_CASES = [
   ["e⁻ˣ", "e^-ˣ"],
   ["x⁽ᵏ⁾", "x^(ᵏ^)"],
   ["ℓ₁", "ℓ_1"],
+  ["Eᵧ", "Eᵧ"],
+  ["θᵦ", "θᵦ"],
+  ["Bᵩ", "Bᵩ"],
 ] as const;
 for (const [unicode, expected] of [...SCRIPT_CASES, ...KEPT_CASES]) {
   assert.equal(normalizeStrokeText(unicode), expected, `${unicode} is written as ${expected}`);
@@ -146,7 +149,7 @@ for (const [unicode, expected] of SCRIPT_CASES) {
   assert(!paths.some((path) => path.char === "_"), `${unicode} writes no stray underscore`);
   assert.equal(measureTextWidth(unicode, 32), measureTextWidth(expected, 32));
 }
-for (const letter of "ₐₑₒₓₕₖₗₘₙₚₛₜᵢᵣᵤᵥⱼᵦᵧᵨᵩᵪ") {
+for (const letter of "ₐₑₒₓₕₖₗₘₙₚₛₜᵢᵣᵤᵥⱼ") {
   const [base, script] = await textToStrokePaths(`v${letter}`, 70, 230, 32);
   assert(base && script && script.strokes.length > 0, `${letter} has handwriting ink`);
   assert(script.fontSize! < base.fontSize!, `${letter} is lettered at script size`);

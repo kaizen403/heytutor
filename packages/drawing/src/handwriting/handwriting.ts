@@ -77,10 +77,11 @@ const SUBSCRIPT_MAP: Record<string, string> = {
   "₊": "+", "₋": "-", "₌": "=", "₍": "(", "₎": ")",
   // Subscript letters have no handwriting glyph of their own: written as a
   // script group they are lettered small and low, not typed in a browser font.
+  // Greek subscripts (ᵦ ᵧ ᵨ ᵩ ᵪ) stay typed: the hand's small γ, χ and ρ read
+  // as y, x and p, which would change what the label says.
   "ₐ": "a", "ₑ": "e", "ₒ": "o", "ₓ": "x", "ₕ": "h", "ₖ": "k", "ₗ": "l",
   "ₘ": "m", "ₙ": "n", "ₚ": "p", "ₛ": "s", "ₜ": "t",
   "ᵢ": "i", "ᵣ": "r", "ᵤ": "u", "ᵥ": "v", "ⱼ": "j",
-  "ᵦ": "β", "ᵧ": "γ", "ᵨ": "ρ", "ᵩ": "φ", "ᵪ": "χ",
 };
 
 /**
