@@ -11,7 +11,7 @@ import {
 const QUERY_TIMEOUT_MS = 8_000;
 const MAX_SESSIONS = 40;
 const MAX_TRACES_PER_SESSION = 20;
-const TRACE_FETCH_CONCURRENCY = 4;
+const MAX_LOG_TRACES = 100;
 /** One v2 page. Forty lectures fit in a handful of these instead of one traces call each. */
 const SESSION_OBSERVATION_LIMIT = 200;
 const SESSION_OBSERVATION_PAGES = 15;
@@ -134,21 +134,6 @@ function readObservations(payload: unknown, sessionId: string): CostObservation[
   return observations;
 }
 
-async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let next = 0;
-  async function worker(): Promise<void> {
-    while (next < items.length) {
-      const index = next;
-      next += 1;
-      results[index] = await fn(items[index]!);
-    }
-  }
-  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
-  await Promise.all(workers);
-  return results;
-}
-
 async function fetchSessionTraceIds(
   credentials: LangfuseCredentials,
   sessionId: string,
@@ -156,36 +141,6 @@ async function fetchSessionTraceIds(
   const path = `/api/public/traces?sessionId=${encodeURIComponent(sessionId)}&limit=${MAX_TRACES_PER_SESSION}`;
   const payload = await langfuseGet(credentials, path);
   return readTraceIds(payload).slice(0, MAX_TRACES_PER_SESSION);
-}
-
-async function fetchTraceObservations(
-  credentials: LangfuseCredentials,
-  traceId: string,
-  sessionId: string,
-): Promise<CostObservation[]> {
-  try {
-    const details = await langfuseGet(credentials, `/api/public/traces/${encodeURIComponent(traceId)}`);
-    const fromDetails = readObservations(details, sessionId);
-    if (fromDetails.length > 0) {
-      return fromDetails.map((observation) => ({
-        ...observation,
-        traceId: observation.traceId ?? traceId,
-        sessionId: observation.sessionId ?? sessionId,
-      }));
-    }
-  } catch {
-    // Fall through to the observations list.
-  }
-
-  const payload = await langfuseGet(
-    credentials,
-    `/api/public/observations?traceId=${encodeURIComponent(traceId)}&limit=100`,
-  );
-  return readObservations(payload, sessionId).map((observation) => ({
-    ...observation,
-    traceId: observation.traceId ?? traceId,
-    sessionId: observation.sessionId ?? sessionId,
-  }));
 }
 
 function readTotalPages(payload: unknown): number {
@@ -208,7 +163,7 @@ export async function fetchRunCostForTraces(traceIds: string[], ownersByTraceId:
   byTraceId: Record<string, { llmUsd: number; ttsUsd: number; totalUsd: number; observationTraceId?: string }>;
   error?: string;
 }> {
-  const unique = [...new Set(traceIds.map((id) => id.trim()).filter(Boolean))].slice(0, MAX_SESSIONS);
+  const unique = [...new Set(traceIds.map((id) => id.trim()).filter(Boolean))].slice(0, MAX_LOG_TRACES);
   const credentials = readLangfuseQueryCredentials();
   if (!credentials) {
     return { configured: false, byTraceId: {} };
@@ -218,32 +173,55 @@ export async function fetchRunCostForTraces(traceIds: string[], ownersByTraceId:
   }
 
   try {
-    const observationTraceIds = new Map<string, string>();
-    const batches = await mapPool(unique, TRACE_FETCH_CONCURRENCY, async (traceId) => {
+    // Read the whole log page together. Per-trace detail requests can hit the
+    // vendor's rate limit, and a single missing trace used to blank every row.
+    const candidates = new Map<string, string[]>();
+    for (const traceId of unique) {
       const userId = ownersByTraceId.get(traceId);
-      let observationTraceId = userId ? scopedTraceId(userId, traceId) : traceId;
-      let observations = await fetchTraceObservations(credentials, observationTraceId, traceId);
-      // Historical observations used raw ids; only trusted admin lookups can
-      // fall back to those read-only records during the transition.
-      if (observations.length === 0 && userId) {
-        observationTraceId = traceId;
-        observations = await fetchTraceObservations(credentials, traceId, traceId);
+      // Prefer the authenticated owner's namespace; historical raw ids remain
+      // a read-only fallback for this trusted admin lookup.
+      candidates.set(traceId, userId ? [scopedTraceId(userId, traceId), traceId] : [traceId]);
+    }
+    const filter = JSON.stringify([{
+      type: "stringOptions", column: "traceId", operator: "any of",
+      value: [...new Set([...candidates.values()].flat())],
+    }]);
+    const observations: CostObservation[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < SESSION_OBSERVATION_PAGES; page += 1) {
+      const params = new URLSearchParams({
+        fields: "core,basic,usage,metadata,model",
+        limit: String(SESSION_OBSERVATION_LIMIT), type: "GENERATION", filter,
+      });
+      if (cursor) params.set("cursor", cursor);
+      const payload = await langfuseGet(credentials, `/api/public/v2/observations?${params.toString()}`);
+      observations.push(...readObservations(payload, "unknown"));
+      const next = readCursor(payload);
+      if (!next) break;
+      if (next === cursor || page === SESSION_OBSERVATION_PAGES - 1) {
+        throw new Error("langfuse_trace_cost_incomplete");
       }
-      observationTraceIds.set(traceId, observationTraceId);
-      return observations.map((observation) => ({
-        ...observation,
-        sessionId: traceId,
-        traceId,
-      }));
-    });
-    const report = aggregateRunCost(batches.flat());
+      cursor = next;
+    }
+    const present = new Set(observations.map(row => row.traceId));
+    const clientTraceIds = new Map<string, string>();
+    for (const [traceId, ids] of candidates) {
+      const selected = ids.find(id => present.has(id));
+      if (selected) clientTraceIds.set(selected, traceId);
+    }
+    const report = aggregateRunCost(observations.flatMap(observation => {
+      const traceId = clientTraceIds.get(observation.traceId ?? "");
+      return traceId ? [{ ...observation, sessionId: traceId }] : [];
+    }));
     const byTraceId: Record<string, { llmUsd: number; ttsUsd: number; totalUsd: number; observationTraceId?: string }> = {};
     for (const row of report.bySession) {
+      // A generation may be ingested before its usage. Its cost is unknown.
+      if (row.inputTokens === 0 && row.outputTokens === 0 && row.characters === 0) continue;
       byTraceId[row.sessionId] = {
         llmUsd: row.llmUsd,
         ttsUsd: row.ttsUsd,
         totalUsd: row.totalUsd,
-        observationTraceId: observationTraceIds.get(row.sessionId),
+        observationTraceId: candidates.get(row.sessionId)?.find(id => present.has(id)),
       };
     }
     return { configured: true, byTraceId };
