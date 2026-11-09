@@ -90,9 +90,18 @@ function chainPositions(molecule: Molecule): Map<number, number> | null {
 }
 
 const LOCANT_PAIR = /\bC\s*-?\s*(\d+)\s*(?:[-–—−]|to|and)\s*C\s*-?\s*(\d+)\b/gi;
+/**
+ * Read only to decline. A sawhorse ask is a different drawing, and an exclusion may
+ * strike out Newman itself or a conformer the figure always draws beside the rest.
+ */
+const SAWHORSE = /\bsawhorse\b/i;
+const EXCLUSION = /\b(?:no|not|never|neither|nor|without|except|excluding|excluded|exclude|omit|ignore|rather\s+than|instead\s+of)\b|n['’]t\b/i;
 
 export function newmanBinding(question: string): NewmanBinding {
   if (!requiresConformationProjection(question)) return { status: "declined", reason: "no conformation projection asked" };
+  const stem = question.normalize("NFKC");
+  if (SAWHORSE.test(stem)) return { status: "declined", reason: "a sawhorse projection is another drawing" };
+  if (EXCLUSION.test(stem)) return { status: "declined", reason: "the stem excludes a projection or a conformer" };
   const keys = new Map<string, { molecule: Molecule; text: string }>();
   for (const mention of findMentions(question)) {
     if (!mention.weak && !keys.has(mention.key)) keys.set(mention.key, { molecule: mention.molecule, text: mention.text });
@@ -160,6 +169,8 @@ const BACK_REACH = 1.6;
 const BACK_LABEL = 2.05;
 /** Eclipsed back bonds are drawn turned this far so they show beside the front ones, as in print. */
 const ECLIPSED_SHOW = 18;
+/** In an eclipsed panel each front label turns this far away from the back bond beside it, which would cross it. */
+const ECLIPSED_LABEL_TURN = 14;
 const PANEL_GAP = 5.2;
 /** Leaves room for each conformer's name between its lowest label and the panel below. */
 const ROW_GAP = 6.0;
@@ -192,11 +203,13 @@ export function buildNewmanScene(question: string): SceneDocument | null {
     const ring = c.scene.helper(`${tag}_c`, centre, "back carbon centre helper");
     c.scene.circle(`${tag}_back`, ring, RADIUS, "back carbon");
     ids.push(`${tag}_back`);
-    const shown = conformer.dihedral % 120 === 0 ? conformer.dihedral + ECLIPSED_SHOW : conformer.dihedral;
+    const eclipsed = conformer.dihedral % 120 === 0;
+    const shown = eclipsed ? conformer.dihedral + ECLIPSED_SHOW : conformer.dihedral;
     binding.front.forEach((group, k) => {
       const angle = 90 + 120 * k;
+      const labelAngle = eclipsed ? angle + ECLIPSED_LABEL_TURN : angle;
       ids.push(...c.bond(`${tag}_f${k}`, centre, toward(centre, angle, FRONT_REACH), { role: "front carbon bond" }));
-      ids.push(c.text(`${tag}_fl${k}`, toward(centre, angle, FRONT_LABEL), group.label, "front group", { preserveText: true }));
+      ids.push(c.text(`${tag}_fl${k}`, toward(centre, labelAngle, FRONT_LABEL), group.label, "front group", { preserveText: true }));
     });
     binding.back.forEach((group, k) => {
       const angle = 90 - shown + 120 * k;

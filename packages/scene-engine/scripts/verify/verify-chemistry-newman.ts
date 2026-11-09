@@ -45,7 +45,14 @@ function between(document: SceneDocument, tag: string, a: string, b: string): nu
   return raw > 180 ? 360 - raw : raw;
 }
 
-// What each conformer must measure between the lead groups, as drawn: eclipsed back bonds are
+function toSegment(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
+}
+
+// What each conformer must measure between the lead bonds, as drawn: eclipsed back bonds are
 // turned 18 degrees to show. With a heavy group on both carbons the lead groups are those; with
 // H only on one side, "eclipsed" is the 0 degree conformer.
 const BOTH_HEAVY = [180, 60, 138, 18];
@@ -67,11 +74,23 @@ for (const [question, names, measures, front, back] of [
     assert.deepEqual(groups.map((_, i) => label(document, `p${i + 1}_name`)), names);
     groups.forEach((_, i) => {
       const tag = `p${i + 1}`;
-      const measured = between(document, tag, `${tag}_fl0`, `${tag}_bl0`);
+      const measured = between(document, tag, `${tag}_f0_e`, `${tag}_b0_e`);
       assert.ok(Math.abs(measured - measures[i]!) < 0.5, `${label(document, `${tag}_name`)} measures ${measured.toFixed(1)} degrees, not ${measures[i]}`);
-      // The two other groups on each carbon sit 120 degrees from the lead and each other.
-      assert.ok(Math.abs(between(document, tag, `${tag}_fl0`, `${tag}_fl1`) - 120) < 0.5, "front groups not 120 apart");
-      assert.ok(Math.abs(between(document, tag, `${tag}_bl0`, `${tag}_bl2`) - 120) < 0.5, "back groups not 120 apart");
+      // The two other bonds on each carbon sit 120 degrees from the lead and each other.
+      assert.ok(Math.abs(between(document, tag, `${tag}_f0_e`, `${tag}_f1_e`) - 120) < 0.5, "front bonds not 120 apart");
+      assert.ok(Math.abs(between(document, tag, `${tag}_b0_e`, `${tag}_b2_e`) - 120) < 0.5, "back bonds not 120 apart");
+      // Each label sits by its own bond, and nearer its own bond than the bond on the other carbon beside it.
+      for (const [side, other] of [["f", "b"], ["b", "f"]] as const) {
+        for (let k = 0; k < 3; k += 1) {
+          const own = between(document, tag, `${tag}_${side}l${k}`, `${tag}_${side}${k}_e`);
+          assert.ok(own <= 15, `${tag}_${side}l${k} is ${own.toFixed(1)} degrees off its bond`);
+          const nearestOther = Math.min(...[0, 1, 2].map((j) => between(document, tag, `${tag}_${side}l${k}`, `${tag}_${other}${j}_e`)));
+          assert.ok(nearestOther > own, `${tag}_${side}l${k} sits nearer a bond of the other carbon`);
+          const clearance = Math.min(...[0, 1, 2].map((j) => toSegment(pointOf(document, `${tag}_${side}l${k}`),
+            pointOf(document, `${tag}_${other}${j}_s`), pointOf(document, `${tag}_${other}${j}_e`))));
+          assert.ok(clearance >= 0.55, `${tag}_${side}l${k} is ${clearance.toFixed(2)} from a bond of the other carbon`);
+        }
+      }
     });
     if (front && back) {
       assert.deepEqual([0, 1, 2].map((k) => label(document, `p1_fl${k}`)), front);
@@ -95,7 +114,8 @@ for (const question of [
   "Draw the Newman projection of ethene.", "Draw the Newman projection of benzene.", "Draw the Newman projection of cyclohexane.",
   "Draw the Newman projection of hexane.", "Draw the Newman projections of ethane and propane.",
   "Draw the Newman projection along the C1–C2 bond of butane.", "Draw the Newman projection of 1,2-dichloroethane.",
-  "Draw the Newman projection of 2-methylpropane.",
+  "Draw the Newman projection of 2-methylpropane.", "Draw the Newman projection of ethanamine.",
+  "Draw the sawhorse projection of butane.", "Draw staggered projections of ethane, excluding eclipsed projections.",
 ]) {
   check(`declines, no runner up: ${question}`, () => {
     const result = scene(question);
@@ -111,6 +131,13 @@ for (const [question, reason] of [
   ["Draw the Newman projections of ethane and propane.", "more than one molecule is named"],
   ["Draw the Newman projection of cyclohexane.", "the molecule has a ring"],
   ["Draw the Newman projection of 2-methylpropane.", "a group the figure cannot label, or two heavy groups on one carbon"],
+  ["Draw the Newman projection of ethanamine.", "a group the figure cannot label, or two heavy groups on one carbon"],
+  ["Draw the sawhorse projection of butane.", "a sawhorse projection is another drawing"],
+  ["Without using Newman projections, draw a sawhorse projection of butane.", "a sawhorse projection is another drawing"],
+  ["Draw staggered projections of ethane, excluding eclipsed projections.", "the stem excludes a projection or a conformer"],
+  ["Draw the Newman projection of butane with no eclipsed interactions.", "the stem excludes a projection or a conformer"],
+  ["Do not show Newman projections, but provide anti, gauche projections of butane.", "the stem excludes a projection or a conformer"],
+  ["Don’t draw the eclipsed form; draw the Newman projection of ethane.", "the stem excludes a projection or a conformer"],
 ] as const) {
   check(`binding declines for its reason: ${question}`, () => {
     const binding = newmanBinding(question);
