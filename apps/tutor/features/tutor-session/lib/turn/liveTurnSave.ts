@@ -857,14 +857,16 @@ export class LiveTurnSaveRegistry {
 
   /**
    * Whether the server holds `turnId`'s row yet. `unknown`: this tab no longer
-   * tracks it (pruned once settled, or taught elsewhere); `lost`: it will never
-   * be saved from here.
+   * tracks it (pruned once settled, or taught elsewhere); `stalled`: automatic
+   * retries ran out and only a manual retry or a reopen sends it again; `lost`:
+   * it will never be saved from here.
    */
-  turnSaveState(turnId: string): "saved" | "waiting" | "lost" | "unknown" {
+  turnSaveState(turnId: string): "saved" | "waiting" | "stalled" | "lost" | "unknown" {
     const turn = this.turns.find((held) => held.turnId === turnId);
     if (!turn) return "unknown";
     if (turn.ackedStatus !== null) return "saved";
     if (turn.abandoned || (turn.failure && !turn.failure.retryable)) return "lost";
+    if (turn.failure) return "stalled";
     return "waiting";
   }
 

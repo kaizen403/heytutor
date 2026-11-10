@@ -101,7 +101,6 @@ export function SessionInputChrome({
         margin: "0 auto",
       }}
     >
-      {phase === "idle" ? lectureRating : null}
       {earlyLessonRestartOffer ? <PausedLectureBar
         visible={phase === "idle"}
         mode="restart"
@@ -112,6 +111,9 @@ export function SessionInputChrome({
         reason={pausedLessonReason ?? "doubt"}
         onContinue={() => onContinueLecture?.()}
       />}
+      {/* Shown above the paused bar, but after it in the tree: the restart gate
+          reads that bar as the first child. */}
+      {phase === "idle" && lectureRating ? <div className="order-first">{lectureRating}</div> : null}
       {/* What the board understood, directly above where the doubt is typed —
           so the student reads the resolved line before pressing Ask. */}
       <MarkedDoubtBar

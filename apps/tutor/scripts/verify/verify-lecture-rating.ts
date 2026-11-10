@@ -16,7 +16,7 @@ import {
   ratingTurnSnapshot,
   type RatingPromptTurn,
 } from "../../features/tutor-session/lib/turn/lectureRatingPrompt";
-import { LiveTurnSaveRegistry } from "../../features/tutor-session/lib/turn/liveTurnSave";
+import { LiveTurnSaveRegistry, SAVE_RETRY_DELAYS_MS } from "../../features/tutor-session/lib/turn/liveTurnSave";
 import { lessonPageRecord } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { sessionCapabilities } from "../../features/tutor-session/lib/sessionCapabilities";
 
@@ -183,7 +183,48 @@ async function registryRead() {
   );
 }
 
-registryRead().then(
+async function stalledSave() {
+  const calls: Array<(result: TurnCheckpointResult) => void> = [];
+  const timers: Array<() => void> = [];
+  const registry = new LiveTurnSaveRegistry({
+    transport: {
+      checkpoint: () => new Promise((resolve) => calls.push(resolve)),
+      close: () => new Promise((resolve) => calls.push(resolve)),
+    },
+    setTimer: (fn) => timers.push(fn),
+    clearTimer: () => {},
+    now: () => 1_000,
+    isOnline: () => true,
+    mintId: () => "33333333-3333-4333-8333-333333333333",
+  });
+  const settle = async () => {
+    for (let i = 0; i < 6; i += 1) await new Promise((resolve) => setImmediate(resolve));
+  };
+  const owner = { current: false };
+  const handle = registry.begin({
+    owner, generation: 1, boardId: "board-2", traceId: "trace-2", kind: "lesson", question: "Why?",
+    preview: "Why?", speedMultiplier: 1, continuesBoard: false, page: lessonPageRecord("board-2", "Why?"),
+  });
+  registry.recordRow(owner, 1, {
+    orderIndex: 0, narration: "first", spokenText: "first", audioBytes: null, durationMs: 900, timings: null,
+    command: { type: "WRITE", params: [400, 100], text: "first", charPosition: 0, narrationBefore: "" } as never,
+  }, { intro: false });
+  await settle();
+  const outage: TurnCheckpointResult = { ok: false, status: 503, error: "down", reason: "network", retryable: true };
+  for (let attempt = 0; attempt <= SAVE_RETRY_DELAYS_MS.length; attempt += 1) {
+    assert.equal(registry.turnSaveState(handle.turnId), "waiting", `still retrying after ${attempt} failures`);
+    calls.shift()!(outage);
+    await settle();
+    for (const fire of timers.splice(0)) fire();
+    await settle();
+  }
+  assert.equal(registry.turnSaveState(handle.turnId), "stalled", "out of retries: the rating card can report it");
+  registry.retry("board-2");
+  await settle();
+  assert.equal(registry.turnSaveState(handle.turnId), "waiting", "a manual retry sends again");
+}
+
+Promise.all([registryRead(), stalledSave()]).then(
   () => console.log("lecture rating: body, prompt rules, capabilities and registry read hold"),
   (error: unknown) => {
     console.error(error);

@@ -125,6 +125,11 @@ export function useLectureRating({ enabled, sessionId, owner, lecturing, paused 
       if (queued.inflight || queued.retryTimer !== null) continue;
       const state = liveTurnSave().turnSaveState(queued.rating.turnId);
       if (state === "waiting") continue;
+      if (state === "stalled") {
+        // Kept queued: a manual retry of the lecture's save still sends it.
+        for (const resolve of queued.waiters.splice(0)) resolve("failed");
+        continue;
+      }
       if (state === "lost") {
         queueRef.current.delete(key);
         for (const resolve of queued.waiters) resolve("failed");
