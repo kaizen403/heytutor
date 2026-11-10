@@ -1135,6 +1135,7 @@ export function TutorSessionShell({
     sessionId,
     owner: cancelRef,
     lecturing: lectureInProgress,
+    paused: isPaused,
   });
   const ratingPrompt = lectureRating.prompt;
   const ratingElement = (variant: "toast" | "card") =>

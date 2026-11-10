@@ -17,6 +17,8 @@ export const DURING_PROMPT_AFTER_MS = 60_000;
 export const DURING_PROMPT_VISIBLE_MS = 25_000;
 /** The thank-you line stays this long before the card closes. */
 export const RATING_THANKS_MS = 1_800;
+/** Waits before resending a rating the server could not take for now. */
+export const RATING_RETRY_DELAYS_MS: readonly number[] = [2_000, 5_000, 15_000];
 
 export interface RatingPromptTurn {
   turnId: string;

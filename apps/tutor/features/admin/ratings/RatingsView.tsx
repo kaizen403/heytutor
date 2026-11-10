@@ -107,7 +107,7 @@ export function RatingsView() {
             <KpiCard label="After" value={formatAverage(summary.afterAverage)} hint="asked at the end" />
             <KpiCard
               label="Response rate"
-              value={summary.lecturesTaught > 0 ? formatPercent(Math.min(1, summary.ratedLectures / summary.lecturesTaught)) : "—"}
+              value={summary.lecturesTaught > 0 ? formatPercent(summary.ratedLectures / summary.lecturesTaught) : "—"}
               hint={`${formatCount(summary.ratedLectures)} of ${formatCount(summary.lecturesTaught)} lectures`}
             />
             <KpiCard label="With a note" value={formatCount(summary.withFeedback)} />

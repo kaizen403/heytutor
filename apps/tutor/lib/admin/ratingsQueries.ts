@@ -37,7 +37,7 @@ export interface AdminRatingsSummary {
   /** Index 0 is one star. */
   distribution: number[];
   withFeedback: number;
-  /** Lesson and Continue turns rated at least once, over those taught in the window. */
+  /** Of the lesson and Continue turns taught in the window, those rated at least once. */
   ratedLectures: number;
   lecturesTaught: number;
 }
@@ -92,11 +92,14 @@ export async function listAdminRatings(input: {
     prisma.lectureRating.groupBy({ by: ["moment"], where: inWindow, _avg: { stars: true } }),
     prisma.lectureRating.groupBy({ by: ["stars"], where: inWindow, _count: { _all: true } }),
     prisma.lectureRating.count({ where: { ...inWindow, feedback: { not: null } } }),
-    prisma.$queryRaw<Array<{ count: bigint }>>(
-      since
-        ? Prisma.sql`SELECT COUNT(DISTINCT "turn_id") AS "count" FROM "lecture_ratings" WHERE "updated_at" >= ${since}`
-        : Prisma.sql`SELECT COUNT(DISTINCT "turn_id") AS "count" FROM "lecture_ratings"`,
-    ),
+    // The same lectures the denominator counts, whenever they were rated.
+    prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(DISTINCT r."turn_id") AS "count"
+      FROM "lecture_ratings" r
+      JOIN "turns" t ON t."id" = r."turn_id"
+      WHERE t."kind" IN ('lesson', 'resume') AND t."lesson_ms" > 0
+      ${since ? Prisma.sql`AND t."created_at" >= ${since}` : Prisma.empty}
+    `,
     prisma.turn.count({
       where: {
         kind: { in: ["lesson", "resume"] },

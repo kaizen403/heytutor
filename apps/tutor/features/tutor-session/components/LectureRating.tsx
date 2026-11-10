@@ -33,6 +33,7 @@ export function LectureRating({ prompt, variant, onRate, onHold, onClose }: Lect
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
+  const starSaveRef = useRef<Promise<LectureRatingSendResult> | null>(null);
   const toast = variant === "toast";
 
   useEffect(() => {
@@ -50,20 +51,21 @@ export function LectureRating({ prompt, variant, onRate, onHold, onClose }: Lect
     setStars(value);
     setError(null);
     if (stage === "pick") setStage("note");
-    void onRate(value, note.trim() || null).then((result) => {
-      if (result === "failed") setError(SAVE_FAILED);
+    const request = onRate(value, note.trim() || null);
+    starSaveRef.current = request;
+    void request.then((result) => {
+      if (starSaveRef.current === request && result === "failed") setError(SAVE_FAILED);
     });
   };
 
   const send = async () => {
     if (stars === null || sending) return;
-    const feedback = note.trim();
-    if (!feedback && !error) {
-      setStage("thanks");
-      return;
-    }
+    const feedback = note.trim() || null;
     setSending(true);
-    const result = await onRate(stars, feedback || null);
+    // With no note, Done confirms the star already on its way; after a failed
+    // star it sends the star again.
+    const pending = feedback === null && !error ? starSaveRef.current : null;
+    const result = await (pending ?? onRate(stars, feedback));
     setSending(false);
     if (result === "failed") {
       setError(SAVE_FAILED);
@@ -194,7 +196,7 @@ export function LectureRating({ prompt, variant, onRate, onHold, onClose }: Lect
               />
               <div className="flex shrink-0 items-center justify-end gap-1.5">
                 <button type="button" onClick={() => void send()} disabled={sending} className="btn btn-sky btn-sm">
-                  {note.trim() ? (sending ? "Sending…" : "Send") : "Done"}
+                  {sending ? "Saving…" : note.trim() ? "Send" : "Done"}
                 </button>
               </div>
             </div>

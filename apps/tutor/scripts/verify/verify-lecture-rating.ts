@@ -157,9 +157,12 @@ async function registryRead() {
   await settle();
   assert.equal(registry.ratableTurnFor(owner, "board-1")?.steps, 1, "the runtime CLEAR is not a step");
   assert.equal(registry.ratableTurnFor(owner, "board-1")?.saved, false, "not saved before the answer");
+  assert.equal(registry.turnSaveState(handle.turnId), "waiting", "a queued rating waits for its own turn");
   calls[0]!.resolve(answer("live", 2, 1));
   await settle();
   assert.equal(registry.ratableTurnFor(owner, "board-1")?.saved, true, "saved once the server holds the row");
+  assert.equal(registry.turnSaveState(handle.turnId), "saved");
+  assert.equal(registry.turnSaveState("22222222-2222-4222-8222-222222222222"), "unknown", "a turn this tab never held");
   assert.equal(registry.ratableTurnFor(owner, "other-board"), null, "another board has its own turns");
 
   registry.recordRow(owner, 1, row("second"), { intro: false });
