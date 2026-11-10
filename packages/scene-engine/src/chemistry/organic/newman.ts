@@ -102,11 +102,16 @@ export function newmanBinding(question: string): NewmanBinding {
   const stem = question.normalize("NFKC");
   if (SAWHORSE.test(stem)) return { status: "declined", reason: "a sawhorse projection is another drawing" };
   if (EXCLUSION.test(stem)) return { status: "declined", reason: "the stem excludes a projection or a conformer" };
+  // Only a strong name binds the molecule, but a weaker reading such as a condensed
+  // formula still counts as a second compound named.
   const keys = new Map<string, { molecule: Molecule; text: string }>();
+  const named = new Set<string>();
   for (const mention of findMentions(question)) {
+    named.add(mention.key);
     if (!mention.weak && !keys.has(mention.key)) keys.set(mention.key, { molecule: mention.molecule, text: mention.text });
   }
-  if (keys.size !== 1) return { status: "declined", reason: keys.size === 0 ? "no molecule is bound" : "more than one molecule is named" };
+  if (keys.size === 0) return { status: "declined", reason: "no molecule is bound" };
+  if (keys.size > 1 || named.size > 1) return { status: "declined", reason: "more than one molecule is named" };
   const [{ molecule, text }] = [...keys.values()];
   if (molecule.atoms.some((atom) => atom.aromatic || atom.charge !== 0)) return { status: "declined", reason: "aromatic or charged" };
   if (molecule.bonds.length !== molecule.atoms.length - 1) return { status: "declined", reason: "the molecule has a ring" };
@@ -142,7 +147,12 @@ export function newmanBinding(question: string): NewmanBinding {
   const positions = chainPositions(molecule);
   // Unreachable by the group rule above; a decline, not a throw, if that rule ever changes.
   if (!positions) return { status: "declined", reason: "locants on a branched molecule" };
-  for (const match of question.normalize("NFKC").matchAll(LOCANT_PAIR)) {
+  // The chain is numbered from an arbitrary end. Only when both ends read the same is
+  // either numbering the molecule's own; otherwise any stated bond declines.
+  const ends = [...positions.entries()].filter(([, p]) => p === 1 || p === positions.size).map(([atom]) => atom);
+  const symmetric = ends.length === 2 && branch(molecule, ends[0]!, -1) === branch(molecule, ends[1]!, -1);
+  for (const match of stem.matchAll(LOCANT_PAIR)) {
+    if (!symmetric) return { status: "declined", reason: "the chain's numbering is not determined" };
     const stated = [Number(match[1]), Number(match[2])].sort((x, y) => x - y);
     const n = positions.size;
     const here = [positions.get(chosen.a)!, positions.get(chosen.b)!].sort((x, y) => x - y);

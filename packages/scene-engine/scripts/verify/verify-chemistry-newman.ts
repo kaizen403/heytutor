@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import "../../src/chemistry/families";
 import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synthesize/familyScene";
 import { newmanBinding } from "../../src/chemistry/organic/newman";
+import { buildOrganicScene, isOrganicStem } from "../../src/chemistry/organic/index";
 import type { SceneDocument } from "../../src/types";
 
 let failed = 0;
@@ -64,6 +65,8 @@ for (const [question, names, measures, front, back] of [
   ["Draw the eclipsed conformation of ethane.", ["staggered", "eclipsed"], ONE_OR_NONE, ["H", "H", "H"], ["H", "H", "H"]],
   ["newman projection of ethane staggered", ["staggered", "eclipsed"], ONE_OR_NONE, ["H", "H", "H"], ["H", "H", "H"]],
   ["Draw the Newman projection of propane.", ["staggered", "eclipsed"], ONE_OR_NONE, null, null],
+  ["Draw the Newman projection of propane along C1–C2.", ["staggered", "eclipsed"], ONE_OR_NONE, null, null],
+  ["Draw the Newman projection of propane along C2–C3.", ["staggered", "eclipsed"], ONE_OR_NONE, null, null],
   ["Draw the Newman projection of ethanol.", ["staggered", "eclipsed"], ONE_OR_NONE, null, null],
 ] as const) {
   check(`draws every conformer, named from its dihedral: ${question}`, () => {
@@ -124,6 +127,8 @@ for (const question of [
   "Draw the Newman projection along the C1–C2 bond of butane.", "Draw the Newman projection of 1,2-dichloroethane.",
   "Draw the Newman projection of 2-methylpropane.", "Draw the Newman projection of ethanamine.",
   "Draw the sawhorse projection of butane.", "Draw staggered projections of ethane, excluding eclipsed projections.",
+  "Draw the Newman projection of 1-chloropropane along C2–C3.", "Draw the Newman projections of ethane and C2H5OH.",
+  "Draw the Newman projection of protonated ethanol.", "Draw the Newman projection of deprotonated ethanol.",
 ]) {
   check(`declines, no runner up: ${question}`, () => {
     const result = scene(question);
@@ -146,10 +151,22 @@ for (const [question, reason] of [
   ["Draw the Newman projection of butane with no eclipsed interactions.", "the stem excludes a projection or a conformer"],
   ["Do not show Newman projections, but provide anti, gauche projections of butane.", "the stem excludes a projection or a conformer"],
   ["Don’t draw the eclipsed form; draw the Newman projection of ethane.", "the stem excludes a projection or a conformer"],
+  ["Draw the Newman projection of 1-chloropropane along C2–C3.", "the chain's numbering is not determined"],
+  ["Draw the Newman projection of 1-chloropropane along C1–C2.", "the chain's numbering is not determined"],
+  ["Draw the Newman projections of ethane and C2H5OH.", "more than one molecule is named"],
+  ["Draw the Newman projections of butane and C2H6.", "more than one molecule is named"],
 ] as const) {
   check(`binding declines for its reason: ${question}`, () => {
     const binding = newmanBinding(question);
     assert.equal(binding.status === "declined" ? binding.reason : "bound", reason);
+  });
+}
+
+// A charged form is not the neutral molecule the parser binds: the cue and the builder both decline.
+for (const question of ["Draw the Newman projection of protonated ethanol.", "Draw the Newman projection of deprotonated ethanol."]) {
+  check(`charged form declines at the cue and the builder: ${question}`, () => {
+    assert.equal(isOrganicStem(question), false);
+    assert.equal(buildOrganicScene(question, [], false), null);
   });
 }
 
