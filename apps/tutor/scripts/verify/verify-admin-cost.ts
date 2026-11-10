@@ -1,5 +1,9 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import * as React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import type { AdminTurnRow } from "../../lib/admin/types";
+import { TurnsTable } from "../../features/admin/turns/TurnsTable";
 import { millicentsToUsd, usdToMillicents } from "../../lib/billing/catalog";
 import { previousPeriodKey, recentPeriodKeys } from "../../lib/admin/costPeriods";
 import { formatMillicentsUsd } from "../../features/admin/shared/lib/format";
@@ -34,5 +38,22 @@ assert(read("lib/admin/userDetailQueries.ts").includes("fetchUserBoardCosts"), "
 assert(read("features/admin/users/UserBoards.tsx").includes("CostChip"), "each user board shows its lecture cost");
 assert(read("lib/admin/turnsQueries.ts").includes("fetchRunCostForTraces"), "the turn log attaches per-turn cost");
 assert(read("lib/admin/costPeriods.ts").includes("billingPeriodKey"), "month keys stay on the UTC ledger calendar");
+
+Object.defineProperty(globalThis, "React", { value: React, configurable: true });
+const turn: AdminTurnRow = {
+  turnId: "turn-one", question: "Explain gravity", outcome: "validated", tier: "exact_verified",
+  degradationReason: null, issueCodes: [], candidateCount: null, sceneEngineVersion: "test",
+  traceId: "trace-one", traceUrl: null, sentryEventId: null, sentryUrl: null,
+  userId: "user-one", userLabel: "Student", boardId: "board-one", boardTitle: "Physics",
+  createdAt: "2026-11-10T00:00:00.000Z", llmUsd: null, ttsUsd: null, totalUsd: null,
+};
+const renderTurn = (overrides: Partial<AdminTurnRow>) =>
+  renderToStaticMarkup(React.createElement(TurnsTable, { turns: [{ ...turn, ...overrides }] }));
+assert(renderTurn({}).includes("Unavailable"), "missing log costs must have a visible state");
+assert(renderTurn({ llmUsd: 0, ttsUsd: 0, totalUsd: 0 }).includes("$0"), "a known zero cost must remain visible");
+const priced = renderTurn({ llmUsd: 0.0012, ttsUsd: 0.05, totalUsd: 0.0512 });
+assert(priced.includes("$0.051") && priced.includes("$0.0012"), "log costs keep sub-cent precision");
+assert(priced.includes("AI") && priced.includes("Voice"), "the log renders the AI and voice split");
+assert(!priced.includes('role="tooltip"'), "log cost details must not be clipped inside the scrolling table");
 
 console.log("✓ admin cost analytics: ledger months, millicents, and panel surfaces");
