@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import type { AdminTurnRow } from "@/lib/admin/types";
+import { formatUsd } from "@/lib/obs/runCost";
 import { cn } from "@/lib/utils";
-import { CostChip } from "../components/CostChip";
 import { OutcomePill } from "../shared/components/OutcomePill";
 import { formatRelativeTime, truncateText } from "../shared/lib/format";
 
@@ -26,7 +26,7 @@ export function TurnsTable({ turns }: { turns: AdminTurnRow[] }) {
             <th className={HEAD}>Outcome</th>
             <th className={HEAD}>User</th>
             <th className={HEAD}>When</th>
-            <th className={cn(HEAD, "text-right")}>Cost</th>
+            <th className={cn(HEAD, "text-right")}>Cost (USD)</th>
             <th className={cn(HEAD, "text-right")}>Trace</th>
           </tr>
         </thead>
@@ -70,19 +70,17 @@ export function TurnsTable({ turns }: { turns: AdminTurnRow[] }) {
                 </p>
               </td>
               <td className={cn(CELL, "text-right")}>
-                <div className="flex justify-end">
-                  <CostChip
-                    cost={
-                      turn.totalUsd != null && turn.totalUsd > 0
-                        ? {
-                            llmUsd: turn.llmUsd ?? 0,
-                            ttsUsd: turn.ttsUsd ?? 0,
-                            totalUsd: turn.totalUsd,
-                          }
-                        : undefined
-                    }
-                  />
-                </div>
+                {turn.totalUsd != null ? (
+                  <div className="type-accent-xs flex flex-col items-end gap-0.5 whitespace-nowrap tabular-nums">
+                    <span className="text-sky-300">{formatUsd(turn.totalUsd)}</span>
+                    <span className="text-soft">AI {turn.llmUsd != null ? formatUsd(turn.llmUsd) : "—"}</span>
+                    <span className="text-soft">Voice {turn.ttsUsd != null ? formatUsd(turn.ttsUsd) : "—"}</span>
+                  </div>
+                ) : (
+                  <span className="type-accent-xs text-faint" title="No cost data is available for this turn. Refresh to check again.">
+                    Unavailable
+                  </span>
+                )}
               </td>
               <td className={cn(CELL, "text-right")}>
                 <div className="flex flex-col items-end gap-1">
