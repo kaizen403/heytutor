@@ -167,10 +167,17 @@ const FRONT_REACH = 1.0;
 const FRONT_LABEL = 1.3;
 const BACK_REACH = 1.6;
 const BACK_LABEL = 2.05;
+/** Half the board width of one handwritten glyph, in figure units at the panel scale. */
+const GLYPH_HALF = 0.17;
+/** A wider label sits further out along a slanted bond, so the bond never runs into its first letter. */
+function labelReach(base: number, label: string, degrees: number): number {
+  const glyphs = label.replace(/_/g, "").length;
+  return base + GLYPH_HALF * (glyphs - 1) * Math.abs(Math.cos((degrees * Math.PI) / 180));
+}
 /** Eclipsed back bonds are drawn turned this far so they show beside the front ones, as in print. */
 const ECLIPSED_SHOW = 18;
 /** In an eclipsed panel each front label turns this far away from the back bond beside it, which would cross it. */
-const ECLIPSED_LABEL_TURN = 14;
+const ECLIPSED_LABEL_TURN = 26;
 const PANEL_GAP = 5.2;
 /** Leaves room for each conformer's name between its lowest label and the panel below. */
 const ROW_GAP = 6.0;
@@ -209,12 +216,12 @@ export function buildNewmanScene(question: string): SceneDocument | null {
       const angle = 90 + 120 * k;
       const labelAngle = eclipsed ? angle + ECLIPSED_LABEL_TURN : angle;
       ids.push(...c.bond(`${tag}_f${k}`, centre, toward(centre, angle, FRONT_REACH), { role: "front carbon bond" }));
-      ids.push(c.text(`${tag}_fl${k}`, toward(centre, labelAngle, FRONT_LABEL), group.label, "front group", { preserveText: true }));
+      ids.push(c.text(`${tag}_fl${k}`, toward(centre, labelAngle, labelReach(FRONT_LABEL, group.label, labelAngle)), group.label, "front group", { preserveText: true }));
     });
     binding.back.forEach((group, k) => {
       const angle = 90 - shown + 120 * k;
       ids.push(...c.bond(`${tag}_b${k}`, toward(centre, angle, RADIUS), toward(centre, angle, BACK_REACH), { role: "back carbon bond" }));
-      ids.push(c.text(`${tag}_bl${k}`, toward(centre, angle, BACK_LABEL), group.label, "back group", { preserveText: true }));
+      ids.push(c.text(`${tag}_bl${k}`, toward(centre, angle, labelReach(BACK_LABEL, group.label, angle)), group.label, "back group", { preserveText: true }));
     });
     ids.push(c.text(`${tag}_name`, { x: centre.x, y: centre.y - NAME_BELOW }, conformer.name, "conformation name", { preserveText: true }));
     c.scene.group(`conformer_${index + 1}`, ids, `${conformer.name} conformation of ${binding.name}, viewed along the C–C bond`);

@@ -83,12 +83,12 @@ for (const [question, names, measures, front, back] of [
       for (const [side, other] of [["f", "b"], ["b", "f"]] as const) {
         for (let k = 0; k < 3; k += 1) {
           const own = between(document, tag, `${tag}_${side}l${k}`, `${tag}_${side}${k}_e`);
-          assert.ok(own <= 15, `${tag}_${side}l${k} is ${own.toFixed(1)} degrees off its bond`);
+          assert.ok(own <= 30, `${tag}_${side}l${k} is ${own.toFixed(1)} degrees off its bond`);
           const nearestOther = Math.min(...[0, 1, 2].map((j) => between(document, tag, `${tag}_${side}l${k}`, `${tag}_${other}${j}_e`)));
           assert.ok(nearestOther > own, `${tag}_${side}l${k} sits nearer a bond of the other carbon`);
           const clearance = Math.min(...[0, 1, 2].map((j) => toSegment(pointOf(document, `${tag}_${side}l${k}`),
             pointOf(document, `${tag}_${other}${j}_s`), pointOf(document, `${tag}_${other}${j}_e`))));
-          assert.ok(clearance >= 0.55, `${tag}_${side}l${k} is ${clearance.toFixed(2)} from a bond of the other carbon`);
+          assert.ok(clearance >= 0.8, `${tag}_${side}l${k} is ${clearance.toFixed(2)} from a bond of the other carbon`);
         }
       }
     });
@@ -101,6 +101,14 @@ for (const [question, names, measures, front, back] of [
     assert.ok(question.toLowerCase().includes(name.toLowerCase()), `title ${name} is not the molecule named`);
   });
 }
+
+check("a wide label at a slant sits further out than an H on the same carbon", () => {
+  const document = scene("Draw the Newman projection of pentane.")!.document;
+  const centre = pointOf(document, "p2_c");
+  const reach = (id: string) => Math.hypot(pointOf(document, id).x - centre.x, pointOf(document, id).y - centre.y);
+  assert.equal(label(document, "p2_bl0"), "C_2H_5");
+  assert.ok(reach("p2_bl0") - reach("p2_bl1") > 0.4, `C_2H_5 at ${reach("p2_bl0").toFixed(2)}, H at ${reach("p2_bl1").toFixed(2)}`);
+});
 
 check("ethanol carries its OH on one carbon and three H on the other", () => {
   const document = scene("Draw the Newman projection of ethanol.")!.document;
