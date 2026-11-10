@@ -96,6 +96,70 @@ for (const size of [19, 32, 46]) {
     assert.equal(countWrittenGlyphs(text), countWrittenGlyphs(muText));
   }
 }
+// Subscript letters and script brackets around plain letters are lettered as
+// handwritten script groups. Before, a subscript letter had no ink and the
+// board typed it in a browser font on the baseline ("fₖ" read "fk"), and
+// "v₍A₎" closed its group on the wrong character and wrote a stray "_".
+const SCRIPT_CASES = [
+  ["v₍A₎", "v_(A)"],
+  ["−v₍B₎", "-v_(B)"],
+  ["v₍A/B₎", "v_(A/B)"],
+  ["fₖ", "f_(k)"],
+  ["μₖN", "μ_(k)N"],
+  ["Fₛ = μₛN", "F_(s) = μ_(s)N"],
+  ["vₘₐₓ", "v_(max)"],
+  ["θᵢ = θᵣ", "θ_(i) = θ_(r)"],
+  ["vₖ₍A₎", "v_(k)_(A)"],
+  ["x²⁽A⁾", "x^2^(A)"],
+  ["a₍(b)₎", "a_((b))"],
+  ["v₍A₁₎", "v_(A1)"],
+  ["x⁽A²⁾", "x^(A2)"],
+] as const;
+// Everything else is written as before: a bracket with no closer or with an
+// unbalanced inside, a bracket whose inside already has script forms, digit
+// runs, superscript letters, Greek subscripts (the hand's small γ reads as y)
+// and other letters with no script form.
+const KEPT_CASES = [
+  ["v₍A", "v_(A"],
+  ["a₍b)₎", "a_(b)_)"],
+  ["a₍(b₎", "a_((b_)"],
+  ["a₍)b(₎", "a_()b(_)"],
+  ["x₍₁₎", "x_((1))"],
+  ["x⁽ⁿ⁾", "x^((n))"],
+  ["x₁₂", "x_(12)"],
+  ["x₁y", "x_1y"],
+  ["H₂O", "H_2O"],
+  ["y = 2ˣ", "y = 2ˣ"],
+  ["e⁻ˣ", "e^-ˣ"],
+  ["x⁽ᵏ⁾", "x^(ᵏ^)"],
+  ["ℓ₁", "ℓ_1"],
+  ["Eᵧ", "Eᵧ"],
+  ["θᵦ", "θᵦ"],
+  ["Bᵩ", "Bᵩ"],
+] as const;
+for (const [unicode, expected] of [...SCRIPT_CASES, ...KEPT_CASES]) {
+  assert.equal(normalizeStrokeText(unicode), expected, `${unicode} is written as ${expected}`);
+  assert.equal(normalizeStrokeText(expected), expected, `${expected} is already in its written form`);
+}
+for (const [unicode, expected] of SCRIPT_CASES) {
+  assert.equal(parseDrawCommandFromTag("WRITE", `${unicode},90,211`, 0, "").text, expected, `a WRITE of ${unicode} saves its written form`);
+  const paths = await textToStrokePaths(unicode, 70, 230, 32);
+  assert.deepEqual(paths, await textToStrokePaths(expected, 70, 230, 32), `${unicode} is lettered as ${expected}`);
+  assert(paths.every((path) => path.strokes.length > 0 || !path.char.trim()), `${unicode} has no typed glyph`);
+  assert(!paths.some((path) => path.char === "_"), `${unicode} writes no stray underscore`);
+  assert.equal(measureTextWidth(unicode, 32), measureTextWidth(expected, 32));
+}
+for (const letter of "ₐₑₒₓₕₖₗₘₙₚₛₜᵢᵣᵤᵥⱼ") {
+  const [base, script] = await textToStrokePaths(`v${letter}`, 70, 230, 32);
+  assert(base && script && script.strokes.length > 0, `${letter} has handwriting ink`);
+  assert(script.fontSize! < base.fontSize!, `${letter} is lettered at script size`);
+}
+const [, subscriptA] = await textToStrokePaths("v₍A₎", 70, 230, 32);
+assert(subscriptA?.char === "A" && subscriptA.fontSize! < 32, "v₍A₎ reads v with subscript A");
+assert.equal((await textToStrokePaths("v₍A₎", 70, 230, 32)).length, 2, "v₍A₎ letters v and A only");
+const [, typedX] = await textToStrokePaths("2ˣ", 70, 230, 32);
+assert(typedX?.char === "ˣ" && typedX.strokes.length === 0, "superscript letters stay out of this change");
+
 assert.equal(normalizeStrokeText("µC"), "µC", "glyph alias preserves micro-unit text");
 assert.equal(normalizeStrokeText("−"), "-", "mathematical minus uses the existing minus stroke");
 assert.equal(normalizeStrokeText("≠ ∉"), "≠ ∉", "normalization must retain negated operators");

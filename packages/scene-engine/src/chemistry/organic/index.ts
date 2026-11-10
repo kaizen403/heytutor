@@ -27,6 +27,7 @@ import { requiresConformationProjection } from "../foundation/conformationReques
 import { readOrganicReactionSource } from "./reactionSource";
 import { buildOrganicReactionFigure } from "./reactionFigure";
 import { readMechanismSource } from "./mechanism/source";
+import { buildNewmanScene, newmanBinding } from "./newman";
 
 export const ORGANIC_FAMILY = "chem_organic" as const;
 
@@ -311,7 +312,10 @@ export function mentionRole(lower: string, mention: Mention): "reagent" | "produ
 /** True when the stem names a compound the family can draw, or asks for isomers of a tabled formula. */
 export function isOrganicStem(question: string): boolean {
   const stem = chemStem(question);
-  if (NOT_ORGANIC.test(stem) || requiresConformationProjection(question)) return false;
+  if (NOT_ORGANIC.test(stem)) return false;
+  // A conformation ask is answered by Newman projections of one bound molecule, or by
+  // nothing: never by the flat structure. The cue fires only when that binding holds.
+  if (requiresConformationProjection(question)) return !CHARGED_FORM_ASK.test(stem) && newmanBinding(question).status === "bound";
   // Condensed formulas alone name no compound the mention reader knows.
   if (readMechanismSource(question).status === "source") return true;
   const complexes = complexTokens(question);
@@ -382,6 +386,9 @@ const CHARGED_FORM_ASK = /zwitter|dipolar\s+ion|(?:inner|internal)\s+salt|isoele
  * transformations; other isomer/name requests retain the existing row path.
  */
 export function buildOrganicScene(question: string, _quantities: ChemPlanQuantity[], _schematic: boolean): SceneDocument | null {
+  // A conformation ask gets Newman projections or nothing, before any other path, so it
+  // can never fall through to a flat structure or a mechanism figure.
+  if (requiresConformationProjection(question)) return CHARGED_FORM_ASK.test(chemStem(question)) ? null : buildNewmanScene(question);
   // A mechanism ask is answered by checked curly arrows or not at all: a
   // product row without arrows would read as the mechanism.
   const mechanism = readMechanismSource(question);

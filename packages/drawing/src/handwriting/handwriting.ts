@@ -75,7 +75,48 @@ const SUBSCRIPT_MAP: Record<string, string> = {
   "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4", "₅": "5",
   "₆": "6", "₇": "7", "₈": "8", "₉": "9",
   "₊": "+", "₋": "-", "₌": "=", "₍": "(", "₎": ")",
+  // Subscript letters have no handwriting glyph of their own: written as a
+  // script group they are lettered small and low, not typed in a browser font.
+  // Greek subscripts (ᵦ ᵧ ᵨ ᵩ ᵪ) stay typed: the hand's small γ, χ and ρ read
+  // as y, x and p, which would change what the label says.
+  "ₐ": "a", "ₑ": "e", "ₒ": "o", "ₓ": "x", "ₕ": "h", "ₖ": "k", "ₗ": "l",
+  "ₘ": "m", "ₙ": "n", "ₚ": "p", "ₛ": "s", "ₜ": "t",
+  "ᵢ": "i", "ᵣ": "r", "ᵤ": "u", "ᵥ": "v", "ⱼ": "j",
 };
+
+/**
+ * A script bracket around characters that have no script form, as in `v₍A₎`:
+ * the whole bracket is one script group with the inside kept, so the A is
+ * lettered as the subscript and no stray bracket mark is left. Null keeps the
+ * usual reading: no closer, every character already a script form (`x₍₁₎`),
+ * or a character that is neither plain nor mapped (a modifier letter, ℓ).
+ */
+function scriptBracketGroup(source: string, start: number): { text: string; next: number } | null {
+  const opener = source[start];
+  const closer = opener === "₍" ? "₎" : opener === "⁽" ? "⁾" : null;
+  if (!closer) return null;
+  const map = opener === "₍" ? SUBSCRIPT_MAP : SUPERSCRIPT_MAP;
+  let depth = 1;
+  let end = start + 1;
+  for (; end < source.length; end++) {
+    if (source[end] === opener) depth++;
+    if (source[end] === closer && --depth === 0) break;
+  }
+  if (end >= source.length) return null;
+  const inside = Array.from(source.slice(start + 1, end));
+  if (inside.length === 0 || inside.every((char) => map[char] !== undefined)) return null;
+  let text = "";
+  let open = 0;
+  for (const char of inside) {
+    const mapped = map[char];
+    if (mapped === undefined && char.normalize("NFKC") !== char) return null;
+    if (char === "(") open++;
+    if (char === ")" && --open < 0) return null;
+    text += mapped ?? char;
+  }
+  if (open !== 0) return null;
+  return { text: `${opener === "₍" ? "_" : "^"}(${text})`, next: end + 1 };
+}
 
 /**
  * Rewrites Unicode fractions, LaTeX-ish limits, and super/subscript runs into
@@ -145,9 +186,16 @@ export function normalizeStrokeText(text: string): string {
       continue;
     }
 
+    const bracket = scriptBracketGroup(source, i);
+    if (bracket) {
+      out += bracket.text;
+      i = bracket.next;
+      continue;
+    }
+
     if (SUPERSCRIPT_MAP[ch] !== undefined) {
       let run = "";
-      while (i < source.length && SUPERSCRIPT_MAP[source[i]] !== undefined) {
+      while (i < source.length && SUPERSCRIPT_MAP[source[i]] !== undefined && (run === "" || !scriptBracketGroup(source, i))) {
         run += SUPERSCRIPT_MAP[source[i]];
         i++;
       }
@@ -157,11 +205,13 @@ export function normalizeStrokeText(text: string): string {
 
     if (SUBSCRIPT_MAP[ch] !== undefined) {
       let run = "";
-      while (i < source.length && SUBSCRIPT_MAP[source[i]] !== undefined) {
+      while (i < source.length && SUBSCRIPT_MAP[source[i]] !== undefined && (run === "" || !scriptBracketGroup(source, i))) {
         run += SUBSCRIPT_MAP[source[i]];
         i++;
       }
-      out += run.length > 1 ? `_(${run})` : `_${run}`;
+      // A letter is always grouped: a bare `_k` would carry on through the
+      // letters after it, so `μₖN` would subscript the N as well.
+      out += run.length > 1 || /\p{L}/u.test(run) ? `_(${run})` : `_${run}`;
       continue;
     }
 

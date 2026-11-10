@@ -214,6 +214,19 @@ check("layout-unsupported-atomic-decline", () => {
   const spiro = parseSmiles("C1CCC2(CC1)CCCC2")!;
   assert.ok(spiro); assert.equal(api.layoutMolecule(spiro), null);
 });
+/**
+ * A requested projection is answered by Newman projections or by nothing: never a flat
+ * skeleton. A sawhorse ask or a stem that excludes anything always declines.
+ */
+function newmanOrNothing(name: string, question: string): boolean {
+  const document = api.buildOrganicScene(question, [], false) as SceneDocument | null;
+  assert.equal(api.isOrganicStem(question), document !== null, "the organic cue fires only when the Newman figure is built");
+  if (/\bsawhorse\b|\b(?:no|not|without|excluding)\b|n['’]t\b/i.test(question)) assert.equal(document, null, "excluded or sawhorse asks decline");
+  if (!document) return false;
+  assert.ok((document.revealGroups ?? []).some((group) => group.id.startsWith("conformer_")), "zigzag is not a projection");
+  compiled(name, document);
+  return true;
+}
 for (const [index, question] of [
   "Draw the Newman projections of butane viewed along C2-C3 and compare their stability.",
   "Draw anti and gauche conformations of butane about C2–C3; which is more stable?",
@@ -246,8 +259,7 @@ for (const [index, question] of [
 ].entries()) check(`projection-decline-${index}`, () => {
   assert.equal(api.isMoStem(question), false);
   assert.equal(api.buildMoScene(question, [], false), null);
-  assert.equal(api.isOrganicStem(question), false);
-  assert.equal(api.buildOrganicScene(question, [], false), null, "zigzag is not a projection");
+  newmanOrNothing(`projection-decline-${index}`, question);
 });
 for (const [index, question] of [
   "Draw the skeletal structure of ethanol. Do not draw a Newman projection.",
@@ -434,9 +446,9 @@ for (const [index, question] of [
   assert.equal(requiresConformationProjection(question), true);
   assert.equal(api.isMoStem(question), false);
   assert.equal(api.buildMoScene(question, [], false), null);
-  assert.equal(api.isOrganicStem(question), false);
-  assert.equal(api.buildOrganicScene(question, [], false), null, "requested projection cannot become a flat skeleton");
-  assert.equal(synthesizeFamilyScene({ question, families: ["chem_organic", "chem_mo"] }), null);
+  const drawn = newmanOrNothing(`preposed-projection-decline-${index}`, question);
+  const synthesized = synthesizeFamilyScene({ question, families: ["chem_organic", "chem_mo"] });
+  assert.equal(synthesized?.family ?? null, drawn ? "chem_organic" : null);
 });
 for (const [index, question] of [
   "Without using Newman projections, draw the skeletal structure of butane.",
