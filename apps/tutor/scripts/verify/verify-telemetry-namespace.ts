@@ -54,6 +54,20 @@ function usage(sessionId: string, traceId: string) {
   return { id: "fake-observation", name: "tts-segment", type: "GENERATION", model: "sonic-3", sessionId, traceId, usageDetails: { characters: 1000 } };
 }
 
+function servePagedObservations(rows: ReturnType<typeof usage>[]) {
+  globalThis.fetch = async input => {
+    const url = new URL(String(input));
+    assert.equal(url.pathname, "/api/public/v2/observations");
+    const filter = JSON.parse(url.searchParams.get("filter") ?? "[]") as Array<{ value: string[] }>;
+    const matching = rows.filter(row => filter[0]?.value.includes(row.traceId));
+    const offset = Number(url.searchParams.get("cursor") ?? 0);
+    const next = offset + Number(url.searchParams.get("limit"));
+    return Response.json({ data: matching.slice(offset, next), meta: {
+      cursor: next < matching.length ? String(next) : null,
+    } });
+  };
+}
+
 test("the admin trace cost lookup resolves raw persisted ids to the owner-scoped observation", async () => {
   const traceId = namespace.scopedTraceId("student-one", "reusable-trace");
   globalThis.fetch = async input => {
@@ -103,32 +117,68 @@ test("admin logs retain a priced turn when another trace has no ingested observa
   assert.equal(result.byTraceId["not-ingested"], undefined);
 });
 
-test("admin logs fetch all 100 rows in one paginated batch and prefer scoped over legacy traces", async () => {
+test("admin logs fetch all 100 rows in bounded batches and prefer scoped over legacy traces", async () => {
   const ids = Array.from({ length: 100 }, (_, index) => `trace-${index}`);
   const scopedId = namespace.scopedTraceId("student-one", ids[0]!);
+  const rows = [...ids, scopedId].map(id => usage("board-one", id));
   const paths: URL[] = [];
   globalThis.fetch = async input => {
     const url = new URL(String(input));
     paths.push(url);
     assert.equal(url.pathname, "/api/public/v2/observations");
     const filter = JSON.parse(url.searchParams.get("filter") ?? "[]") as Array<{ value: string[] }>;
-    assert(ids.every(id => filter[0]?.value.includes(id)), "include every turn, including rows after 40");
-    if (!url.searchParams.has("cursor")) {
-      return Response.json({ data: [usage("board-one", ids[0]!), usage("board-one", scopedId)], meta: { cursor: "next" } });
-    }
-    assert.equal(url.searchParams.get("cursor"), "next");
-    return Response.json({ data: ids.slice(1).map(id => usage("board-one", id)) });
+    const matching = rows.filter(row => filter[0]?.value.includes(row.traceId));
+    const offset = Number(url.searchParams.get("cursor") ?? 0);
+    const next = offset + 20;
+    return Response.json({ data: matching.slice(offset, next), meta: {
+      cursor: next < matching.length ? String(next) : null,
+    } });
   };
   const result = await queries.fetchRunCostForTraces(ids, new Map([
     [ids[0]!, "student-one"], [ids[1]!, "student-two"],
   ]));
   assert.equal(result.error, undefined);
-  assert.equal(paths.length, 2, "a page of logs must not make a separate vendor request per turn");
+  assert(paths.length <= 8, "a page of logs must not make a separate vendor request per turn");
   assert.equal(Object.keys(result.byTraceId).length, 100);
   assert.equal(result.byTraceId[ids[0]!]!.observationTraceId, scopedId);
   assert.equal(result.byTraceId[ids[1]!]!.observationTraceId, ids[1]);
   assert.equal(result.byTraceId[ids[0]!]!.totalUsd, result.byTraceId[ids[1]!]!.totalUsd,
     "the legacy copy must not double the scoped trace cost");
+});
+
+test("a 100-turn log with 31 speech segments per turn retains every complete cost", async () => {
+  const ids = Array.from({ length: 100 }, (_, index) => `long-trace-${index}`);
+  const rows = ids.flatMap(traceId => Array.from({ length: 31 }, (_, index) => ({
+    ...usage("board-one", traceId), id: `${traceId}-speech-${index}`,
+  })));
+  servePagedObservations(rows);
+  const result = await queries.fetchRunCostForTraces(ids);
+  assert.equal(result.error, undefined, "3,100 observations must not exhaust a shared log-page limit");
+  assert.equal(Object.keys(result.byTraceId).length, 100);
+  assert(ids.every(id => result.byTraceId[id]!.ttsUsd === 1.55), "each turn includes all 31 speech segments exactly once");
+});
+
+test("an oversized group is split until every trace has a complete cost without counting retries", async () => {
+  const ids = ["heavy-one", "heavy-two", "heavy-three", "heavy-four"];
+  servePagedObservations(ids.flatMap(traceId => Array.from({ length: 800 }, (_, index) => ({
+    ...usage("board-one", traceId), id: `${traceId}-${index}`,
+  }))));
+  const result = await queries.fetchRunCostForTraces(ids);
+  assert.equal(result.error, undefined);
+  assert.equal(Object.keys(result.byTraceId).length, 4);
+  assert(ids.every(id => result.byTraceId[id]!.ttsUsd === 40), "discard partially fetched parents before retrying smaller groups");
+});
+
+test("one trace beyond the per-trace bound leaves other complete costs available", async () => {
+  servePagedObservations([
+    ...Array.from({ length: 3001 }, (_, index) => ({ ...usage("board-one", "oversized"), id: `speech-${index}` })),
+    usage("board-one", "complete-one"), usage("board-one", "complete-two"),
+  ]);
+  const result = await queries.fetchRunCostForTraces(["oversized", "complete-one", "complete-two"]);
+  assert.equal(result.error, "langfuse_unavailable");
+  assert.equal(result.byTraceId.oversized, undefined, "an incomplete trace must not expose an undercounted total");
+  assert.equal(result.byTraceId["complete-one"]?.ttsUsd, 0.05);
+  assert.equal(result.byTraceId["complete-two"]?.ttsUsd, 0.05);
 });
 
 test("admin logs do not report a generation awaiting usage as a free turn", async () => {

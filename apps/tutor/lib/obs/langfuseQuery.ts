@@ -12,6 +12,7 @@ const QUERY_TIMEOUT_MS = 8_000;
 const MAX_SESSIONS = 40;
 const MAX_TRACES_PER_SESSION = 20;
 const MAX_LOG_TRACES = 100;
+const LOG_TRACE_BATCH_SIZE = 25;
 /** One v2 page. Forty lectures fit in a handful of these instead of one traces call each. */
 const SESSION_OBSERVATION_LIMIT = 200;
 const SESSION_OBSERVATION_PAGES = 15;
@@ -173,7 +174,7 @@ export async function fetchRunCostForTraces(traceIds: string[], ownersByTraceId:
   }
 
   try {
-    // Read the whole log page together. Per-trace detail requests can hit the
+    // Batch the log page. Per-trace detail requests can hit the
     // vendor's rate limit, and a single missing trace used to blank every row.
     const candidates = new Map<string, string[]>();
     for (const traceId of unique) {
@@ -182,26 +183,54 @@ export async function fetchRunCostForTraces(traceIds: string[], ownersByTraceId:
       // a read-only fallback for this trusted admin lookup.
       candidates.set(traceId, userId ? [scopedTraceId(userId, traceId), traceId] : [traceId]);
     }
-    const filter = JSON.stringify([{
-      type: "stringOptions", column: "traceId", operator: "any of",
-      value: [...new Set([...candidates.values()].flat())],
-    }]);
     const observations: CostObservation[] = [];
-    let cursor: string | undefined;
-    for (let page = 0; page < SESSION_OBSERVATION_PAGES; page += 1) {
-      const params = new URLSearchParams({
-        fields: "core,basic,usage,metadata,model",
-        limit: String(SESSION_OBSERVATION_LIMIT), type: "GENERATION", filter,
-      });
-      if (cursor) params.set("cursor", cursor);
-      const payload = await langfuseGet(credentials, `/api/public/v2/observations?${params.toString()}`);
-      observations.push(...readObservations(payload, "unknown"));
-      const next = readCursor(payload);
-      if (!next) break;
-      if (next === cursor || page === SESSION_OBSERVATION_PAGES - 1) {
-        throw new Error("langfuse_trace_cost_incomplete");
+    const pending: string[][] = [];
+    for (let index = 0; index < unique.length; index += LOG_TRACE_BATCH_SIZE) {
+      pending.push(unique.slice(index, index + LOG_TRACE_BATCH_SIZE));
+    }
+    let incomplete = false;
+    while (pending.length > 0) {
+      const batch = pending.shift()!;
+      const filter = JSON.stringify([{
+        type: "stringOptions", column: "traceId", operator: "any of",
+        value: [...new Set(batch.flatMap(id => candidates.get(id)!))],
+      }]);
+      const batchObservations: CostObservation[] = [];
+      let cursor: string | undefined;
+      let complete = false;
+      try {
+        for (let page = 0; page < SESSION_OBSERVATION_PAGES; page += 1) {
+          const params = new URLSearchParams({
+            fields: "core,basic,usage,metadata,model",
+            limit: String(SESSION_OBSERVATION_LIMIT), type: "GENERATION", filter,
+          });
+          if (cursor) params.set("cursor", cursor);
+          const payload = await langfuseGet(credentials, `/api/public/v2/observations?${params.toString()}`);
+          batchObservations.push(...readObservations(payload, "unknown"));
+          const next = readCursor(payload);
+          if (!next) {
+            complete = true;
+            break;
+          }
+          if (next === cursor) break;
+          cursor = next;
+        }
+      } catch (error) {
+        console.warn("[langfuse] trace-cost batch failed", error instanceof Error ? error.message : "langfuse_unavailable");
+        incomplete = true;
+        continue;
       }
-      cursor = next;
+      if (complete) {
+        observations.push(...batchObservations);
+      } else if (batch.length > 1) {
+        // Retry smaller groups without retaining the partial parent, which
+        // would double-count usage. Scoped and legacy ids stay together.
+        const middle = Math.ceil(batch.length / 2);
+        pending.push(batch.slice(0, middle), batch.slice(middle));
+      } else {
+        // An oversized or stalled trace must not hide other complete costs.
+        incomplete = true;
+      }
     }
     const present = new Set(observations.map(row => row.traceId));
     const clientTraceIds = new Map<string, string>();
@@ -224,7 +253,7 @@ export async function fetchRunCostForTraces(traceIds: string[], ownersByTraceId:
         observationTraceId: candidates.get(row.sessionId)?.find(id => present.has(id)),
       };
     }
-    return { configured: true, byTraceId };
+    return { configured: true, byTraceId, ...(incomplete ? { error: "langfuse_unavailable" } : {}) };
   } catch (error) {
     const message = error instanceof Error ? error.message : "langfuse_unavailable";
     console.warn("[langfuse] trace-cost query failed", message);
