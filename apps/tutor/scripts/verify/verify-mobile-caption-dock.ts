@@ -320,6 +320,7 @@ export function shellSession(options: ShellOptions) {
     "./hooks/useBoardMarking": { useBoardMarking: () => ({ armed: false, marks: [] }) },
     "./hooks/useLecturePageHalt": { useLecturePageHalt: noop },
     "./hooks/useBoardThumbnail": { useBoardThumbnail: noop },
+    "./hooks/useLectureRating": { useLectureRating: () => ({ prompt: null, rate: async () => "failed", hold: noop, close: noop }) },
     "./hooks/useBoardFullscreen": { useBoardFullscreen: () => ({ active: options.fullscreen === true, toggle: noop }), useSessionChromeHidden: () => false },
   };
   const shellFile = path.join(appRoot, "features/tutor-session/TutorSessionShell.tsx");
