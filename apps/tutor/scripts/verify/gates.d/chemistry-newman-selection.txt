@@ -1,0 +1,2 @@
+# Newman projections through selection; organic boards dev saved still resume.
+tsx scripts/verify/verify-chemistry-newman-selection.ts
