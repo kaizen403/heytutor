@@ -109,7 +109,7 @@ assert(
   "overview query must load ledger + Langfuse cost",
 );
 assert(
-  read("features/admin/turns/TurnsTable.tsx").includes("CostChip"),
+  read("features/admin/turns/TurnsTable.tsx").includes("formatUsd(turn.totalUsd)"),
   "the turn log must show estimated AI + voice cost",
 );
 
