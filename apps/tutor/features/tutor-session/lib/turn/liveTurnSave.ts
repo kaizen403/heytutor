@@ -157,6 +157,16 @@ export interface LiveTurnHandle {
   submittedRows(): RecordedSegmentPayload[];
 }
 
+export interface RatableTurn {
+  turnId: string;
+  kind: TurnKind;
+  status: TurnStatus;
+  /** The server holds the turn's row, so a rating can name it. */
+  saved: boolean;
+  /** Finished steps so far. */
+  steps: number;
+}
+
 /** A finished step of the live turn with its clip in memory (the export contract). */
 export type LiveTurnSegment = StoredSegment & { audioBytes?: Uint8Array | null };
 export type LiveTurnSnapshot = Omit<StoredTurn, "segments"> & { segments: LiveTurnSegment[] };
@@ -828,6 +838,21 @@ export class LiveTurnSaveRegistry {
     const turn = this.latestFor(owner, boardId);
     if (!turn || turn.status === "complete") return false;
     return this.previewRows(turn, { includeCut: false }).some((row) => !isEpochRow(row));
+  }
+
+  /** The owner's newest turn on `boardId`, as the lecture rating prompt reads it. */
+  ratableTurnFor(owner: object, boardId: string | null | undefined): RatableTurn | null {
+    const turn = this.latestFor(owner, boardId);
+    if (!turn || turn.abandoned) return null;
+    const steps = this.previewRows(turn, { includeCut: turn.status !== "live" })
+      .filter((row) => !isEpochRow(row)).length;
+    return {
+      turnId: turn.turnId,
+      kind: turn.kind,
+      status: turn.status,
+      saved: turn.ackedStatus !== null,
+      steps,
+    };
   }
 
   // --- Subscriptions -----------------------------------------------------------

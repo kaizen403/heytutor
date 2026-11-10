@@ -16,6 +16,7 @@ routes are Next.js route handlers, plus a custom WebSocket relay in `server.ts`.
 | `/api/boards/[boardId]` | `app/api/boards/[boardId]/route.ts` | GET, PATCH, DELETE | Board detail + turns/segments; update title/preview; cascade delete + R2 cleanup |
 | `/api/boards/[boardId]/turns` | `app/api/boards/[boardId]/turns/route.ts` | POST | Save turn (multipart: metadata JSON + per-segment audio blobs); revalidates scene artifacts |
 | `/api/boards/[boardId]/notes-chat` | `app/api/boards/[boardId]/notes-chat/route.ts` | POST | Notes-sidebar chat against the current board |
+| `/api/boards/[boardId]/turns/[turnId]/rating` | `app/api/boards/[boardId]/turns/[turnId]/rating/route.ts` | PUT | The student's 1 to 5 stars and optional note for a lesson or Continue turn, per moment (`during`, `after`); upserts. [Plan](../plans/lecture-ratings.md) |
 | `/api/board-name` | `app/api/board-name/route.ts` | POST | LLM-generated board title from first question |
 | `/api/extract-question` | `app/api/extract-question/route.ts` | POST | Image → question text; stores the photo on S3 |
 | `/api/lecture-audio` | `app/api/lecture-audio/route.ts` | GET | Same-origin MP3 proxy (`key=` for S3, `src=` for legacy public hosts) |
@@ -27,6 +28,7 @@ routes are Next.js route handlers, plus a custom WebSocket relay in `server.ts`.
 | `/api/admin/overview` | `app/api/admin/overview/route.ts` | GET | Admin panel KPIs, 14-day UTC series, outcome/tier/degradation distributions, top lists |
 | `/api/admin/users` | `app/api/admin/users/route.ts` | GET | Admin panel user list with activity aggregates (`query`, `sort`, `page`, `pageSize`) |
 | `/api/admin/users/[userId]` | `app/api/admin/users/[userId]/route.ts` | GET | Admin panel user drill-down: profile, settings, boards, turns, chat, spend |
+| `/api/admin/ratings` | `app/api/admin/ratings/route.ts` | GET | Lecture ratings: averages, star spread, response rate, and the newest ratings with notes (`window`, `stars`, `moment`, `feedback`, pagination) |
 | `/api/admin/turns` | `app/api/admin/turns/route.ts` | GET | Admin panel turn log (`outcome`, `userId`, `boardId`, `query`, `days`, pagination) |
 | `/api/admin/coverage` | `app/api/admin/coverage/route.ts` | GET | Saved lesson figure coverage and empty-reason totals by subject/chapter over a UTC `from`/`to` window. One query per process; over 5,000 lessons, the newest 5,000 with `scan.truncated`. No source text. [Definitions and read-only CLI](../ops/production-coverage.md) |
 

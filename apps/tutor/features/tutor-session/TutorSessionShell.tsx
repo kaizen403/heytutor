@@ -106,6 +106,8 @@ import { useBoardReading } from "./hooks/useBoardReading";
 import { useBoardSession } from "./hooks/useBoardSession";
 import { useAdaptiveDrawSpeed } from "./hooks/useAdaptiveDrawSpeed";
 import { useNotesChat } from "./hooks/useNotesChat";
+import { useLectureRating } from "./hooks/useLectureRating";
+import { LectureRating } from "./components/LectureRating";
 import { type TutorSegment, type VerifiedDiagram } from "@heytutor/drawing";
 import { type InkPace, type TTSClient } from "@heytutor/tutor-core";
 import { type TurnTelemetry } from "@/lib/obs/turnTelemetry";
@@ -1128,6 +1130,26 @@ export function TutorSessionShell({
 
   const notesEnabled = can.notes;
   const lectureInProgress = phase !== "idle" && !isReplaying;
+  const lectureRating = useLectureRating({
+    enabled: can.rateLectures,
+    sessionId,
+    owner: cancelRef,
+    lecturing: lectureInProgress,
+  });
+  const ratingPrompt = lectureRating.prompt;
+  const ratingElement = (variant: "toast" | "card") =>
+    ratingPrompt ? (
+      <LectureRating
+        key={`${ratingPrompt.turnId}:${ratingPrompt.moment}`}
+        prompt={ratingPrompt}
+        variant={variant}
+        onRate={lectureRating.rate}
+        onHold={lectureRating.hold}
+        onClose={lectureRating.close}
+      />
+    ) : null;
+  const duringRatingToast = ratingPrompt?.moment === "during" ? ratingElement("toast") : null;
+  const afterRatingCard = ratingPrompt?.moment === "after" ? ratingElement("card") : null;
   /*
    * These four refs are the live turn buffers: `useTurnControl` pushes a
    * segment into them for every spoken beat, on the audio-synced path. They
@@ -1871,6 +1893,7 @@ export function TutorSessionShell({
       onRestartEarlyLesson={restartEarlyLesson}
       prefill={composerPrefill}
       onContinueLecture={flushPausedLesson}
+      lectureRating={afterRatingCard}
       billingNotice={billingNotice}
       onUpgrade={goUsage}
       onBillingFailure={handleBillingFailure}
@@ -2423,6 +2446,14 @@ export function TutorSessionShell({
                       onDismissError={() => setLastError(null)}
                     />
                   </div>
+                  {duringRatingToast && !scrollBoard ? (
+                    <div
+                      className="pointer-events-none absolute z-40"
+                      style={{ top: "calc(var(--bezel) + 10px)", right: "calc(var(--bezel) + 10px)" }}
+                    >
+                      {duringRatingToast}
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -2523,6 +2554,7 @@ export function TutorSessionShell({
               </div>
               {scrollBoard ? (
                 <div className="pointer-events-none absolute bottom-14 left-4 right-4 z-40 flex flex-col items-center gap-2">
+                  {duringRatingToast}
                   {saveStatus.kind === "failed" && !saveBannerDismissed ? (
                     <SaveFailureBanner
                       message={saveStatus.message}

@@ -10,6 +10,7 @@ import {
   Images,
   LayoutDashboard,
   ScrollText,
+  Star,
   TriangleAlert,
   Users,
 } from "lucide-react";
@@ -42,6 +43,12 @@ const SECTIONS: AdminSection[] = [
     label: "Fails",
     icon: TriangleAlert,
     active: (p) => p.startsWith("/admin/fails"),
+  },
+  {
+    href: "/admin/ratings",
+    label: "Ratings",
+    icon: Star,
+    active: (p) => p.startsWith("/admin/ratings"),
   },
   {
     href: "/admin/community",

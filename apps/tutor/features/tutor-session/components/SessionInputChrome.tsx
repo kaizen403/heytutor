@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { BillingFailure } from "@/lib/billing/billingClient";
 import { InputBar, type InputBarProps } from "@/features/tutor-session/components/InputBar";
 import { MarkedDoubtBar } from "@/features/tutor-session/components/MarkedDoubtBar";
@@ -43,6 +44,8 @@ interface SessionInputChromeProps {
   earlyLessonRestartOffer?: boolean;
   earlyLessonRestartReason?: "stop" | "doubt" | null;
   onRestartEarlyLesson?: () => void;
+  /** The end-of-lecture rating card, shown above the paused lesson bar. */
+  lectureRating?: ReactNode;
   /**
    * Text to place in the composer without sending it (Teach it again on an old
    * unsaved board, decision 13). A new `nonce` places it again.
@@ -82,6 +85,7 @@ export function SessionInputChrome({
   earlyLessonRestartOffer = false,
   earlyLessonRestartReason = null,
   onRestartEarlyLesson,
+  lectureRating = null,
   prefill = null,
   billingNotice = null,
   onUpgrade,
@@ -97,6 +101,7 @@ export function SessionInputChrome({
         margin: "0 auto",
       }}
     >
+      {phase === "idle" ? lectureRating : null}
       {earlyLessonRestartOffer ? <PausedLectureBar
         visible={phase === "idle"}
         mode="restart"

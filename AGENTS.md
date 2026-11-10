@@ -60,6 +60,7 @@ described in rule 5.
 | Finished-lecture playback bar (seek, speed, chapters) | `apps/tutor/features/tutor-session/hooks/useLecturePlayer.ts` + `components/LecturePlayerBar.tsx` + `lib/replay/lecturePlayer.ts` |
 | Community (public boards, remix) | `apps/tutor/lib/community/` (`publicBoard.ts` privacy whitelist, `queries.ts`, `remix.ts`) + `features/community/`; moderation in `/admin/community`; gate `verify-community-privacy.ts` |
 | Chemistry figures (formula to figure) | `packages/scene-engine/src/chemistry/` — families, `classify.ts`, `router.ts`; bench in `scripts/chemistry-lab/` |
+| Lecture ratings (stars + note, during and after each lecture) | `apps/tutor/features/tutor-session/hooks/useLectureRating.ts` + `components/LectureRating.tsx` + `lib/turn/lectureRatingPrompt.ts`; route `app/api/boards/[boardId]/turns/[turnId]/rating/`; admin `/admin/ratings`; [plan](docs/plans/lecture-ratings.md) |
 | Reference pictures (judged Commons diagram, pencil reveal; off by default) | `apps/tutor/lib/reference-picture/` + `app/api/reference-picture/` + `packages/drawing/src/protocol/referencePicture.ts` |
 
 ## Agent Guidelines

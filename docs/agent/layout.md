@@ -59,6 +59,7 @@ A new kind of file with no row in "Where new files go" gets its row first.
   `apps/tutor/components/ui/`. Brand marks in `apps/tutor/components/brand/`.
   Admin panel → `apps/tutor/features/admin/` (`nav/` shell nav, `analytics/`
   overview, `users/` manage-users + drill-down, `turns/` logs + fails,
+  `ratings/` lecture ratings,
   `shared/` kit; `AdminPlayground.tsx` is the full-bleed test playground at
   `/admin/playground`, outside the `(panel)` route group). Admin server
   queries and wire payloads → `apps/tutor/lib/admin/`. Account screens
@@ -73,7 +74,7 @@ A new kind of file with no row in "Where new files go" gets its row first.
   `authDisabled.ts`, `utils.ts`, `site.ts`, `cookies.ts`). Domains already in
   use: `account/`, `admin/`, `auth/`, `billing/`, `boards/`, `client/`,
   `code-lesson/` (persist parse), `code-render/`, `community/`, `crypto/`, `db/`, `http/`,
-  `lecture-export/`, `llm/`, `object-store/`, `obs/`, `reference-picture/`
+  `lecture-export/`, `lecture-rating/` (rating body and browser client), `llm/`, `object-store/`, `obs/`, `reference-picture/`
   (find, judge, stroke plan and store a reference picture), `replay/`,
   `scene/`, `tts/`.
 - Check → `scripts/verify/verify-<kebab-name>.ts` next to the package that
@@ -157,12 +158,12 @@ apps/tutor/
   features/app-shell/          signed-in shell
   features/community/          Community gallery, cards, read only viewer
   features/admin/              admin panel + syllabus playground
-    nav/  analytics/  users/  turns/  community/  shared/
+    nav/  analytics/  users/  turns/  community/  ratings/  shared/
     AdminPlayground.tsx        full-bleed playground (/admin/playground)
     components/  hooks/  lib/  playground internals
   lib/                         app-wide helpers grouped by domain
     account/  admin/  auth/  billing/  boards/  client/  code-lesson/
-    code-render/  community/  crypto/  db/  http/  lecture-export/  llm/  object-store/
+    code-render/  community/  crypto/  db/  http/  lecture-export/  lecture-rating/  llm/  object-store/
     obs/  replay/  scene/  tts/
   scripts/
     dev.ts
