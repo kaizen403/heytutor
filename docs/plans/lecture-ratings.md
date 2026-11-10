@@ -57,7 +57,8 @@ days, all), stars, has a note.
 | Browser client | `apps/tutor/lib/lecture-rating/ratingClient.ts` |
 | Route | `apps/tutor/app/api/boards/[boardId]/turns/[turnId]/rating/route.ts` |
 | When to ask (pure) | `apps/tutor/features/tutor-session/lib/turn/lectureRatingPrompt.ts` |
-| Prompt state, timers, send queue | `apps/tutor/features/tutor-session/hooks/useLectureRating.ts` |
+| Prompt state and timers | `apps/tutor/features/tutor-session/hooks/useLectureRating.ts` |
+| Send queue (tab-wide, outlives the board) | `apps/tutor/features/tutor-session/lib/turn/lectureRatingQueue.ts` |
 | Card and toast | `apps/tutor/features/tutor-session/components/LectureRating.tsx` |
 | Registry read | `LiveTurnSaveRegistry.ratableTurnFor` in `lib/turn/liveTurnSave.ts` |
 | Admin | `lib/admin/ratingsQueries.ts`, `app/api/admin/ratings/`, `features/admin/ratings/` |

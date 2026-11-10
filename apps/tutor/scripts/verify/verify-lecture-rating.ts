@@ -17,6 +17,8 @@ import {
   type RatingPromptTurn,
 } from "../../features/tutor-session/lib/turn/lectureRatingPrompt";
 import { LiveTurnSaveRegistry, SAVE_RETRY_DELAYS_MS } from "../../features/tutor-session/lib/turn/liveTurnSave";
+import { LectureRatingQueue } from "../../features/tutor-session/lib/turn/lectureRatingQueue";
+import type { LectureRatingResult, LectureRatingSubmission } from "../../lib/lecture-rating/ratingClient";
 import { lessonPageRecord } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { sessionCapabilities } from "../../features/tutor-session/lib/sessionCapabilities";
 
@@ -224,7 +226,60 @@ async function stalledSave() {
   assert.equal(registry.turnSaveState(handle.turnId), "waiting", "a manual retry sends again");
 }
 
-Promise.all([registryRead(), stalledSave()]).then(
+async function ratingQueue() {
+  const states = new Map<string, "saved" | "waiting" | "stalled" | "lost" | "unknown">();
+  const listeners = new Set<() => void>();
+  const sends: Array<{ turnId: string; body: LectureRatingSubmission; resolve: (result: LectureRatingResult) => void }> = [];
+  const timers: Array<() => void> = [];
+  const queue = new LectureRatingQueue({
+    saveState: (turnId) => states.get(turnId) ?? "unknown",
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    submit: (_boardId, turnId, body) => new Promise((resolve) => sends.push({ turnId, body, resolve })),
+    setTimer: (fire) => timers.push(fire),
+  });
+  const saveChanged = (turnId: string, state: "saved" | "waiting" | "stalled" | "lost") => {
+    states.set(turnId, state);
+    for (const listener of [...listeners]) listener();
+  };
+  const settle = async () => {
+    for (let i = 0; i < 4; i += 1) await Promise.resolve();
+  };
+  const rating = (turnId: string, stars: number, stepsTaught: number) => ({
+    boardId: "board-1", turnId, moment: "after" as const, stars, feedback: null, stepsTaught,
+  });
+
+  // The board that asked is gone; only the queue and the save registry remain.
+  states.set("slow", "waiting");
+  const slow = queue.enqueue(rating("slow", 4, 7));
+  states.set("next", "waiting");
+  saveChanged("next", "saved");
+  assert.equal(sends.length, 0, "waits for its own turn's save, not the newest turn's");
+  saveChanged("slow", "saved");
+  assert.equal(sends.length, 1);
+  assert.equal(sends[0]!.body.stepsTaught, 7, "steps as they were when the student rated");
+  sends.shift()!.resolve({ ok: false, retry: true });
+  await settle();
+  timers.shift()!();
+  assert.equal(sends[0]!.body.stepsTaught, 7, "a retry keeps the steps");
+  sends.shift()!.resolve({ ok: true });
+  assert.equal(await slow, "sent");
+  assert.equal(queue.size, 0);
+  assert.equal(listeners.size, 0, "an empty queue stops listening");
+
+  states.set("stuck", "stalled");
+  assert.equal(await queue.enqueue(rating("stuck", 2, 3)), "failed", "a stalled lecture save fails the card");
+  assert.equal(queue.size, 1, "and keeps the rating");
+  saveChanged("stuck", "saved");
+  assert.equal(sends.length, 1, "a manual save retry sends it");
+  sends.shift()!.resolve({ ok: true });
+  await settle();
+  assert.equal(queue.size, 0);
+}
+
+Promise.all([registryRead(), stalledSave(), ratingQueue()]).then(
   () => console.log("lecture rating: body, prompt rules, capabilities and registry read hold"),
   (error: unknown) => {
     console.error(error);

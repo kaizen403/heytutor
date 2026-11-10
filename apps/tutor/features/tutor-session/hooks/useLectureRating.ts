@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { LectureRatingMoment } from "@/lib/lecture-rating/ratingInput";
-import { submitLectureRating } from "@/lib/lecture-rating/ratingClient";
 import { liveTurnSave } from "../lib/turn/liveTurnSave";
+import { lectureRatingQueue, type LectureRatingSendResult } from "../lib/turn/lectureRatingQueue";
 import {
   DURING_PROMPT_AFTER_MS,
   DURING_PROMPT_VISIBLE_MS,
-  RATING_RETRY_DELAYS_MS,
   duringClockRuns,
   lectureRatingPrompt,
   parseRatingTurnSnapshot,
@@ -22,25 +21,7 @@ export interface LectureRatingPrompt {
   duringStars: number | null;
 }
 
-export type LectureRatingSendResult = "sent" | "failed";
-
-interface RatingContent {
-  boardId: string;
-  turnId: string;
-  moment: LectureRatingMoment;
-  stars: number;
-  feedback: string | null;
-}
-
-/** The newest content for one turn and moment, held until the server took it. */
-interface QueuedRating {
-  rating: RatingContent;
-  /** Callers waiting on `rating`, or on an older content it replaced. */
-  waiters: Array<(result: LectureRatingSendResult) => void>;
-  inflight: boolean;
-  attempts: number;
-  retryTimer: number | null;
-}
+export type { LectureRatingSendResult };
 
 export interface UseLectureRatingParams {
   enabled: boolean;
@@ -57,7 +38,8 @@ export interface UseLectureRatingResult {
   prompt: LectureRatingPrompt | null;
   /**
    * Save stars (and the note, when there is one) for the prompt's turn.
-   * Resolves once the server holds it, after the turn's own first save.
+   * Resolves once the server holds it, after the turn's own first save. The
+   * tab's queue keeps sending it after this board unmounts.
    */
   rate: (stars: number, feedback?: string | null) => Promise<LectureRatingSendResult>;
   /** The student is using the card: the midway card stops timing out. */
@@ -115,80 +97,23 @@ export function useLectureRating({ enabled, sessionId, owner, lecturing, paused 
     return () => window.clearTimeout(timer);
   }, [moment, promptKey, paused, heldKey, markAsked]);
 
-  // Every rating waits for its own turn's first save, whichever turn the board
-  // shows now. One request per turn and moment at a time, so the star saved on
-  // click lands before the note that rewrites it.
-  const queueRef = useRef(new Map<string, QueuedRating>());
-  const pumpRef = useRef<() => void>(() => {});
-  const pump = useCallback(() => {
-    for (const [key, queued] of queueRef.current) {
-      if (queued.inflight || queued.retryTimer !== null) continue;
-      const state = liveTurnSave().turnSaveState(queued.rating.turnId);
-      if (state === "waiting") continue;
-      if (state === "stalled") {
-        // Kept queued: a manual retry of the lecture's save still sends it.
-        for (const resolve of queued.waiters.splice(0)) resolve("failed");
-        continue;
-      }
-      if (state === "lost") {
-        queueRef.current.delete(key);
-        for (const resolve of queued.waiters) resolve("failed");
-        continue;
-      }
-      const sent = queued.rating;
-      const waiters = queued.waiters.splice(0);
-      queued.inflight = true;
-      const current = liveTurnSave().ratableTurnFor(owner, sent.boardId);
-      void submitLectureRating(sent.boardId, sent.turnId, {
-        moment: sent.moment,
-        stars: sent.stars,
-        feedback: sent.feedback,
-        stepsTaught: current?.turnId === sent.turnId ? current.steps : 0,
-      }).then((result) => {
-        queued.inflight = false;
-        if (!result.ok && result.retry && queued.attempts < RATING_RETRY_DELAYS_MS.length) {
-          queued.waiters.unshift(...waiters);
-          const delay = RATING_RETRY_DELAYS_MS[queued.attempts]!;
-          queued.attempts += 1;
-          queued.retryTimer = window.setTimeout(() => {
-            queued.retryTimer = null;
-            pumpRef.current();
-          }, delay);
-          return;
-        }
-        for (const resolve of waiters) resolve(result.ok ? "sent" : "failed");
-        if (queued.rating === sent) {
-          queueRef.current.delete(key);
-        } else {
-          queued.attempts = 0;
-          pumpRef.current();
-        }
-      });
-    }
-  }, [owner]);
-  useEffect(() => {
-    pumpRef.current = pump;
-  }, [pump]);
-  useEffect(() => liveTurnSave().subscribe(() => pumpRef.current()), []);
-
+  // The step count is the one when the student first rated this turn and
+  // moment; a note sent later keeps it.
+  const stepsRatedRef = useRef(new Map<string, number>());
   const rate = useCallback((stars: number, feedback: string | null = null): Promise<LectureRatingSendResult> => {
     if (!turn || !moment || !sessionId) return Promise.resolve("failed");
     if (moment === "during") {
       setDuringStars((current) => new Map(current).set(turn.turnId, stars));
     }
-    const rating: RatingContent = { boardId: sessionId, turnId: turn.turnId, moment, stars, feedback };
     const key = ratingPromptKey(turn.turnId, moment);
-    return new Promise<LectureRatingSendResult>((resolve) => {
-      const queued = queueRef.current.get(key);
-      if (queued) {
-        queued.rating = rating;
-        queued.waiters.push(resolve);
-      } else {
-        queueRef.current.set(key, { rating, waiters: [resolve], inflight: false, attempts: 0, retryTimer: null });
-      }
-      pumpRef.current();
-    });
-  }, [turn, moment, sessionId]);
+    let stepsTaught = stepsRatedRef.current.get(key);
+    if (stepsTaught === undefined) {
+      const current = liveTurnSave().ratableTurnFor(owner, sessionId);
+      stepsTaught = current?.turnId === turn.turnId ? current.steps : 0;
+      stepsRatedRef.current.set(key, stepsTaught);
+    }
+    return lectureRatingQueue().enqueue({ boardId: sessionId, turnId: turn.turnId, moment, stars, feedback, stepsTaught });
+  }, [turn, moment, sessionId, owner]);
 
   const hold = useCallback(() => {
     if (promptKey) setHeldKey(promptKey);
