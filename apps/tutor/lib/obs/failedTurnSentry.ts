@@ -117,6 +117,7 @@ async function claimFailedTurn(now: Date): Promise<PendingFailedTurnSentry | nul
         AND (status = 'complete' OR updated_at <= ${settledBefore})
         AND (visual_status IS DISTINCT FROM 'validated'
           OR scene_artifacts->'failureTelemetry'->'failed' = 'true'::jsonb
+          OR scene_artifacts->'failureTelemetry'->'issueCodes' @> '["teaching_voice_degraded"]'::jsonb
           OR (status = 'complete' AND NOT EXISTS (SELECT 1 FROM segments WHERE turn_id = turns.id)))
       ORDER BY sentry_next_attempt_at, id
       LIMIT 1 FOR UPDATE SKIP LOCKED

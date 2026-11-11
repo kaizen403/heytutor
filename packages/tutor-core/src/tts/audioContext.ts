@@ -4,15 +4,53 @@ const primedLectureContexts: AudioContext[] = [];
 const LATE_LECTURE_RESERVE = 5;
 const lectureAudioContexts = new Set<AudioContext>();
 const audioHolds = new Map<AudioContext, AudioBufferSourceNode>();
+const closingContexts = new WeakSet<AudioContext>();
+/**
+ * WebKit lifts its autoplay block per media element: a gesture unlocks only
+ * the elements it touches, and a fresh `new Audio()` is refused again unless
+ * it starts within about a second of another clip ending. Speech clips play
+ * on these elements, primed inside a gesture, so a pause between sentences
+ * cannot bring the permission prompt back.
+ */
+const primedSpeechAudio: HTMLAudioElement[] = [];
+const PRIMED_SPEECH_AUDIO = 2;
 
 /** One-sample WAV so HTMLMediaElement.play() can join the Watch click gesture. */
 const SILENT_WAV =
   "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
 
+/**
+ * Stop can close a context while a gesture's resume() or a pause's suspend()
+ * is still pending, and the browser rejects that promise. Only that race is
+ * expected; any other rejection still surfaces.
+ */
+export function settleContextChange(ctx: AudioContext, pending: Promise<void> | undefined): Promise<void> {
+  return Promise.resolve(pending).catch((error: unknown) => {
+    if (ctx.state === "closed" || closingContexts.has(ctx)) return;
+    throw error;
+  });
+}
+
+function closeContext(ctx: AudioContext): void {
+  closingContexts.add(ctx);
+  void ctx.close().catch(() => undefined);
+}
+
 function resumeContext(ctx: AudioContext): void {
   if (ctx.state === "suspended") {
-    void ctx.resume();
+    void settleContextChange(ctx, ctx.resume());
   }
+}
+
+/** An idle element a gesture already unlocked, or null when none is left. */
+export function takePrimedSpeechAudio(): HTMLAudioElement | null {
+  return primedSpeechAudio.shift() ?? null;
+}
+
+/** Return an unloaded element that came from `takePrimedSpeechAudio`. */
+export function returnPrimedSpeechAudio(audio: HTMLAudioElement): void {
+  if (primedSpeechAudio.includes(audio) || primedSpeechAudio.length >= LATE_LECTURE_RESERVE) return;
+  primedSpeechAudio.push(audio);
 }
 
 function releaseContextHold(ctx: AudioContext): void {
@@ -89,7 +127,7 @@ export function releaseLectureAudioContext(ctx: AudioContext | null | undefined)
   lectureAudioContexts.delete(ctx);
   releaseContextHold(ctx);
   if (ctx.state !== "closed") {
-    void ctx.close().catch(() => undefined);
+    closeContext(ctx);
   }
 }
 
@@ -117,7 +155,7 @@ export function haltAllLectureAudio(): void {
   }
   if (sharedAudioContext && sharedAudioContext.state !== "closed") {
     releaseContextHold(sharedAudioContext);
-    void sharedAudioContext.close().catch(() => undefined);
+    closeContext(sharedAudioContext);
   }
   sharedAudioContext = null;
 }
@@ -152,6 +190,12 @@ export function unlockTutorAudio(): void {
       const prime = new Audio(SILENT_WAV);
       prime.volume = 0.01;
       void prime.play().catch(() => undefined);
+      while (primedSpeechAudio.length < PRIMED_SPEECH_AUDIO) primedSpeechAudio.push(new Audio());
+      // Only idle elements are here; a clip that is playing is never touched.
+      for (const audio of primedSpeechAudio) {
+        audio.src = SILENT_WAV;
+        void audio.play().catch(() => undefined);
+      }
     } catch {
       // HTMLAudio unlock is best-effort; TTS still uses the shared AudioContext.
     }

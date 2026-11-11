@@ -757,10 +757,14 @@ export function TutorSessionShell({
     const handler = () => {
       ttsClientRef.current?.unlockAudio?.();
     };
+    // A touch only activates the page on its release (pointerup/touchend);
+    // WebKit unlocks media there, not on pointerdown or touchstart.
     const events: Array<keyof WindowEventMap> = [
       "pointerdown",
+      "pointerup",
       "keydown",
       "touchstart",
+      "touchend",
     ];
     for (const event of events) {
       window.addEventListener(event, handler, { passive: true });

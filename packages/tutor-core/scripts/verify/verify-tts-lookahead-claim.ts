@@ -103,6 +103,13 @@ async function waitFor(predicate: () => boolean, message: string) {
   assert(predicate(), message);
 }
 
+/** The element playing a sentence: a clip loads its blob URL, a finished one is unloaded. */
+function speakingAudio(): NativeAudio {
+  const loaded = NativeAudio.instances.filter((audio) => audio.src.startsWith("blob:"));
+  assert.equal(loaded.length, 1, "exactly one sentence element is loaded");
+  return loaded[0]!;
+}
+
 const OPENING = "Let's understand Gauss's law with a simple picture.";
 const INTRO = "Here S is a closed surface around an illustrative positive enclosed charge q, and the field vector starts on the surface.";
 const NEXT = "The total flux through S depends only on the charge inside it.";
@@ -112,6 +119,7 @@ async function replay(notice: "before-claim" | "after-claim" | "none") {
   const client = new StreamingSpeechClient();
   try {
     client.unlockAudio();
+    const gesturePrimed = NativeAudio.instances.filter((audio) => audio.src.startsWith("data:audio/wav"));
     // Production connects the socket when the question is asked (websocket-connect span).
     await client.prewarm(trace);
     client.prefetchSegment(OPENING, { ...trace, voiceSettings: TUTOR_OPENING_VOICE_SETTINGS });
@@ -128,7 +136,8 @@ async function replay(notice: "before-claim" | "after-claim" | "none") {
       onStart: () => { openingStarted = true; } });
     await waitFor(() => openingStarted, "the prefetched opening speaks");
     assert.equal(openingInTransit, 0, "audio already in hand is not in transit");
-    const openingAudio = NativeAudio.instances.at(-1)!;
+    const openingAudio = speakingAudio();
+    assert(gesturePrimed.includes(openingAudio), `${notice}: the opening plays on an element the gesture primed`);
     const afterOpening = NativeAudio.instances.length;
 
     // Lookahead from the runner while sentence 0 plays.
@@ -176,9 +185,11 @@ async function replay(notice: "before-claim" | "after-claim" | "none") {
     await waitFor(() => started, `${notice}: sentence 1 speaks in the provider voice once its audio lands`);
     assert(firstByte, `${notice}: first byte reported`);
     assert.equal(socket.sent.length, 3, `${notice}: no second generation of sentence 1`);
-    assert.equal(NativeAudio.instances.length, afterOpening + 1, `${notice}: one native element for sentence 1`);
+    // WebKit refuses a fresh element once the gesture is a second old.
+    assert.equal(NativeAudio.instances.length, afterOpening, `${notice}: sentence 1 needs no fresh native element`);
+    assert(gesturePrimed.includes(speakingAudio()), `${notice}: sentence 1 plays on an element the gesture primed`);
     assert.equal(inTransit, notice === "none" ? 0 : 1, `${notice}: the final does not repeat the notice`);
-    NativeAudio.instances.at(-1)!.end();
+    speakingAudio().end();
     await intro;
   } finally { client.stop(); }
 }
