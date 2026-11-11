@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { BillingFailure } from "@/lib/billing/billingClient";
 import { InputBar, type InputBarProps } from "@/features/tutor-session/components/InputBar";
 import { MarkedDoubtBar } from "@/features/tutor-session/components/MarkedDoubtBar";
@@ -43,6 +44,8 @@ interface SessionInputChromeProps {
   earlyLessonRestartOffer?: boolean;
   earlyLessonRestartReason?: "stop" | "doubt" | null;
   onRestartEarlyLesson?: () => void;
+  /** The end-of-lecture rating card, shown above the paused lesson bar. */
+  lectureRating?: ReactNode;
   /**
    * Text to place in the composer without sending it (Teach it again on an old
    * unsaved board, decision 13). A new `nonce` places it again.
@@ -82,6 +85,7 @@ export function SessionInputChrome({
   earlyLessonRestartOffer = false,
   earlyLessonRestartReason = null,
   onRestartEarlyLesson,
+  lectureRating = null,
   prefill = null,
   billingNotice = null,
   onUpgrade,
@@ -107,6 +111,9 @@ export function SessionInputChrome({
         reason={pausedLessonReason ?? "doubt"}
         onContinue={() => onContinueLecture?.()}
       />}
+      {/* Shown above the paused bar, but after it in the tree: the restart gate
+          reads that bar as the first child. */}
+      {phase === "idle" && lectureRating ? <div className="order-first">{lectureRating}</div> : null}
       {/* What the board understood, directly above where the doubt is typed —
           so the student reads the resolved line before pressing Ask. */}
       <MarkedDoubtBar

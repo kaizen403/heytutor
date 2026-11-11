@@ -36,6 +36,8 @@ export interface SessionCapabilities {
   settings: boolean;
   /** Whether changes made here are written back to the student's own defaults. */
   persistSettings: boolean;
+  /** Ask the student to rate each lecture. Staff Watch runs would skew the ratings. */
+  rateLectures: boolean;
   /** Board, ink, voice: what is left when everything else is off. */
   board: boolean;
 }
@@ -47,11 +49,12 @@ const FULL: SessionCapabilities = {
   marking: true,
   settings: true,
   persistSettings: true,
+  rateLectures: true,
   board: true,
 };
 
 /** Everything the main page can do, with the app frame taken off. */
-const PANEL: SessionCapabilities = { ...FULL, appChrome: false };
+const PANEL: SessionCapabilities = { ...FULL, appChrome: false, rateLectures: false };
 
 /** The unauthenticated demo: it may be watched and nothing else. */
 const EMBED: SessionCapabilities = {
@@ -61,6 +64,7 @@ const EMBED: SessionCapabilities = {
   marking: false,
   settings: false,
   persistSettings: false,
+  rateLectures: false,
   board: true,
 };
 
@@ -78,6 +82,7 @@ const HEADLESS: SessionCapabilities = {
   marking: false,
   settings: false,
   persistSettings: false,
+  rateLectures: false,
   board: true,
 };
 

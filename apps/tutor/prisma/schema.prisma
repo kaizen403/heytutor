@@ -40,6 +40,7 @@ model User {
   paidUsage             PaidUsageReservation[]
   ownedTraces           OwnedTrace[]
   storage               UserStorage?
+  lectureRatings        LectureRating[]
 
   @@map("users")
 }
@@ -171,6 +172,7 @@ model Board {
   turns        Turn[]
   chatMessages BoardChatMessage[]
   reports      CommunityReport[]
+  ratings      LectureRating[]
 
   @@index([userId], map: "boards_user_id_idx")
   @@index([userId, archivedAt, pinnedAt], map: "boards_user_id_archived_at_pinned_at_idx")
@@ -235,6 +237,7 @@ model Turn {
   board              Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   segments           Segment[]
+  ratings            LectureRating[]
 
   @@unique([boardId, orderIndex], map: "turns_board_id_order_index_key")
   @@unique([boardId, userId, idempotencyKey], map: "turns_board_id_user_id_idempotency_key_key")
@@ -281,6 +284,33 @@ model PaidUsageReservation {
   @@index([userId, traceId, kind])
   @@index([createdAt])
   @@map("paid_usage_reservations")
+}
+
+/// The student's stars for one lecture turn, asked while it plays (`during`)
+/// and when it ends (`after`). One row per moment; a later pick rewrites it.
+model LectureRating {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id")
+  boardId     String   @map("board_id")
+  turnId      String   @map("turn_id") @db.Uuid
+  /// during | after
+  moment      String
+  /// 1 to 5.
+  stars       Int
+  feedback    String?
+  /// Finished steps when the student rated it.
+  stepsTaught Int      @default(0) @map("steps_taught")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  board       Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  turn        Turn     @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  @@unique([turnId, moment], map: "lecture_ratings_turn_id_moment_key")
+  @@index([createdAt], map: "lecture_ratings_created_at_idx")
+  @@index([userId], map: "lecture_ratings_user_id_idx")
+  @@index([boardId], map: "lecture_ratings_board_id_idx")
+  @@map("lecture_ratings")
 }
 
 /// Purpose-limited deletion/signup abuse control; never retains raw email.

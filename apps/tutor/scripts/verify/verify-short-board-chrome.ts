@@ -325,6 +325,14 @@ function renderShell(
     },
     "./hooks/useLecturePageHalt": { useLecturePageHalt: noop },
     "./hooks/useBoardThumbnail": { useBoardThumbnail: noop },
+    "./hooks/useLectureRating": {
+      useLectureRating: () => ({
+        prompt: null,
+        rate: async () => "failed",
+        hold: noop,
+        close: noop,
+      }),
+    },
     "./hooks/useBoardFullscreen": {
       useBoardFullscreen: () => ({
         active: options.fullscreen === true,
