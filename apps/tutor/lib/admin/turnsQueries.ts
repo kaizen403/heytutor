@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { fetchRunCostForTraces, readLangfuseQueryCredentials } from "@/lib/obs/langfuseQuery";
 import { scopedTraceId } from "@/lib/obs/traceOwnership";
+import { lectureRatingLogs } from "./lectureRatingLog";
 import { classifyOutcome, extractArtifactSummary } from "./outcome";
 import { userLabel } from "./labels";
 import { failedTurnWhere } from "./turnFilters";
@@ -77,6 +78,7 @@ export async function listTurns(input: ListTurnsInput): Promise<TurnsPagePayload
         user: { select: { name: true, email: true } },
         boardId: true,
         board: { select: { title: true } },
+        ratings: { select: { moment: true, stars: true, feedback: true } },
       },
     }),
   ]);
@@ -116,6 +118,7 @@ export async function listTurns(input: ListTurnsInput): Promise<TurnsPagePayload
       llmUsd: cost?.llmUsd ?? null,
       ttsUsd: cost?.ttsUsd ?? null,
       totalUsd: cost?.totalUsd ?? null,
+      ratings: lectureRatingLogs(row.ratings),
     };
   });
 

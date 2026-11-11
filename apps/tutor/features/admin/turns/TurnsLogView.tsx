@@ -47,21 +47,29 @@ export function TurnsLogView() {
     if (!data) return;
     downloadCsv(
       `heytutor-turns-page${data.page}.csv`,
-      ["turn id", "question", "outcome", "tier", "user", "board", "engine", "created", "ai usd", "voice usd", "total usd", "trace"],
-      data.turns.map((turn) => [
-        turn.turnId,
-        turn.question,
-        turn.outcome,
-        turn.tier ?? "",
-        turn.userLabel,
-        turn.boardTitle,
-        turn.sceneEngineVersion ?? "",
-        turn.createdAt,
-        turn.llmUsd ?? "",
-        turn.ttsUsd ?? "",
-        turn.totalUsd ?? "",
-        turn.traceUrl ?? "",
-      ]),
+      ["turn id", "question", "outcome", "tier", "user", "board", "engine", "created", "ai usd", "voice usd", "total usd", "trace", "during stars", "during note", "after stars", "after note"],
+      data.turns.map((turn) => {
+        const during = turn.ratings.find((rating) => rating.moment === "during");
+        const after = turn.ratings.find((rating) => rating.moment === "after");
+        return [
+          turn.turnId,
+          turn.question,
+          turn.outcome,
+          turn.tier ?? "",
+          turn.userLabel,
+          turn.boardTitle,
+          turn.sceneEngineVersion ?? "",
+          turn.createdAt,
+          turn.llmUsd ?? "",
+          turn.ttsUsd ?? "",
+          turn.totalUsd ?? "",
+          turn.traceUrl ?? "",
+          during?.stars ?? "",
+          during?.feedback ?? "",
+          after?.stars ?? "",
+          after?.feedback ?? "",
+        ];
+      }),
     );
   };
 

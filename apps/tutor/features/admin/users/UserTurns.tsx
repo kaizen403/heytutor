@@ -1,6 +1,7 @@
 import type { AdminUserTurn } from "@/lib/admin/types";
 import { OutcomePill } from "../shared/components/OutcomePill";
 import { formatDurationMs, formatRelativeTime, truncateText } from "../shared/lib/format";
+import { RatingLog } from "../turns/RatingLog";
 
 function tierLabel(tier: AdminUserTurn["tier"]): string {
   if (tier === "exact_verified") return "exact";
@@ -29,6 +30,7 @@ export function UserTurns({ turns }: { turns: AdminUserTurn[] }) {
                     {turn.segmentCount} segment{turn.segmentCount === 1 ? "" : "s"}
                     {turn.narratedMs != null ? ` · ${formatDurationMs(turn.narratedMs)}` : ""}
                   </p>
+                  <RatingLog ratings={turn.ratings} />
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   <OutcomePill outcome={turn.outcome} />

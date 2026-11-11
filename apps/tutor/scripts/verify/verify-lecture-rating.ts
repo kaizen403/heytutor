@@ -21,6 +21,22 @@ import { LectureRatingQueue } from "../../features/tutor-session/lib/turn/lectur
 import type { LectureRatingResult, LectureRatingSubmission } from "../../lib/lecture-rating/ratingClient";
 import { lessonPageRecord } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { sessionCapabilities } from "../../features/tutor-session/lib/sessionCapabilities";
+import { lectureRatingLogs } from "../../lib/admin/lectureRatingLog";
+
+// --- The log the admin attaches to a lecture --------------------------------
+
+{
+  const logs = lectureRatingLogs([
+    { moment: "after", stars: 2, feedback: "  the figure was wrong  " },
+    { moment: "during", stars: 4, feedback: "   " },
+    { moment: "later", stars: 5, feedback: "no" },
+  ]);
+  assert.deepEqual(lectureRatingLogs([{ moment: "during", stars: 9, feedback: "too many" }]), []);
+  assert.deepEqual(logs, [
+    { moment: "during", stars: 4, feedback: null },
+    { moment: "after", stars: 2, feedback: "the figure was wrong" },
+  ]);
+}
 
 // --- The body ---------------------------------------------------------------
 

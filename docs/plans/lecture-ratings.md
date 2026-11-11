@@ -49,6 +49,10 @@ lessons taught in the window), the star distribution, and the newest ratings
 with their note, question, student and moment. Filters: window (7, 30, 90
 days, all), stars, has a note.
 
+Logs, Fails, and a student's turn list show the same ratings on that lecture:
+midway, then at the end, with the note. One or two stars is marked. The Logs
+CSV includes both moments. A lecture with no rating adds no line.
+
 ## Code map
 
 | Part | File |
@@ -61,14 +65,12 @@ days, all), stars, has a note.
 | Send queue (tab-wide, outlives the board) | `apps/tutor/features/tutor-session/lib/turn/lectureRatingQueue.ts` |
 | Card and toast | `apps/tutor/features/tutor-session/components/LectureRating.tsx` |
 | Registry read | `LiveTurnSaveRegistry.ratableTurnFor` in `lib/turn/liveTurnSave.ts` |
-| Admin | `lib/admin/ratingsQueries.ts`, `app/api/admin/ratings/`, `features/admin/ratings/` |
+| Admin | `lib/admin/ratingsQueries.ts`, `lib/admin/lectureRatingLog.ts`, `app/api/admin/ratings/`, `features/admin/ratings/`, `features/admin/turns/RatingLog.tsx` |
 | Gate | `apps/tutor/scripts/verify/verify-lecture-rating.ts` |
 
 ## Later
 
 - Quick reason chips on a low rating (too fast, wrong answer, figure was off,
   voice) so the notes can be counted, not only read.
-- Join ratings to the Logs and Fails rows so a two-star lecture opens its
-  trace.
 - A phone layout check for the compact board chrome, where the composer is a
   panel and the after card shows only when that panel is open.

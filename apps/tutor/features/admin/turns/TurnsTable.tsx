@@ -5,6 +5,7 @@ import { formatUsd } from "@/lib/obs/runCost";
 import { cn } from "@/lib/utils";
 import { OutcomePill } from "../shared/components/OutcomePill";
 import { formatRelativeTime, truncateText } from "../shared/lib/format";
+import { RatingLog } from "./RatingLog";
 
 const CELL = "px-3 py-2 align-middle";
 const HEAD = "type-accent-xs px-3 py-2 text-left text-faint";
@@ -40,6 +41,7 @@ export function TurnsTable({ turns }: { turns: AdminTurnRow[] }) {
                 <p className="max-w-[24rem] truncate text-xs text-frost" title={turn.question}>
                   {truncateText(turn.question, 90)}
                 </p>
+                <RatingLog ratings={turn.ratings} />
                 {turn.degradationReason ? (
                   <p className="type-accent-xs mt-0.5 text-danger">
                     {turn.degradationReason.replaceAll("_", " ")}
