@@ -213,6 +213,13 @@ export interface AdminUserBoard {
   totalUsd: number | null;
 }
 
+/** One saved lecture rating. `during` is the midway ask, `after` is the end. */
+export interface AdminLectureRatingLog {
+  moment: "during" | "after";
+  stars: number;
+  feedback: string | null;
+}
+
 export interface AdminUserTurn {
   turnId: string;
   question: string;
@@ -226,6 +233,7 @@ export interface AdminUserTurn {
   segmentCount: number;
   /** Summed segment durations, the closest persisted proxy for lesson length. */
   narratedMs: number | null;
+  ratings: AdminLectureRatingLog[];
 }
 
 export interface AdminUserChatMessage {
@@ -280,6 +288,7 @@ export interface AdminTurnRow {
   llmUsd: number | null;
   ttsUsd: number | null;
   totalUsd: number | null;
+  ratings: AdminLectureRatingLog[];
 }
 
 export interface TurnsPagePayload {

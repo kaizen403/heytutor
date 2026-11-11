@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { billingPeriodKey } from "@/lib/billing/ledgerMath";
 import { fetchUserBoardCosts } from "./costQueries";
+import { lectureRatingLogs } from "./lectureRatingLog";
 import { classifyOutcome, extractArtifactSummary } from "./outcome";
 import type {
   AdminUserRow,
@@ -66,6 +67,7 @@ export async function userDetail(userId: string): Promise<UserDetailPayload | nu
         createdAt: true,
         boardId: true,
         board: { select: { title: true } },
+        ratings: { select: { moment: true, stars: true, feedback: true } },
       },
     }),
     prisma.boardChatMessage.findMany({
@@ -168,6 +170,7 @@ export async function userDetail(userId: string): Promise<UserDetailPayload | nu
         createdAt: turn.createdAt.toISOString(),
         segmentCount: segments?.count ?? 0,
         narratedMs: segments?.durationMs ?? null,
+        ratings: lectureRatingLogs(turn.ratings),
       };
     }),
     chatMessages: messageRows.map((message) => ({

@@ -46,6 +46,7 @@ const turn: AdminTurnRow = {
   traceId: "trace-one", traceUrl: null, sentryEventId: null, sentryUrl: null,
   userId: "user-one", userLabel: "Student", boardId: "board-one", boardTitle: "Physics",
   createdAt: "2026-11-10T00:00:00.000Z", llmUsd: null, ttsUsd: null, totalUsd: null,
+  ratings: [],
 };
 const renderTurn = (overrides: Partial<AdminTurnRow>) =>
   renderToStaticMarkup(React.createElement(TurnsTable, { turns: [{ ...turn, ...overrides }] }));
@@ -55,5 +56,15 @@ const priced = renderTurn({ llmUsd: 0.0012, ttsUsd: 0.05, totalUsd: 0.0512 });
 assert(priced.includes("$0.051") && priced.includes("$0.0012"), "log costs keep sub-cent precision");
 assert(priced.includes("AI") && priced.includes("Voice"), "the log renders the AI and voice split");
 assert(!priced.includes('role="tooltip"'), "log cost details must not be clipped inside the scrolling table");
+assert(!renderTurn({}).includes("During") && !renderTurn({}).includes("After"), "an unrated lecture adds no rating line");
+const rated = renderTurn({
+  ratings: [
+    { moment: "during", stars: 4, feedback: null },
+    { moment: "after", stars: 2, feedback: "the figure was wrong" },
+  ],
+});
+assert(rated.includes("During 4/5") && rated.includes("After 2/5"), "the log shows both rating moments");
+assert(rated.includes("the figure was wrong"), "the log shows the student's note");
+assert(rated.includes("text-danger"), "a 1 or 2 star rating is marked on the log");
 
 console.log("✓ admin cost analytics: ledger months, millicents, and panel surfaces");
