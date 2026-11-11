@@ -241,7 +241,9 @@ async function main(): Promise<void> {
   result = await run([{ content: "NO_QUESTION" }, { status: 500 }]);
   assert.equal(result.status, 422, "a failed second look keeps the first decline rather than a 502");
   assert.equal((result.trace.metadata as Json).second_look, "failed");
+  assert.equal((result.trace.metadata as Json).attempts, 2, "a dispatched second look counts even when its reply fails");
   assert.deepEqual(result.reservation.settled, [undefined], "unknown second-look spend keeps the reserved cap");
+  assert.equal(result.trace.usageDetails, undefined, "unknown second-look usage must not report the first call as the total");
 
   denySecondLook = true;
   result = await run([{ content: "NO_QUESTION" }]);

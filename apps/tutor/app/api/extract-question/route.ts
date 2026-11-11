@@ -154,8 +154,10 @@ export async function POST(request: Request): Promise<Response> {
     name: "extract-question",
     generationName: "vision-ocr",
   });
-  const post = (candidate: string, secondLook: boolean) =>
-    fetch(llm.url, {
+  let attempts = 0;
+  const post = (candidate: string, secondLook: boolean) => {
+    attempts += 1;
+    return fetch(llm.url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -164,6 +166,7 @@ export async function POST(request: Request): Promise<Response> {
       signal: AbortSignal.any([request.signal, AbortSignal.timeout(30_000)]),
       body: JSON.stringify(requestBody(candidate, secondLook)),
     });
+  };
   const readReply = async (response: Response) => {
     if (!response.ok) {
       await response.body?.cancel();
@@ -234,6 +237,7 @@ export async function POST(request: Request): Promise<Response> {
         } catch (error) {
           if (request.signal.aborted) throw error;
           spentUsd = undefined;
+          usage = undefined;
           secondLook = "failed";
           console.warn(
             `[extract-question] second look failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -248,7 +252,7 @@ export async function POST(request: Request): Promise<Response> {
       image_height: image.height,
       image_bytes: image.bytes.length,
       image_detail: imageDetail ?? "default",
-      attempts: replies.length,
+      attempts,
       ...(secondLook ? { second_look: secondLook, first_decline: first.extraction.reason } : {}),
       ...(last.finishReason ? { finish_reason: last.finishReason } : {}),
       ...(reasoningTokens !== undefined ? { reasoning_tokens: reasoningTokens } : {}),
