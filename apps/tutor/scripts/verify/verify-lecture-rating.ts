@@ -22,6 +22,7 @@ import type { LectureRatingResult, LectureRatingSubmission } from "../../lib/lec
 import { lessonPageRecord } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { sessionCapabilities } from "../../features/tutor-session/lib/sessionCapabilities";
 import { lectureRatingLogs } from "../../lib/admin/lectureRatingLog";
+import { toCsv } from "../../features/admin/shared/lib/csv";
 
 // --- The log the admin attaches to a lecture --------------------------------
 
@@ -36,6 +37,18 @@ import { lectureRatingLogs } from "../../lib/admin/lectureRatingLog";
     { moment: "during", stars: 4, feedback: null },
     { moment: "after", stars: 2, feedback: "the figure was wrong" },
   ]);
+  const hostile = '=HYPERLINK("http://evil.example","open")';
+  const exported = toCsv(["after note", "stars"], [[hostile, -2], ["+cmd|'/c calc'!A0", 4], ["a plain note", 5]]);
+  assert.equal(
+    exported,
+    [
+      "after note,stars",
+      `"'=HYPERLINK(""http://evil.example"",""open"")",-2`,
+      `'+cmd|'/c calc'!A0,4`,
+      "a plain note,5",
+    ].join("\n"),
+  );
+  assert.doesNotMatch(exported, /(^|\n)[=+\-@]/, "no cell starts as a spreadsheet formula");
 }
 
 // --- The body ---------------------------------------------------------------
