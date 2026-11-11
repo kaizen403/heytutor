@@ -140,9 +140,6 @@ function answerRolesHold(
     typeof quantity.value === "number" && Number.isFinite(quantity.value));
   const answers = numeric.filter((quantity) => answerIds.includes(quantity.id));
   if (answers.length !== answerIds.length) return false;
-  // Allow rounded teaching values without an absolute floor: a 0.05 floor
-  // would bless a rate constant several times larger than the computed one.
-  const agrees = (a: number, b: number): boolean => Math.abs(a - b) <= 0.005 * Math.max(Math.abs(a), Math.abs(b));
   const symbolKey = (symbol: string): string => symbol.normalize("NFKC").toLowerCase()
     .replace(/\\(?:mathrm|text|operatorname)/g, "").replace(/[^a-z0-9]+/g, "");
   const answersUnknown = (quantity: TurnPlanV3["derived"][number], unknown: TurnPlanV3["unknowns"][number]): boolean =>
@@ -161,10 +158,22 @@ function answerRolesHold(
     const named = numeric.filter((candidate) => candidate.id === quantity.id ||
       typeof candidate.symbol === "string" && symbolKey(candidate.symbol) === symbolKey(quantity.symbol));
     if (!numeric.some((candidate) => inUnitOf(candidate) !== null)) return !isAnswer && named.length === 0;
-    const pool = isAnswer ? answers : named.length ? named : numeric;
+    // Several asked instants share a unit; swapping them is still false.
+    // A generic answer symbol is usable only when exactly one answer exists.
+    const pool = isAnswer
+      ? named.length ? answers.filter((answer) => named.includes(answer)) : answers.length === 1 ? answers : []
+      : named.length ? named : numeric;
     return pool.some((candidate) => {
       const converted = inUnitOf(candidate);
-      return converted !== null && agrees(candidate.value, converted);
+      if (converted === null) return false;
+      // Round only to the precision the plan actually supplies, in its own
+      // unit. A fixed percentage would accept an incorrect precise answer.
+      const [coefficient, exponent = "0"] = String(quantity.value).toLowerCase().split("e");
+      const decimals = coefficient!.split(".")[1]?.length ?? 0;
+      const halfStep = quantity.value === 0 ? 0 : 0.5 * 10 ** (Number(exponent) - decimals);
+      const tolerance = convertMeasuredValue(halfStep, quantity.unit, candidate.unit);
+      return tolerance !== null && Number.isFinite(tolerance) &&
+        Math.abs(candidate.value - converted) <= tolerance + Math.max(Math.abs(candidate.value), Math.abs(converted)) * 1e-9;
     });
   });
 }

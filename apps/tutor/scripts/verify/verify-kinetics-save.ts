@@ -80,17 +80,35 @@ async function main(): Promise<void> {
       [answer, "min", "validated", [{ id: "rate", symbol: "k", value: Number(rate.toPrecision(3)), unit: "1/min" }]],
       [500, "min", "retry_required", []],
       [500 / 60, "h", "retry_required", []],
+      [round(answer * 1.002), "min", "retry_required", []],
       [answer, "kg", "retry_required", []],
       [answer, "fortnights", "retry_required", []],
       [half, "min", "retry_required", []],
       [answer, "min", "retry_required", [{ id: "half", symbol: "t_1/2", value: 90, unit: "min" }]],
       [answer, "min", "retry_required", [{ id: "half", symbol: "t_1/2", value: round(answer), unit: "min" }]],
       [answer, "min", "retry_required", [{ id: "rate", symbol: "k", value: 0.02, unit: "1/min" }]],
+      [answer, "min", "retry_required", [{ id: "rate", symbol: "k", value: Number((rate * 1.002).toPrecision(8)), unit: "1/min" }]],
     ] as const) {
       await verify(example, planFor(example, value, unit, [...extra]), expected);
       checks++;
     }
   }
+  const multiple = { ...examples[0]!, question: "A first order reaction is 50% complete in 120 minutes. Calculate the time for 90% completion and the time for 99% completion." };
+  const rate = Math.LN2 / 120;
+  const t90 = -Math.log(0.1) / rate;
+  const t99 = -Math.log(0.01) / rate;
+  const multiPlan = planFor(multiple, t90, "min", [{ id: "answer99", symbol: "t_99", value: round(t99), unit: "min" }]);
+  multiPlan.unknowns = [{ id: "time90", symbol: "t_90", unit: "min" }, { id: "time99", symbol: "t_99", unit: "min" }];
+  multiPlan.derived[0]!.symbol = "t_90";
+  await verify(multiple, multiPlan, "validated");
+  const swapped = structuredClone(multiPlan);
+  swapped.derived[0]!.value = round(t99);
+  swapped.derived[1]!.value = round(t90);
+  await verify(multiple, swapped, "retry_required");
+  const ambiguous = structuredClone(multiPlan);
+  ambiguous.unknowns[0]!.symbol = ambiguous.derived[0]!.symbol = "t_x";
+  await verify(multiple, ambiguous, "retry_required");
+  checks += 3;
   console.log(`verify-kinetics-save: ${checks} production/save cases passed`);
 }
 void main();
