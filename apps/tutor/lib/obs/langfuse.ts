@@ -1,5 +1,5 @@
 import type { TtsProvider } from "../tts/providerConfig";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import {
   Langfuse,
   type LangfuseGenerationClient,
@@ -89,7 +89,14 @@ export interface StartTurnTraceParams {
   model?: string;
   name?: string;
   generationName?: string;
+  /** A planner's `x-planner-request-id`, so a later client report can update this generation. */
+  plannerRequestId?: string;
   tags?: string[];
+}
+
+/** Derived from the owned trace id, so a client can only address generations in its own traces. */
+export function plannerGenerationId(scopedTrace: string, plannerRequestId: string): string {
+  return createHash("sha256").update(`heytutor:planner-generation:v1\0${scopedTrace}\0${plannerRequestId}`).digest("hex");
 }
 
 export function startTurnTrace({
@@ -102,6 +109,7 @@ export function startTurnTrace({
   model,
   name = "tutor-turn",
   generationName = "fireworks-llm",
+  plannerRequestId,
   tags,
 }: StartTurnTraceParams): TurnTrace | null {
   const lf = getClient();
@@ -125,6 +133,7 @@ export function startTurnTrace({
   });
 
   const generation = trace.generation({
+    ...(plannerRequestId ? { id: plannerGenerationId(id, plannerRequestId) } : {}),
     name: generationName,
     model: serverModel,
     input: generationInput ?? input,
@@ -363,6 +372,38 @@ export function recordTurnEvents({
     const span = createTimedSpan(trace, event);
     spanClients.set(event.name, span);
   }
+}
+
+export type PlannerAbortReport = "superseded" | "deadline" | "turn_cancelled";
+
+/**
+ * The server only sees the client close an aborted planner request; the
+ * client names why. Langfuse merges this metadata into the generation the
+ * chat route already ended.
+ */
+export function recordPlannerAbortReason({
+  userId,
+  traceId,
+  plannerRequestId,
+  abortReason,
+}: {
+  userId?: string;
+  traceId: string;
+  plannerRequestId: string;
+  abortReason: PlannerAbortReport;
+}): void {
+  const lf = getClient();
+
+  if (!lf || !traceId) {
+    return;
+  }
+
+  const id = userId ? scopedTraceId(userId, traceId) : traceId;
+  lf._updateGeneration({
+    id: plannerGenerationId(id, plannerRequestId),
+    traceId: id,
+    metadata: { abort_reason: abortReason, abort_reason_source: "client" },
+  });
 }
 
 export function updateTurnTrace({

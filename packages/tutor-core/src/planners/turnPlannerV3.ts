@@ -9,7 +9,8 @@ import {
 } from "@heytutor/scene-engine";
 import { describeSceneFamily, evaluateMathExpression, isChemistryQuestion } from "@heytutor/scene-engine";
 import { withFastModeHeader } from "../llm/fastMode";
-import { withTurnTraceHeaders } from "../llm/traceHeaders";
+import { plannerAbort, plannerAbortReason, type PlannerAbortReason } from "../llm/plannerAbort";
+import { newPlannerRequestId, PLANNER_REQUEST_ID_HEADER, withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
 import { inferSceneCapabilities, isQualitativeConceptQuestion, qualitativeQuestionAllowsScene, sceneFamiliesForceVisualRequirement } from "./sceneCapabilities";
 import { reconcileTurnPlanWithOpticsLaws, type OpticsPlanAuditResult } from "./opticsPlanAudit";
@@ -73,6 +74,10 @@ export interface TurnPlanRequestOutcome {
   elapsedMs: number | null;
   /** Opted-in policy metadata only; a subject never establishes plan or numeric authority. */
   subject?: DiagramSubject;
+  /** Set only on `timeout` and `cancelled`. */
+  abortReason?: PlannerAbortReason;
+  /** Sent as `x-planner-request-id`; the server's generation for this request is keyed by it. */
+  requestId?: string;
 }
 
 export interface TurnPlanV3Response {
@@ -121,28 +126,77 @@ export async function planTurnV3(
       userContent: `${conversation}QUESTION\n${question}\n\nIndependently solve every requested unknown and return one complete checked plan.`,
     },
   ];
-  const controllers = lanes.map(() => new AbortController());
-  const pending = new Map(lanes.map((lane, index) => {
-    const controller = controllers[index]!;
+  type Settled = { index: number; result: TurnPlanV3Response | null };
+  type Entry = { controller: AbortController; promise: Promise<Settled>; settled: Settled | null; retry: boolean };
+  const pending = new Map<number, Entry>();
+  const launch = (
+    index: number,
+    retry: boolean,
+    request: (signal: AbortSignal) => Promise<TurnPlanV3Response | null>,
+  ) => {
+    const controller = new AbortController();
     const signal = options.signal
       ? mergeAbortSignals(options.signal, controller.signal)
       : controller.signal;
-    const promise = requestTurnPlanV3(
-      question,
-      { ...options, signal },
-      lane.systemPrompt,
-      lane.userContent,
-      "plan",
-      lane.lane,
-      "initial",
-      (rejected) => { rejectedPlan = rejected; },
-    ).then((result) => ({ index, result }));
-    return [index, promise] as const;
-  }));
+    const entry: Entry = { controller, settled: null, retry, promise: request(signal).then((result) => {
+      entry.settled = { index, result };
+      return entry.settled;
+    }) };
+    pending.set(index, entry);
+  };
+  const remainingMs = () => Math.max(0, options.timeoutMs - (Date.now() - startedAt));
+  const retryRequest = (requestOptions: TurnPlannerV3Options) => requestTurnPlanV3(
+    question,
+    requestOptions,
+    TURN_PLAN_V3_RETRY_PROMPT,
+    `${conversation}QUESTION\n${question}\n\nReturn a complete corrected plan. Missing requested numeric answers are fatal.${repairFeedback(rejectedPlan)}`,
+    "plan",
+    "alternate",
+    "retry",
+  );
+  lanes.forEach((lane, index) => launch(index, false, (signal) => requestTurnPlanV3(
+    question,
+    { ...options, signal },
+    lane.systemPrompt,
+    lane.userContent,
+    "plan",
+    lane.lane,
+    "initial",
+    (rejected) => { rejectedPlan = rejected; },
+  )));
   const completed: TurnPlanV3Response[] = [];
   let firstValidAt: number | null = null;
+  let failedLanes = 0;
+  let retryLaunched = false;
 
   while (pending.size > 0 && !options.signal?.aborted) {
+    // Lanes that already answered are counted before a retry is chosen.
+    const arrived = [...pending.values()].flatMap((entry) => entry.settled ? [entry.settled] : []);
+    if (arrived.length > 0) {
+      for (const settled of arrived) {
+        pending.delete(settled.index);
+        if (!settled.result) {
+          failedLanes += 1;
+          continue;
+        }
+        completed.push(settled.result);
+        if (firstValidAt === null) firstValidAt = Date.now();
+      }
+      continue;
+    }
+    // The one retry starts when a lane fails, not when its slower peer also
+    // has: waiting left it the end of the deadline and cut it off. It never
+    // holds a valid plan back.
+    if (completed.length === 0 && failedLanes > 0 && !retryLaunched) {
+      // A peer answering in the same moment is counted first.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      if ([...pending.values()].some((entry) => entry.settled)) continue;
+      if (!options.signal?.aborted && remainingMs() >= 500) {
+        retryLaunched = true;
+        launch(lanes.length, true, (signal) => retryRequest({ ...options, signal, timeoutMs: remainingMs() }));
+      }
+    }
+    if (firstValidAt !== null && [...pending.values()].every((entry) => entry.retry)) break;
     const remainingGrace = firstValidAt === null
       ? null
       : Math.max(0, TURN_PLAN_PEER_GRACE_MS - (Date.now() - firstValidAt));
@@ -154,28 +208,17 @@ export async function planTurnV3(
           graceTimeoutId = setTimeout(() => resolve(null), remainingGrace);
         });
     const settled = await Promise.race([
-      ...pending.values(),
+      ...[...pending.values()].map((entry) => entry.promise),
       ...(graceTimeout ? [graceTimeout] : []),
     ]).finally(() => clearTimeout(graceTimeoutId));
     if (!settled) break;
-    pending.delete(settled.index);
-    if (!settled.result) continue;
-    completed.push(settled.result);
-    if (firstValidAt === null) firstValidAt = Date.now();
   }
-  for (const index of pending.keys()) controllers[index]?.abort();
+  for (const entry of pending.values()) entry.controller.abort(plannerAbort("superseded"));
   if (completed.length === 0) {
-    const remainingMs = Math.max(0, options.timeoutMs - (Date.now() - startedAt));
-    if (remainingMs < 500) return null;
-    return requestTurnPlanV3(
-      question,
-      { ...options, timeoutMs: remainingMs },
-      TURN_PLAN_V3_RETRY_PROMPT,
-      `${conversation}QUESTION\n${question}\n\nReturn a complete corrected plan. Missing requested numeric answers are fatal.${repairFeedback(rejectedPlan)}`,
-      "plan",
-      "alternate",
-      "retry",
-    );
+    if (retryLaunched) return null;
+    const budgetMs = remainingMs();
+    if (budgetMs < 500) return null;
+    return retryRequest({ ...options, timeoutMs: budgetMs });
   }
   const selectedPlan = selectTurnPlanV3Consensus(
     null,
@@ -232,6 +275,8 @@ async function requestTurnPlanV3(
   let outcomeCode: TurnPlanOutcomeCode = "transport_failed";
   let responseReceived = false;
   let subject: DiagramSubject | undefined;
+  let abortReason: PlannerAbortReason | null = null;
+  const requestId = newPlannerRequestId();
   const parseOutcome: TurnPlanParseOutcome = {
     code: "plan_processing_failed", issueCodes: [], unrecognizedIssueCount: 0,
   };
@@ -259,6 +304,7 @@ async function requestTurnPlanV3(
             "x-turn-plan-phase": phase,
             "x-turn-planner-lane": lane,
             "x-planner-deadline-ms": String(options.timeoutMs),
+            ...(requestId ? { [PLANNER_REQUEST_ID_HEADER]: requestId } : {}),
           },
           { sessionId: options.sessionId, traceId: options.traceId, question },
         ),
@@ -323,8 +369,13 @@ async function requestTurnPlanV3(
       ...(options.classifySubject ? { subject: subject ?? "other" } : {}),
     };
   } catch (error) {
-    if (options.signal?.aborted) outcomeCode = "cancelled";
-    else if (timeoutController.signal.aborted) outcomeCode = "timeout";
+    if (options.signal?.aborted) {
+      outcomeCode = "cancelled";
+      abortReason = plannerAbortReason(options.signal);
+    } else if (timeoutController.signal.aborted) {
+      outcomeCode = "timeout";
+      abortReason = "deadline";
+    }
     else if (outcomeCode === "transport_failed" && isAbortError(error)) outcomeCode = "cancelled";
     // Fetch returned, then a getter threw before a more specific code was chosen.
     else if (outcomeCode === "transport_failed" && responseReceived) outcomeCode = "plan_processing_failed";
@@ -351,6 +402,8 @@ async function requestTurnPlanV3(
           issueCodes: [...parseOutcome.issueCodes],
           unrecognizedIssueCount: parseOutcome.unrecognizedIssueCount, elapsedMs,
           ...(options.classifySubject ? { subject: subject ?? "other" } : {}),
+          ...(abortReason ? { abortReason } : {}),
+          ...(requestId ? { requestId } : {}),
         })).catch(() => {});
       }
     } catch { /* Diagnostics must never change planning behavior. */ }
@@ -1189,11 +1242,10 @@ function isAbortError(error: unknown): boolean {
 
 function mergeAbortSignals(first: AbortSignal, second: AbortSignal): AbortSignal {
   const controller = new AbortController();
-  const abort = () => controller.abort();
-  if (first.aborted || second.aborted) abort();
+  if (first.aborted || second.aborted) controller.abort(first.aborted ? first.reason : second.reason);
   else {
-    first.addEventListener("abort", abort, { once: true });
-    second.addEventListener("abort", abort, { once: true });
+    first.addEventListener("abort", () => controller.abort(first.reason), { once: true });
+    second.addEventListener("abort", () => controller.abort(second.reason), { once: true });
   }
   return controller.signal;
 }
