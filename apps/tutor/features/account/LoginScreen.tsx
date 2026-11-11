@@ -46,19 +46,26 @@ export function LoginScreen({
   const callbackUrl = next;
   const canSignIn = googleEnabled || devLoginEnabled;
 
+  const failSignIn = () => {
+    setRedirecting(false);
+    setLocalError("OAuthSignin");
+  };
+
   const start = () => {
     setLocalError(null);
     setRedirecting(true);
-    if (googleEnabled) {
-      void signIn("google", { callbackUrl });
-      return;
-    }
-    void signIn("dev-login", { callbackUrl, name: "Local learner" });
+    const request = googleEnabled
+      ? signIn("google", { callbackUrl })
+      : signIn("dev-login", { callbackUrl, name: "Local learner" });
+    request.catch(failSignIn);
   };
 
   useEffect(() => {
     if (!autoGoogle || !googleEnabled) return;
-    void signIn("google", { callbackUrl });
+    signIn("google", { callbackUrl }).catch(() => {
+      setRedirecting(false);
+      setLocalError("OAuthSignin");
+    });
   }, [autoGoogle, googleEnabled, callbackUrl]);
 
   useEffect(() => {

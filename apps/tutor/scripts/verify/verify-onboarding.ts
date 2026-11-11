@@ -100,6 +100,11 @@ assert(signupIntent("/usage?plan=plus&currency=INR") === "plus", "the landing Pl
 assert(signupIntent("/settings/usage?currency=USD") === "credits", "the landing credits button carries the credits intent");
 assert(signupIntent("/?q=Why%20is%20the%20sky%20blue") === "question", "a landing question carries the lesson intent");
 assert(signupIntent("/") === null && signupIntent("//evil.example") === null, "no intent without a destination");
+assert(
+  signupIntent("/onboarding?next=%2Fusage%3Fplan%3Dplus") === "plus",
+  "login reads the destination wrapped in the signed-out onboarding redirect",
+);
+assert(signupIntent("/onboarding?next=%2F%2Fevil.example") === null, "a wrapped destination is still made safe");
 
 const root = resolve(import.meta.dirname, "../..");
 const screen = readFileSync(resolve(root, "features/account/OnboardingScreen.tsx"), "utf8");
