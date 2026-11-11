@@ -12,6 +12,7 @@ type Init = {
   beforeSendLog: (log: Record<string, unknown>) => unknown;
   beforeBreadcrumb: (breadcrumb: Record<string, unknown>) => unknown;
   tracesSampler?: (context: { name: string }) => number;
+  ignoreErrors?: Array<string | RegExp>;
 };
 const app = resolve(import.meta.dirname, "../..");
 const syntheticDsn = "https://synthetic@example.ingest.sentry.io/1";
@@ -131,6 +132,13 @@ for (const [name, runtime, hostname, enabled] of browserCases) {
   const options = fixture.inits[0]!;
   check(options.environment, "production", "browser event environment comes from the deployment marker");
   check(options.tracesSampler!({ name: "GET /synthetic" }), 0.1, "production browser traces are sampled");
+  const ignored = (message: string) => (options.ignoreErrors ?? []).some((pattern) => typeof pattern === "string" ? message.includes(pattern) : pattern.test(message));
+  for (const dropped of ["TypeError: Load failed", "Load failed (api.accelute.co)", "TypeError: NetworkError when attempting to fetch resource.", "TypeError: Failed to fetch"]) {
+    check(ignored(dropped), true, `browser drops the network-abort noise "${dropped}"`);
+  }
+  for (const real of ["TypeError: Load failed to parse the lesson", "Error: Failed to fetch the board: 500", "TypeError: undefined is not an object"]) {
+    check(ignored(real), false, `browser still reports "${real}"`);
+  }
   fixture.location!.hostname = "localhost";
   (fixture.exports.onRouterTransitionStart as () => void)();
   check(fixture.captures(), 1, "router capture rechecks live hostname");
