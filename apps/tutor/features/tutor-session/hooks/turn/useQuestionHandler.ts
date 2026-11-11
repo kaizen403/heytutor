@@ -1664,7 +1664,10 @@ export function useQuestionHandler(
         // lesson-figures-families:begin
         lessonSceneFamilies = sceneCapabilities.families;
         // lesson-figures-families:end
-        if (planning.gate.chemistryLane) page.failureTelemetry = { ...page.failureTelemetry, subject: "chemistry" };
+        // A family cue can claim a maths or physics stem; the plan's subject still names the lesson.
+        if (planning.gate.chemistryLane && (page.failureTelemetry?.subject ?? "other") === "other") {
+          page.failureTelemetry = { ...page.failureTelemetry, subject: "chemistry" };
+        }
         diagramStrategyDecision = planning.gate.diagramStrategy;
         tel.meta({ diagram_strategy: diagramStrategyDecision.strategy });
         const skippedExactForMissingCapability = shouldPlanExactScene && !shouldAttemptLlmScene;
@@ -1766,7 +1769,12 @@ export function useQuestionHandler(
             : attempted && !sceneSelection.sourceAllowed ? { stage: "scene_planner", code: "fallback_suppressed" } as const
               : value?.document.visualDecision.mode === "text_only" ? { stage: "scene_planner", code: "planner_declined" } as const
                 : result && !result.validation.valid ? { stage: "validation", code: "candidate_invalid" } as const
-                  : sceneRequestFailure;
+                  // The chemistry lane never runs the planner: a family figure
+                  // refused downstream, or no family that draws the topic.
+                  : !result && planning.gate.chemistryLane && !sceneRequestFailure && sceneSelection.visualStatus === "retry_required"
+                    ? attempted ? { stage: "validation", code: "candidate_invalid" } as const
+                      : { stage: "scene_planner", code: "missing_capability" } as const
+                    : sceneRequestFailure;
           if (failure) page.failureTelemetry = { ...page.failureTelemetry, subject: page.failureTelemetry?.subject ?? "other", ...failure };
         }
         if (sceneSelection.reason === "the question asks for no figure") {

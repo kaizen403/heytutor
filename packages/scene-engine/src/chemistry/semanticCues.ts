@@ -11,6 +11,22 @@ export function molecularOverlapRequested(stem: string): boolean {
   return /orbital overlap|(?:head[- ]?on|end[- ]?on|sideways|axial|lateral)\s+(?:orbital\s+)?overlap/.test(stem);
 }
 
+/**
+ * Clinical practice words. A treatment note names drugs and salts ("nitrates",
+ * "urea and electrolytes") without asking about their chemistry, so these
+ * count against the chemistry subject the way physics apparatus does.
+ */
+const CLINICAL_PRACTICE = /\b(?:patients?|side[- ]effects?|adverse (?:effects?|reactions?)|contraindicat\w*|prognosis|symptoms?|symptomatic|diagnos(?:is|ed|tic)|(?:first|second|third)[- ]line|prescri(?:be|bed|bing|ption)s?|clinical(?:ly)?|therap(?:y|ies|eutic)|angina|hypertensi(?:on|ve)|myocardial|coronary|renal (?:impairment|failure|function|artery)|hyperkal(?:a)?emia|pregnan(?:t|cy)|dos(?:e|es|age|ing)|once daily|twice daily)\b/g;
+
+export function clinicalPracticeTerms(stem: string): string[] {
+  return stem.toLowerCase().match(CLINICAL_PRACTICE) ?? [];
+}
+
+/** Two different clinical words: one alone ("an antacid relieves the patient") is still a chemistry stem. */
+export function clinicalPracticeContext(stem: string): boolean {
+  return new Set(clinicalPracticeTerms(stem).map((term) => term.replace(/[- ]/g, "").replace(/s$/, ""))).size >= 2;
+}
+
 /** Order/half-life alone can describe a differential equation or generic decay. */
 export function chemicalKineticsContext(stem: string, originalQuestion: string = stem): boolean {
   if (/\breactions?\b|\breactants?\b|\bchemical kinetics\b|\bconcentration\b|\brate (?:law|constant)\b|\barrhenius\b|\[(?:a|b)\]/.test(stem)) return true;

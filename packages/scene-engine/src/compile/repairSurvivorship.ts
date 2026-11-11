@@ -195,6 +195,7 @@ function sameMeaning(
     const before = vectorMeaning(a);
     const after = vectorMeaning(b);
     if (before && after && before !== after) return false;
+    if (a.operator === b.operator && a.outputIndex === b.outputIndex) return true;
     return (
       ["vector", "trajectory_state", "projectile_trajectory"].includes(
         String(a.operator),
