@@ -16,6 +16,7 @@ import { FIGURE_QUESTION_CHARS, figureQuestionChars } from "@/lib/scene/figureQu
 import {
   displayedSceneQuantityTexts,
   certifyVseprSourceDocument,
+  convertMeasuredValue,
   RELATIVE_MOTION_SOURCE_MODEL,
   synthesizeFamilyScene,
   validateCoordinateDistanceSourceInputs,
@@ -95,12 +96,18 @@ function engineDerivedValues(question: string, turnPlan: TurnPlanV3): EngineDeri
   // source programs check plan values by physical role before synthesis, then
   // validate the complete computed state. Different roles may share a unit
   // (initial position and encounter position, for example).
+  const derived = turnPlan.derived.map((quantity) => ({ value: quantity.value, unit: unitKey(quantity.unit) }));
+  const agrees = (a: number, b: number): boolean => Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(a)) + 0.05;
+  // A figure that names its answers supports nothing unless every plan value
+  // takes its role; the literal-unit rule below would miss an answer in hours.
+  const answerRoles = answerRolesHold(fresh.document, turnPlan);
+  if (answerRoles === false) return regenerated;
   const roleCheckedSource =
     (source.sourceModel === RELATIVE_MOTION_SOURCE_MODEL && validateRelativeMotionSourceInputs(fresh.document, question).length === 0)
-    || (source.archetype === "uniform_circular_motion_source" && validateUniformCircularSourceInputs(fresh.document, question).length === 0);
-  const derived = turnPlan.derived.map((quantity) => ({ value: quantity.value, unit: unitKey(quantity.unit) }));
+    || (source.archetype === "uniform_circular_motion_source" && validateUniformCircularSourceInputs(fresh.document, question).length === 0)
+    || answerRoles === true;
   const contradicts = (value: number, unit: string): boolean => !roleCheckedSource && derived.some((quantity) =>
-    quantity.unit === unit && Math.abs(quantity.value - value) > 1e-6 * Math.max(1, Math.abs(value)) + 0.05);
+    quantity.unit === unit && !agrees(quantity.value, value));
   const quantities = new Map<string, { value: unknown; unit: unknown }>();
   for (const quantity of fresh.document.quantities) {
     if (typeof quantity.value === "number" && contradicts(quantity.value, unitKey(quantity.unit))) continue;
@@ -113,6 +120,53 @@ function engineDerivedValues(question: string, turnPlan: TurnPlanV3): EngineDeri
     texts.add(text);
   }
   return { quantities, texts, document: fresh.document };
+}
+
+/**
+ * Roles for a regenerated figure that names its answers (`answerQuantityIds`):
+ * a plan answer (derived for an unknown) must be one of the figure's answers,
+ * and every other derived value one of its quantities, compared after an
+ * exact unit conversion. An unrelated value no figure quantity can be
+ * converted to cannot contradict it. A plan that gives the half life as the answer fails
+ * here, though the figure also shows it. Null when no answers are named.
+ */
+function answerRolesHold(
+  document: SceneDocument,
+  turnPlan: TurnPlanV3,
+): boolean | null {
+  const answerIds = document.source.answerQuantityIds;
+  if (!Array.isArray(answerIds) || answerIds.length === 0) return null;
+  const numeric = document.quantities.filter((quantity): quantity is typeof quantity & { value: number } =>
+    typeof quantity.value === "number" && Number.isFinite(quantity.value));
+  const answers = numeric.filter((quantity) => answerIds.includes(quantity.id));
+  if (answers.length !== answerIds.length) return false;
+  // Allow rounded teaching values without an absolute floor: a 0.05 floor
+  // would bless a rate constant several times larger than the computed one.
+  const agrees = (a: number, b: number): boolean => Math.abs(a - b) <= 0.005 * Math.max(Math.abs(a), Math.abs(b));
+  const symbolKey = (symbol: string): string => symbol.normalize("NFKC").toLowerCase()
+    .replace(/\\(?:mathrm|text|operatorname)/g, "").replace(/[^a-z0-9]+/g, "");
+  const answersUnknown = (quantity: TurnPlanV3["derived"][number], unknown: TurnPlanV3["unknowns"][number]): boolean =>
+    quantity.id === unknown.id || symbolKey(quantity.symbol) !== "" && symbolKey(quantity.symbol) === symbolKey(unknown.symbol);
+  // A validated plan may resolve an unknown by symbol while assigning its
+  // result a different id. Missing that binding lets a half-life masquerade
+  // as the requested completion time. Unrecognized bindings stay refused.
+  for (const unknown of turnPlan.unknowns) {
+    if (!answers.some((answer) => convertMeasuredValue(1, unknown.unit, answer.unit) !== null)) continue;
+    if (!turnPlan.derived.some((quantity) => answers.some((answer) => convertMeasuredValue(quantity.value, quantity.unit, answer.unit) !== null))) continue;
+    if (!turnPlan.derived.some((quantity) => answersUnknown(quantity, unknown))) return false;
+  }
+  return turnPlan.derived.every((quantity) => {
+    const inUnitOf = (candidate: typeof numeric[number]) => convertMeasuredValue(quantity.value, quantity.unit, candidate.unit);
+    const isAnswer = turnPlan.unknowns.some((unknown) => answersUnknown(quantity, unknown));
+    const named = numeric.filter((candidate) => candidate.id === quantity.id ||
+      typeof candidate.symbol === "string" && symbolKey(candidate.symbol) === symbolKey(quantity.symbol));
+    if (!numeric.some((candidate) => inUnitOf(candidate) !== null)) return !isAnswer && named.length === 0;
+    const pool = isAnswer ? answers : named.length ? named : numeric;
+    return pool.some((candidate) => {
+      const converted = inUnitOf(candidate);
+      return converted !== null && agrees(candidate.value, converted);
+    });
+  });
 }
 
 /**

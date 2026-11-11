@@ -1440,11 +1440,23 @@ function buildFirstOrderDecay(question: string, spec: KineticsSpec, solution: Ki
   }
   c.scene.quantity("k", "k", k, `1/${unit}`);
   c.scene.quantity("t_half", "t_1/2", tHalf, unit);
+  // Each asked instant is the figure's answer: declared, a stale plan answer
+  // meets the engine's own value at save instead of passing unread.
+  completions.forEach((entry, index) => c.scene.quantity(`t_completion_${index + 1}`, `t_${percentText(entry.fraction)}`, entry.time, unit));
+  remainings.forEach((entry, index) => c.scene.quantity(`t_remaining_${index + 1}`, remainingLabel(entry.remaining), entry.time, unit));
   const sentences: string[] = [`First order, t_1/2 = ${fmt(tHalf, 3)} ${unit} (k = ${fmt(k, 3)} per ${unit}).`];
   for (const entry of solution.timesForFractions) sentences.push(`Time for ${percentText(entry.fraction)} % completion: ${fmt(entry.time, 3)} ${unit}.`);
   for (const entry of solution.timesForRemaining) sentences.push(`Time to fall to ${fractionText(entry.remaining)} of [A]_0: ${fmt(entry.time, 3)} ${unit}.`);
   for (const entry of solution.remainingAtTimes) sentences.push(`After ${fmt(entry.time, 3)} ${unit}, [A]/[A]_0 = ${fractionText(entry.remaining)} (${fmt(entry.remaining * 100, 3)} % left).`);
-  return c.build({ caption: sentences.join(" ") });
+  const document = c.build({ caption: sentences.join(" ") });
+  // Every value is recomputed from the stem, so the save regenerates and
+  // compares them. A remaining fraction asked at a given time is no declared
+  // quantity, so such a figure keeps every value under the plan's check.
+  if (solution.remainingAtTimes.length === 0 && completions.length + remainings.length > 0) {
+    document.source.slotSources = Object.fromEntries(document.quantities.map(({ id }) => [id, "stem"]));
+    document.source.answerQuantityIds = document.quantities.map(({ id }) => id).filter((id) => /^t_(?:completion|remaining)_\d+$/.test(id));
+  }
+  return document;
 }
 
 /* ------------------------------------------------------------------------- */
