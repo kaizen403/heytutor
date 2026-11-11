@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, GraduationCap, User } from "lucide-react";
+import { Check, ChevronDown, CreditCard, GraduationCap, MessageSquare, User } from "lucide-react";
 import { Brand } from "@/components/brand/Brand";
 import { SiteButton } from "@/components/ui/site-button";
 import {
@@ -26,24 +26,28 @@ import {
   type TutorAccent,
 } from "@heytutor/tutor-core";
 import { safeNextPath } from "@/lib/auth/publicPaths";
-import { learnerRoleForLogin, type LoginRole } from "@/lib/auth/loginRole";
+import { SIGNUP_INTENT_COPY, signupIntent } from "@/lib/auth/signupIntent";
 
-type Step = "role" | "setup";
+type Step = "role" | "about" | "lessons";
+
+const STEPS: readonly Step[] = ["role", "about", "lessons"];
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function OnboardingScreen({
   initialName,
   nextPath,
-  initialLoginRole = null,
+  suggestedRole = null,
 }: {
   initialName: string;
   nextPath: string;
-  initialLoginRole?: LoginRole | null;
+  suggestedRole?: LearnerRole | null;
 }) {
   const router = useRouter();
   const copy = ONBOARDING_COPY;
-  const presetRole = learnerRoleForLogin(initialLoginRole);
-  const [step, setStep] = useState<Step>(presetRole ? "setup" : "role");
-  const [learnerRole, setLearnerRole] = useState<LearnerRole | null>(presetRole);
+  const intent = signupIntent(nextPath);
+  const intentCopy = intent ? SIGNUP_INTENT_COPY[intent] : null;
+  const [step, setStep] = useState<Step>("role");
+  const [learnerRole, setLearnerRole] = useState<LearnerRole | null>(suggestedRole);
   const [ageBand, setAgeBand] = useState<AgeBand | null>(null);
   const [guardianEmail, setGuardianEmail] = useState("");
   const [name, setName] = useState(initialName);
@@ -54,32 +58,47 @@ export function OnboardingScreen({
   const [familiarityInfoOpen, setFamiliarityInfoOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const firstRender = useRef(true);
 
+  const stepIndex = STEPS.indexOf(step);
   const pathCopy = learnerRole === "college" ? copy.college : copy.other;
   const years = learnerRole ? classYearsForRole(learnerRole) : [];
+  const heading =
+    step === "role"
+      ? { title: copy.role.title, body: copy.role.body }
+      : step === "about"
+        ? { title: pathCopy.title, body: pathCopy.body }
+        : { title: copy.lessons.title, body: copy.lessons.body };
+
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    headingRef.current?.focus();
+  }, [step]);
+
+  const goTo = (next: Step) => {
+    setError(null);
+    setStep(next);
+  };
 
   const toggleSubject = (subject: SubjectId) => {
+    setError(null);
     setSubjects((current) =>
       current.includes(subject) ? current.filter((item) => item !== subject) : [...current, subject],
     );
   };
 
   const pickRole = (role: LearnerRole) => {
+    if (role !== learnerRole) setClassYear(null);
     setLearnerRole(role);
-    setClassYear(null);
     setError(null);
-  };
-
-  const continueRole = () => {
-    setError(null);
-    if (!learnerRole) {
-      setError(copy.role.missing);
-      return;
-    }
-    setStep("setup");
   };
 
   const refuseUnder13 = () => {
+    setSaving(true);
     void fetch("/api/account/onboarding", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -89,21 +108,19 @@ export function OnboardingScreen({
     });
   };
 
+  const aboutError = (): string | null => {
+    if (!ageBand) return copy.shared.ageMissing;
+    if (ageBand === "13_17" && !EMAIL_RE.test(guardianEmail.trim())) {
+      return guardianEmail.trim() ? copy.shared.guardianError : copy.shared.guardianMissing;
+    }
+    if (!name.trim()) return copy.shared.nameMissing;
+    if (!classYear) return copy.shared.yearMissing;
+    return null;
+  };
+
   const finish = async () => {
-    setError(null);
-    if (!ageBand) {
-      setError(copy.shared.ageMissing);
-      return;
-    }
-    if (ageBand === "under_13") {
-      refuseUnder13();
-      return;
-    }
-    if (ageBand === "13_17" && !guardianEmail.trim()) {
-      setError(copy.shared.guardianMissing);
-      return;
-    }
     setSaving(true);
+    let done = false;
     try {
       const response = await fetch("/api/account/onboarding", {
         method: "POST",
@@ -121,221 +138,326 @@ export function OnboardingScreen({
           familiarity,
         }),
       });
-      const data = (await response.json()) as { error?: string; refused?: boolean };
+      const data = (await response.json().catch(() => ({}))) as { error?: string; refused?: boolean };
       if (data.refused) {
+        done = true;
         router.replace("/login?refused=1");
         return;
       }
       if (!response.ok) {
-        setError(
-          data.error === "guardian_required" ? copy.shared.guardianError : copy.shared.finishError,
-        );
+        if (data.error === "guardian_required" || data.error === "name_required" || data.error === "goal_required") {
+          setStep("about");
+          setError(data.error === "guardian_required" ? copy.shared.guardianError : aboutError() ?? copy.shared.finishError);
+        } else if (data.error === "role_required") {
+          setStep("role");
+          setError(copy.role.missing);
+        } else if (data.error === "subjects_required") {
+          setError(copy.shared.subjectsMissing);
+        } else {
+          setError(copy.shared.finishError);
+        }
         return;
       }
+      done = true;
       router.replace(safeNextPath(nextPath));
       router.refresh();
+    } catch {
+      setError(copy.shared.finishError);
     } finally {
-      setSaving(false);
+      if (!done) setSaving(false);
     }
   };
 
+  const advance = (event: FormEvent) => {
+    event.preventDefault();
+    if (saving) return;
+    setError(null);
+    if (step === "role") {
+      if (!learnerRole) {
+        setError(copy.role.missing);
+        return;
+      }
+      setStep("about");
+      return;
+    }
+    if (step === "about") {
+      if (ageBand === "under_13") {
+        refuseUnder13();
+        return;
+      }
+      const problem = aboutError();
+      if (problem) {
+        setError(problem);
+        return;
+      }
+      setStep("lessons");
+      return;
+    }
+    if (subjects.length === 0) {
+      setError(copy.shared.subjectsMissing);
+      return;
+    }
+    void finish();
+  };
+
+  const primaryLabel =
+    step !== "lessons" ? copy.shared.continue : saving ? copy.shared.saving : intentCopy?.finish ?? copy.shared.start;
+  const IntentIcon = intent === "question" ? MessageSquare : CreditCard;
+
   return (
-    <main className="fx-aurora-soft flex min-h-dvh flex-col items-center px-5 py-12">
-      <div className="w-full max-w-xl rounded-3xl border border-[rgba(255,255,255,0.08)] bg-[rgba(23,23,22,0.82)] p-7">
-        <Brand size="sm" />
-        <p className="mt-5 text-xs uppercase tracking-[0.08em] text-[rgba(237,237,235,0.42)]">
-          {step === "role" ? copy.role.kicker : pathCopy.kicker}
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-frost">
-          {step === "role" ? copy.role.title : pathCopy.title}
-        </h1>
-        <p className="mt-2 text-sm leading-6 text-[rgba(237,237,235,0.62)]">
-          {step === "role" ? copy.role.body : pathCopy.body}
-        </p>
+    <main className="fx-aurora-soft flex min-h-dvh flex-col items-center px-5 py-10 sm:justify-center sm:py-12">
+      <form
+        onSubmit={advance}
+        noValidate
+        className="w-full max-w-xl rounded-3xl border border-[rgba(255,255,255,0.08)] bg-[rgba(23,23,22,0.82)] p-6 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.8)] sm:p-8"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <Brand size="sm" />
+          <p className="text-xs text-[rgba(237,237,235,0.5)]">
+            Step {stepIndex + 1} of {STEPS.length}
+          </p>
+        </div>
+
+        <ol className="mt-5 grid grid-cols-3 gap-2" aria-label="Setup progress">
+          {STEPS.map((item, index) => (
+            <li key={item} aria-current={item === step ? "step" : undefined}>
+              <span
+                className={`block h-1 rounded-full transition-colors duration-300 ${
+                  index <= stepIndex ? "bg-sky-500" : "bg-[rgba(255,255,255,0.1)]"
+                }`}
+              />
+              <span
+                className={`mt-2 block text-[11px] ${
+                  index === stepIndex ? "text-frost" : "text-[rgba(237,237,235,0.45)]"
+                }`}
+              >
+                {copy.steps[index]}
+              </span>
+            </li>
+          ))}
+        </ol>
+
+        {intentCopy ? (
+          <p className="mt-5 flex items-center gap-2.5 rounded-xl border border-[rgba(89,175,212,0.28)] bg-[rgba(89,175,212,0.08)] px-3 py-2 text-xs leading-5 text-sky-200">
+            <IntentIcon className="h-4 w-4 shrink-0 text-sky-300" strokeWidth={2} aria-hidden />
+            {intentCopy.onboarding}
+          </p>
+        ) : null}
+
+        <div key={step} className="animate-fade-up">
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="mt-6 text-2xl font-semibold tracking-[-0.03em] text-frost outline-none"
+          >
+            {heading.title}
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-[rgba(237,237,235,0.62)]">{heading.body}</p>
+
+          {step === "role" ? (
+            <div role="radiogroup" aria-label={copy.role.title} className="mt-6 grid gap-3">
+              <RoleCard
+                icon={<GraduationCap className="h-5 w-5" strokeWidth={2} aria-hidden />}
+                label={copy.role.college.label}
+                hint={copy.role.college.hint}
+                checked={learnerRole === "college"}
+                onClick={() => pickRole("college")}
+              />
+              <RoleCard
+                icon={<User className="h-5 w-5" strokeWidth={2} aria-hidden />}
+                label={copy.role.other.label}
+                hint={copy.role.other.hint}
+                checked={learnerRole === "other"}
+                onClick={() => pickRole("other")}
+              />
+            </div>
+          ) : null}
+
+          {step === "about" ? (
+            <div className="mt-6 flex flex-col gap-6">
+              <fieldset>
+                <legend className="text-sm font-medium text-frost">{copy.shared.ageTitle}</legend>
+                <p className="mt-1 text-xs leading-5 text-[rgba(237,237,235,0.5)]">{copy.shared.ageBody}</p>
+                <div role="radiogroup" aria-label={copy.shared.ageTitle} className="mt-3 grid grid-cols-3 gap-2">
+                  {(Object.keys(AGE_BAND_LABELS) as AgeBand[]).map((band) => (
+                    <button
+                      key={band}
+                      type="button"
+                      role="radio"
+                      aria-checked={ageBand === band}
+                      onClick={() => {
+                        setAgeBand(band);
+                        setError(null);
+                      }}
+                      className={`rounded-xl border px-3 py-2.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60 ${
+                        ageBand === band
+                          ? "border-sky-500 bg-sky-500/12 text-frost"
+                          : "border-[rgba(255,255,255,0.1)] text-[rgba(237,237,235,0.78)] hover:border-[rgba(255,255,255,0.22)]"
+                      }`}
+                    >
+                      {AGE_BAND_LABELS[band]}
+                    </button>
+                  ))}
+                </div>
+                {ageBand === "13_17" ? (
+                  <input
+                    type="email"
+                    autoComplete="off"
+                    aria-label={copy.shared.guardianPlaceholder}
+                    value={guardianEmail}
+                    onChange={(event) => setGuardianEmail(event.target.value)}
+                    placeholder={copy.shared.guardianPlaceholder}
+                    className="animate-fade-up mt-3 w-full rounded-xl border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.25)] px-3 py-2.5 text-sm text-frost outline-none focus:border-sky-500"
+                  />
+                ) : null}
+              </fieldset>
+
+              <label className="block text-sm font-medium text-frost">
+                {copy.shared.nameLabel}
+                <input
+                  value={name}
+                  autoComplete="given-name"
+                  placeholder={copy.shared.namePlaceholder}
+                  onChange={(event) => setName(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.25)] px-3 py-2.5 text-sm font-normal text-frost outline-none focus:border-sky-500"
+                />
+              </label>
+
+              <div className="block text-sm font-medium text-frost">
+                {pathCopy.yearLegend}
+                <YearSelect
+                  label={pathCopy.yearLegend}
+                  placeholder={copy.shared.yearPlaceholder}
+                  years={years}
+                  value={classYear}
+                  onChange={(year) => {
+                    setClassYear(year);
+                    setError(null);
+                  }}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {step === "lessons" ? (
+            <div className="mt-6 flex flex-col gap-6">
+              <fieldset>
+                <legend className="text-sm font-medium text-frost">{copy.shared.subjectsLegend}</legend>
+                <p className="mt-1 text-xs text-[rgba(237,237,235,0.5)]">{copy.shared.subjectsHint}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {AVAILABLE_SUBJECTS.map((subject) => (
+                    <Choice
+                      key={subject}
+                      label={SUBJECT_LABELS[subject]}
+                      checked={subjects.includes(subject)}
+                      onClick={() => toggleSubject(subject)}
+                    />
+                  ))}
+                  {COMING_SOON_SUBJECTS.filter((subject) => !AVAILABLE_SUBJECTS.includes(subject)).map(
+                    (subject) => (
+                      <Choice
+                        key={subject}
+                        label={`${SUBJECT_LABELS[subject]} soon`}
+                        checked={false}
+                        disabled
+                      />
+                    ),
+                  )}
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend className="text-sm font-medium text-frost">{copy.shared.voiceLegend}</legend>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Choice label="India" checked={accent === "india"} onClick={() => setAccent("india")} />
+                  <Choice label="UK" checked={accent === "uk"} onClick={() => setAccent("uk")} />
+                  <Choice label="US" checked={accent === "us"} onClick={() => setAccent("us")} />
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend className="flex items-center gap-2 text-sm font-medium text-frost">
+                  {copy.shared.familiarityLegend}
+                  <button
+                    type="button"
+                    aria-expanded={familiarityInfoOpen}
+                    aria-controls="familiarity-info"
+                    aria-label={copy.shared.familiarityInfoLabel}
+                    title={copy.shared.familiarityInfoLabel}
+                    onClick={() => setFamiliarityInfoOpen((open) => !open)}
+                    className={`inline-flex h-4 w-4 items-center justify-center rounded-full border text-[10px] font-semibold leading-none outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60 ${
+                      familiarityInfoOpen
+                        ? "border-sky-500 bg-sky-500/12 text-sky-200"
+                        : "border-[rgba(255,255,255,0.2)] text-[rgba(237,237,235,0.6)] hover:border-sky-500 hover:text-sky-200"
+                    }`}
+                  >
+                    i
+                  </button>
+                </legend>
+                {familiarityInfoOpen ? (
+                  <div
+                    id="familiarity-info"
+                    className="mt-2 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(0,0,0,0.2)] px-3 py-2.5 text-xs leading-5 text-[rgba(237,237,235,0.62)]"
+                  >
+                    <ul className="flex flex-col gap-0.5">
+                      {copy.shared.familiarityInfo.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                    <p className="mt-1.5 text-[rgba(237,237,235,0.5)]">
+                      {copy.shared.familiarityInfoNote}
+                    </p>
+                  </div>
+                ) : null}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Choice
+                    label="New"
+                    checked={familiarity === "new"}
+                    onClick={() => setFamiliarity("new")}
+                  />
+                  <Choice
+                    label="Normal"
+                    checked={familiarity === "normal"}
+                    onClick={() => setFamiliarity("normal")}
+                  />
+                  <Choice
+                    label="Revision"
+                    checked={familiarity === "revision"}
+                    onClick={() => setFamiliarity("revision")}
+                  />
+                </div>
+              </fieldset>
+            </div>
+          ) : null}
+        </div>
 
         {error ? (
-          <p className="mt-4 rounded-xl border border-[rgba(224,104,88,0.35)] bg-[rgba(224,104,88,0.1)] px-3 py-2 text-sm text-[#f0b4ac]">
+          <p
+            role="alert"
+            className="mt-6 rounded-xl border border-[rgba(224,104,88,0.35)] bg-[rgba(224,104,88,0.1)] px-3 py-2 text-sm text-[#f0b4ac]"
+          >
             {error}
           </p>
         ) : null}
 
-        {step === "role" ? (
-          <div className="mt-6 flex flex-col gap-3">
-            <RoleCard
-              icon={<GraduationCap className="h-5 w-5" strokeWidth={2} aria-hidden />}
-              label={copy.role.college.label}
-              hint={copy.role.college.hint}
-              checked={learnerRole === "college"}
-              onClick={() => pickRole("college")}
-            />
-            <RoleCard
-              icon={<User className="h-5 w-5" strokeWidth={2} aria-hidden />}
-              label={copy.role.other.label}
-              hint={copy.role.other.hint}
-              checked={learnerRole === "other"}
-              onClick={() => pickRole("other")}
-            />
-            <SiteButton variant="ice" size="md" onClick={continueRole}>
-              {copy.role.continue}
+        <div className="mt-7 flex items-center justify-between gap-3 border-t border-[rgba(255,255,255,0.06)] pt-5">
+          {stepIndex > 0 ? (
+            <SiteButton
+              variant="ghost"
+              size="md"
+              onClick={() => goTo(STEPS[stepIndex - 1])}
+              disabled={saving}
+            >
+              {copy.shared.back}
             </SiteButton>
-          </div>
-        ) : (
-          <div className="mt-6 flex flex-col gap-5">
-            <fieldset>
-              <legend className="mb-2 text-sm text-[rgba(237,237,235,0.7)]">
-                {copy.shared.ageTitle}
-              </legend>
-              <p className="mb-3 text-xs leading-5 text-[rgba(237,237,235,0.5)]">
-                {copy.shared.ageBody}
-              </p>
-              <div className="flex flex-col gap-2">
-                {(Object.keys(AGE_BAND_LABELS) as AgeBand[]).map((band) => (
-                  <button
-                    key={band}
-                    type="button"
-                    onClick={() => setAgeBand(band)}
-                    className={`rounded-xl border px-4 py-3 text-left text-sm ${
-                      ageBand === band
-                        ? "border-sky-500 bg-sky-500/12 text-frost"
-                        : "border-[rgba(255,255,255,0.1)] text-[rgba(237,237,235,0.78)]"
-                    }`}
-                  >
-                    {AGE_BAND_LABELS[band]}
-                  </button>
-                ))}
-              </div>
-              {ageBand === "13_17" ? (
-                <input
-                  type="email"
-                  value={guardianEmail}
-                  onChange={(event) => setGuardianEmail(event.target.value)}
-                  placeholder={copy.shared.guardianPlaceholder}
-                  className="mt-3 w-full rounded-xl border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.25)] px-3 py-2.5 text-sm text-frost outline-none focus:border-sky-500"
-                />
-              ) : null}
-            </fieldset>
-
-            <label className="block text-sm text-[rgba(237,237,235,0.7)]">
-              {copy.shared.nameLabel}
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.25)] px-3 py-2.5 text-sm text-frost outline-none focus:border-sky-500"
-              />
-            </label>
-
-            <div className="block text-sm text-[rgba(237,237,235,0.7)]">
-              {pathCopy.yearLegend}
-              <YearSelect
-                label={pathCopy.yearLegend}
-                placeholder={copy.shared.yearPlaceholder}
-                years={years}
-                value={classYear}
-                onChange={setClassYear}
-              />
-            </div>
-
-            <fieldset>
-              <legend className="mb-2 text-sm text-[rgba(237,237,235,0.7)]">
-                {copy.shared.subjectsLegend}
-              </legend>
-              <div className="flex flex-wrap gap-2">
-                {AVAILABLE_SUBJECTS.map((subject) => (
-                  <Choice
-                    key={subject}
-                    label={SUBJECT_LABELS[subject]}
-                    checked={subjects.includes(subject)}
-                    onClick={() => toggleSubject(subject)}
-                  />
-                ))}
-                {COMING_SOON_SUBJECTS.filter((subject) => !AVAILABLE_SUBJECTS.includes(subject)).map(
-                  (subject) => (
-                    <Choice
-                      key={subject}
-                      label={`${SUBJECT_LABELS[subject]} soon`}
-                      checked={false}
-                      disabled
-                    />
-                  ),
-                )}
-              </div>
-            </fieldset>
-
-            <fieldset>
-              <legend className="mb-2 text-sm text-[rgba(237,237,235,0.7)]">
-                {copy.shared.voiceLegend}
-              </legend>
-              <div className="flex flex-wrap gap-2">
-                <Choice label="India" checked={accent === "india"} onClick={() => setAccent("india")} />
-                <Choice label="UK" checked={accent === "uk"} onClick={() => setAccent("uk")} />
-                <Choice label="US" checked={accent === "us"} onClick={() => setAccent("us")} />
-              </div>
-            </fieldset>
-
-            <fieldset>
-              <legend className="mb-2 flex items-center gap-2 text-sm text-[rgba(237,237,235,0.7)]">
-                {copy.shared.familiarityLegend}
-                <button
-                  type="button"
-                  aria-expanded={familiarityInfoOpen}
-                  aria-controls="familiarity-info"
-                  aria-label={copy.shared.familiarityInfoLabel}
-                  title={copy.shared.familiarityInfoLabel}
-                  onClick={() => setFamiliarityInfoOpen((open) => !open)}
-                  className={`inline-flex h-4 w-4 items-center justify-center rounded-full border text-[10px] font-semibold leading-none outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60 ${
-                    familiarityInfoOpen
-                      ? "border-sky-500 bg-sky-500/12 text-sky-200"
-                      : "border-[rgba(255,255,255,0.2)] text-[rgba(237,237,235,0.6)] hover:border-sky-500 hover:text-sky-200"
-                  }`}
-                >
-                  i
-                </button>
-              </legend>
-              {familiarityInfoOpen ? (
-                <div
-                  id="familiarity-info"
-                  className="mb-3 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(0,0,0,0.2)] px-3 py-2.5 text-xs leading-5 text-[rgba(237,237,235,0.62)]"
-                >
-                  <ul className="flex flex-col gap-0.5">
-                    {copy.shared.familiarityInfo.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                  <p className="mt-1.5 text-[rgba(237,237,235,0.5)]">
-                    {copy.shared.familiarityInfoNote}
-                  </p>
-                </div>
-              ) : null}
-              <div className="flex flex-wrap gap-2">
-                <Choice
-                  label="New"
-                  checked={familiarity === "new"}
-                  onClick={() => setFamiliarity("new")}
-                />
-                <Choice
-                  label="Normal"
-                  checked={familiarity === "normal"}
-                  onClick={() => setFamiliarity("normal")}
-                />
-                <Choice
-                  label="Revision"
-                  checked={familiarity === "revision"}
-                  onClick={() => setFamiliarity("revision")}
-                />
-              </div>
-            </fieldset>
-
-            <div className="flex gap-2">
-              <SiteButton variant="ghost" size="md" onClick={() => setStep("role")}>
-                {copy.shared.back}
-              </SiteButton>
-              <SiteButton variant="ice" size="md" onClick={() => void finish()} disabled={saving}>
-                {saving ? copy.shared.saving : copy.shared.start}
-              </SiteButton>
-            </div>
-          </div>
-        )}
-      </div>
+          ) : (
+            <span />
+          )}
+          <SiteButton type="submit" variant="ice" size="md" disabled={saving} className="min-w-[9.5rem]">
+            {primaryLabel}
+          </SiteButton>
+        </div>
+      </form>
     </main>
   );
 }
@@ -374,7 +496,7 @@ function YearSelect({
   };
 
   return (
-    <div ref={rootRef} className="relative mt-1.5">
+    <div ref={rootRef} className="relative mt-2 font-normal">
       <button
         type="button"
         aria-haspopup="listbox"
@@ -466,19 +588,33 @@ function RoleCard({
   return (
     <button
       type="button"
+      role="radio"
+      aria-checked={checked}
       onClick={onClick}
-      className={`flex items-start gap-3 rounded-2xl border px-4 py-4 text-left ${
+      className={`flex items-center gap-4 rounded-2xl border px-4 py-4 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60 ${
         checked
           ? "border-sky-500 bg-sky-500/12"
-          : "border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.18)]"
+          : "border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.18)] hover:border-[rgba(255,255,255,0.22)]"
       }`}
     >
-      <span className={`mt-0.5 ${checked ? "text-sky-300" : "text-[rgba(237,237,235,0.55)]"}`}>
+      <span
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+          checked ? "bg-sky-500/18 text-sky-300" : "bg-[rgba(255,255,255,0.05)] text-[rgba(237,237,235,0.55)]"
+        }`}
+      >
         {icon}
       </span>
-      <span>
+      <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium text-frost">{label}</span>
         <span className="mt-1 block text-xs leading-5 text-[rgba(237,237,235,0.55)]">{hint}</span>
+      </span>
+      <span
+        aria-hidden
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+          checked ? "border-sky-500 bg-sky-500 text-[#0b1620]" : "border-[rgba(255,255,255,0.2)]"
+        }`}
+      >
+        {checked ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
       </span>
     </button>
   );
@@ -500,14 +636,16 @@ function Choice({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
+      aria-pressed={disabled ? undefined : checked}
+      className={`inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60 ${
         disabled
           ? "cursor-not-allowed border-[rgba(255,255,255,0.06)] text-[rgba(237,237,235,0.38)]"
           : checked
             ? "border-sky-500 bg-sky-500/12 text-sky-200"
-            : "border-[rgba(255,255,255,0.1)] text-frost"
+            : "border-[rgba(255,255,255,0.1)] text-frost hover:border-[rgba(255,255,255,0.22)]"
       }`}
     >
+      {checked ? <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden /> : null}
       {label}
     </button>
   );

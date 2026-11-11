@@ -105,16 +105,9 @@ assert(!isStudentEmail("ada@gmail.com"), "gmail is not a student");
 assert(!isStudentEmail("ada@education.com"), "education.com is not .edu");
 assert(!isStudentEmail("ada@mac.com"), "mac.com is not .ac");
 assert(!isStudentEmail("not-an-email"), "junk is not a student");
-assert(isAllowedLoginEmail("ada@accelute.co", ["ada@accelute.co"]), "staff bypass the school-email rule");
-assert(!isAllowedLoginEmail("ada@gmail.com", ["ada@accelute.co"]), "non-staff gmail is refused");
-assert(
-  isAllowedLoginEmail("ada@gmail.com", ["ada@accelute.co"], "individual"),
-  "an individual may sign in with a personal Google account",
-);
-assert(
-  !isAllowedLoginEmail("ada@gmail.com", ["ada@accelute.co"], "student"),
-  "a student still needs a school email",
-);
+assert(isAllowedLoginEmail("ada@mit.edu"), "a school account signs in");
+assert(isAllowedLoginEmail("ada@gmail.com"), "a personal Google account signs in; the role is asked in onboarding");
+assert(!isAllowedLoginEmail(null) && !isAllowedLoginEmail("not-an-email"), "an address is still required");
 assert(
   hasAuthSessionCookie({ cookies: { get: (name) => (name === "authjs.session-token" ? { value: "x" } : undefined) } }),
   "authjs session cookie counts as signed in",
