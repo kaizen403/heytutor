@@ -2,7 +2,8 @@
  * One cached value per process for an expensive vendor read. Concurrent
  * callers share one in-flight load, a fresh value is reused for `freshMs`,
  * and a failed load returns the last good value for up to `staleMs` so a
- * rate-limited vendor does not blank the panel.
+ * rate-limited vendor does not blank the panel. Failures wait `freshMs`
+ * before retrying, without extending the last good value's lifetime.
  */
 export interface StaleCache<T> {
   read(nowMs?: number): Promise<T>;
@@ -16,11 +17,15 @@ export function createStaleCache<T>(options: {
   staleMs: number;
 }): StaleCache<T> {
   let good: { value: T; atMs: number } | null = null;
+  let failure: { value: T; atMs: number } | null = null;
   let inflight: Promise<T> | null = null;
 
   return {
     async read(nowMs = Date.now()) {
       if (good && nowMs - good.atMs < options.freshMs) return good.value;
+      if (failure && nowMs - failure.atMs < options.freshMs) {
+        return good && nowMs - good.atMs < options.staleMs ? good.value : failure.value;
+      }
       if (!inflight) {
         inflight = options.load().finally(() => {
           inflight = null;
@@ -29,13 +34,16 @@ export function createStaleCache<T>(options: {
       const value = await inflight;
       if (!options.isFailure(value)) {
         good = { value, atMs: nowMs };
+        failure = null;
         return value;
       }
+      failure = { value, atMs: nowMs };
       if (good && nowMs - good.atMs < options.staleMs) return good.value;
       return value;
     },
     clear() {
       good = null;
+      failure = null;
       inflight = null;
     },
   };

@@ -67,9 +67,18 @@ async function verifyStaleCache(): Promise<void> {
   next = { ok: false, n: 2 };
   const stale = await cache.read(2_000);
   assert(loadCount() === 2 && stale.n === 1, "a rate-limited load keeps the last good total");
+  assert((await cache.read(2_500)).n === 1 && loadCount() === 2, "failed loads cool down instead of retrying every poll");
+  assert((await cache.read(9_500)).n === 1 && loadCount() === 3, "a failed refresh may still use the original good total");
+  assert((await cache.read(10_000)).n === 2 && loadCount() === 3, "cooldown never extends the good total's stale lifetime");
   assert((await cache.read(20_000)).n === 2, "past the stale limit the failure is shown");
+  assert((await cache.read(20_500)).n === 2 && loadCount() === 4, "cooldown also applies when no usable good total remains");
   next = { ok: true, n: 3 };
   assert((await cache.read(21_000)).n === 3, "a later good load replaces the failure");
+  cache.clear();
+  next = { ok: false, n: 4 };
+  assert((await cache.read(21_100)).n === 4, "clear removes the saved value and cooldown");
+  const coldLoads = loadCount();
+  assert((await cache.read(21_500)).n === 4 && loadCount() === coldLoads, "cold-start failures also wait before retrying");
 }
 
 Object.defineProperty(globalThis, "React", { value: React, configurable: true });
