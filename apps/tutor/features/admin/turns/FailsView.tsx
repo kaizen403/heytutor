@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { TriangleAlert } from "lucide-react";
+
 import type { TurnsPagePayload } from "@/lib/admin/types";
 import { AdminPageHeader } from "../shared/components/AdminPageHeader";
 import { EmptyState } from "../shared/components/EmptyState";
@@ -40,7 +40,8 @@ export function FailsView() {
     return `/api/admin/turns?${params.toString()}`;
   }, [query, days, page]);
 
-  const { data, loading, error, refresh } = useAdminQuery<TurnsPagePayload>(url);
+  const { data, loading, error, refresh } =
+    useAdminQuery<TurnsPagePayload>(url);
 
   const filtersActive = query !== "" || days !== DEFAULT_DAYS;
 
@@ -60,9 +61,10 @@ export function FailsView() {
             ? `${data.total} confirmed failed turn${data.total === 1 ? "" : "s"}`
             : "Confirmed diagram or teaching failures, and why."
         }
-        icon={<TriangleAlert className="h-4 w-4" strokeWidth={1.75} aria-hidden />}
         actions={
-          loading ? <span className="type-accent-xs text-faint">Loading…</span> : null
+          loading ? (
+            <span className="type-accent-xs text-faint">Loading…</span>
+          ) : null
         }
       />
 
@@ -98,7 +100,11 @@ export function FailsView() {
           description="No confirmed diagram or teaching failures in this window. Unknown outcomes remain in the turn log."
           action={
             filtersActive ? (
-              <button type="button" onClick={clearFilters} className="text-xs text-sky-300">
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="text-xs text-foreground"
+              >
                 Clear filters
               </button>
             ) : undefined
@@ -106,10 +112,18 @@ export function FailsView() {
         />
       ) : error ? (
         <EmptyState
-          title={error === "unauthorized" ? "Admins only" : "Could not load failed turns"}
+          title={
+            error === "unauthorized"
+              ? "Admins only"
+              : "Could not load failed turns"
+          }
           description="The turns API did not answer. Try refreshing."
           action={
-            <button type="button" onClick={refresh} className="text-xs text-sky-300">
+            <button
+              type="button"
+              onClick={refresh}
+              className="text-xs text-foreground"
+            >
               Try again
             </button>
           }

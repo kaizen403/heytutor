@@ -28,9 +28,24 @@ export function codeLabel(code: string): string {
   return code.replaceAll("_", " ");
 }
 
-export const PICTURE_STATUS_STYLE: Record<PictureStatus, { label: string; className: string }> = {
-  shown: { label: "Shown", className: "border-sky-500/30 bg-sky-500/15 text-sky-200" },
-  declined: { label: "Declined", className: "border-danger/30 bg-danger/15 text-danger" },
-  unavailable: { label: "Unavailable", className: "border-danger/20 bg-danger/10 text-danger/80" },
-  skipped: { label: "Skipped", className: "border-white/15 bg-white/5 text-soft" },
+export const PICTURE_STATUS_STYLE: Record<
+  PictureStatus,
+  { label: string; className: string }
+> = {
+  shown: {
+    label: "Shown",
+    className: "border-border bg-muted text-foreground",
+  },
+  declined: {
+    label: "Declined",
+    className: "border-danger/30 bg-danger/15 text-danger",
+  },
+  unavailable: {
+    label: "Unavailable",
+    className: "border-danger/20 bg-danger/10 text-danger/80",
+  },
+  skipped: {
+    label: "Skipped",
+    className: "border-white/15 bg-white/5 text-soft",
+  },
 };

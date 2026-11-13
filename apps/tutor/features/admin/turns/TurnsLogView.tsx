@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Download, ScrollText } from "lucide-react";
-import { SiteButton } from "@/components/ui/site-button";
+import { Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { TurnsOutcomeFilter, TurnsPagePayload } from "@/lib/admin/types";
 import { AdminPageHeader } from "../shared/components/AdminPageHeader";
+import { AdminTableSkeleton } from "../shared/components/AdminTableSkeleton";
 import { EmptyState } from "../shared/components/EmptyState";
 import { Pagination } from "../shared/components/Pagination";
 import { useAdminQuery } from "../shared/hooks/useAdminQuery";
@@ -41,15 +42,35 @@ export function TurnsLogView() {
     return `/api/admin/turns?${params.toString()}`;
   }, [query, outcome, days, page]);
 
-  const { data, loading, error, refresh } = useAdminQuery<TurnsPagePayload>(url);
+  const { data, loading, error, refresh } =
+    useAdminQuery<TurnsPagePayload>(url);
 
   const exportCsv = () => {
     if (!data) return;
     downloadCsv(
       `heytutor-turns-page${data.page}.csv`,
-      ["turn id", "question", "outcome", "tier", "user", "board", "engine", "created", "ai usd", "voice usd", "total usd", "trace", "during stars", "during note", "after stars", "after note"],
+      [
+        "turn id",
+        "question",
+        "outcome",
+        "tier",
+        "user",
+        "board",
+        "engine",
+        "created",
+        "ai usd",
+        "voice usd",
+        "total usd",
+        "trace",
+        "during stars",
+        "during note",
+        "after stars",
+        "after note",
+      ],
       data.turns.map((turn) => {
-        const during = turn.ratings.find((rating) => rating.moment === "during");
+        const during = turn.ratings.find(
+          (rating) => rating.moment === "during",
+        );
         const after = turn.ratings.find((rating) => rating.moment === "after");
         return [
           turn.turnId,
@@ -92,15 +113,23 @@ export function TurnsLogView() {
             ? `${data.total} turn${data.total === 1 ? "" : "s"} in view · newest first`
             : "Every turn the app has taught, newest first."
         }
-        icon={<ScrollText className="h-4 w-4" strokeWidth={1.75} aria-hidden />}
         actions={
           <>
-            {loading ? <span className="type-accent-xs text-faint">Loading…</span> : null}
-            {error ? <span className="type-accent-xs text-danger">Could not load</span> : null}
-            <SiteButton variant="ghost" size="sm" onClick={exportCsv} disabled={!data}>
+            {loading ? (
+              <span className="type-accent-xs text-faint">Loading…</span>
+            ) : null}
+            {error ? (
+              <span className="type-accent-xs text-danger">Could not load</span>
+            ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportCsv}
+              disabled={!data}
+            >
               <Download className="h-3.5 w-3.5" aria-hidden />
               Export page
-            </SiteButton>
+            </Button>
           </>
         }
       />
@@ -138,24 +167,28 @@ export function TurnsLogView() {
           description="Nothing was taught with these filters."
           action={
             filtersActive ? (
-              <SiteButton variant="ghost" size="sm" onClick={clearFilters}>
+              <Button variant="outline" size="sm" onClick={clearFilters}>
                 Clear filters
-              </SiteButton>
+              </Button>
             ) : undefined
           }
         />
       ) : error ? (
         <EmptyState
-          title={error === "unauthorized" ? "Admins only" : "Could not load the turn log"}
+          title={
+            error === "unauthorized"
+              ? "Admins only"
+              : "Could not load the turn log"
+          }
           description="The turns API did not answer. Try refreshing."
           action={
-            <SiteButton variant="ghost" size="sm" onClick={refresh}>
+            <Button variant="outline" size="sm" onClick={refresh}>
               Try again
-            </SiteButton>
+            </Button>
           }
         />
       ) : (
-        <EmptyState title="Loading turns…" />
+        <AdminTableSkeleton label="Loading turns…" />
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
 
 type KpiTone = "default" | "sky" | "danger";
 
@@ -11,23 +12,32 @@ interface KpiCardProps {
 
 const VALUE_CLASS: Record<KpiTone, string> = {
   default: "text-frost",
-  sky: "text-sky-200",
+  sky: "text-foreground",
   danger: "text-danger",
 };
 
-export function KpiCard({ label, value, hint, tone = "default" }: KpiCardProps) {
+export function KpiCard({
+  label,
+  value,
+  hint,
+  tone = "default",
+}: KpiCardProps) {
   return (
-    <div className="glass rounded-xl px-3 py-2.5">
-      <p className="type-accent-xs text-faint">{label}</p>
-      <p
-        className={cn(
-          "mt-1 tabular-nums text-[15px] font-medium tracking-[-0.02em]",
-          VALUE_CLASS[tone],
-        )}
-      >
-        {value}
-      </p>
-      {hint ? <p className="type-accent-xs mt-0.5 text-faint">{hint}</p> : null}
-    </div>
+    <Card className="gap-0 rounded-lg py-0 shadow-none">
+      <CardContent className="p-4">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p
+          className={cn(
+            "mt-2 text-2xl font-semibold tracking-tight tabular-nums",
+            VALUE_CLASS[tone],
+          )}
+        >
+          {value}
+        </p>
+        {hint ? (
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">{hint}</p>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
