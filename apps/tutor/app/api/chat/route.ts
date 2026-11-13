@@ -956,7 +956,7 @@ function mergePlannerSignals(first: AbortSignal, second: AbortSignal): AbortSign
 
 export async function POST(request: Request): Promise<Response> {
   const requestStartedAt = Date.now();
-  const gated = await requireLessonGrant(request);
+  const gated = await requireLessonGrant(request, { reserveBypassSlot: true });
   if (gated instanceof Response) {
     console.error(`[chat] grant denied ${gated.status} ${Date.now() - requestStartedAt}ms`);
     return gated;
