@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card";
 import type { AdminUserChatMessage } from "@/lib/admin/types";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime, truncateText } from "../shared/lib/format";
@@ -9,7 +10,7 @@ function RolePill({ role }: { role: string }) {
       className={cn(
         "type-accent-xs shrink-0 rounded-full border px-2 py-0.5",
         isAssistant
-          ? "border-sky-500/25 bg-sky-500/10 text-sky-300"
+          ? "border-border bg-secondary text-foreground"
           : "border-stroke bg-ink-800 text-soft",
       )}
     >
@@ -18,11 +19,17 @@ function RolePill({ role }: { role: string }) {
   );
 }
 
-export function UserMessages({ messages }: { messages: AdminUserChatMessage[] }) {
+export function UserMessages({
+  messages,
+}: {
+  messages: AdminUserChatMessage[];
+}) {
   return (
     <section className="space-y-2">
-      <h2 className="type-accent-xs text-faint">Chat · newest {messages.length}</h2>
-      <div className="glass rounded-xl px-3 py-2.5">
+      <h2 className="type-accent-xs text-faint">
+        Chat · newest {messages.length}
+      </h2>
+      <Card className="gap-0 rounded-lg p-4 shadow-none">
         <ul className="divide-y divide-stroke">
           {messages.map((message) => (
             <li key={message.id} className="flex items-start gap-2.5 py-1.5">
@@ -32,16 +39,19 @@ export function UserMessages({ messages }: { messages: AdminUserChatMessage[] })
                   {truncateText(message.content, 110)}
                 </p>
                 <p className="type-accent-xs mt-0.5 truncate text-faint">
-                  {truncateText(message.boardTitle, 28)} · {formatRelativeTime(message.createdAt)}
+                  {truncateText(message.boardTitle, 28)} ·{" "}
+                  {formatRelativeTime(message.createdAt)}
                 </p>
               </div>
             </li>
           ))}
           {messages.length === 0 ? (
-            <li className="type-accent-xs py-2 text-faint">No chat messages yet.</li>
+            <li className="type-accent-xs py-2 text-faint">
+              No chat messages yet.
+            </li>
           ) : null}
         </ul>
-      </div>
+      </Card>
     </section>
   );
 }

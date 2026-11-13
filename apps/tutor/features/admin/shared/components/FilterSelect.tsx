@@ -1,6 +1,10 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 
 interface FilterSelectOption {
   value: string;
@@ -15,9 +19,6 @@ interface FilterSelectProps {
   className?: string;
 }
 
-const selectClass =
-  "h-9 rounded-lg border border-stroke bg-ink-900 px-2.5 text-xs text-frost outline-none transition-colors hover:border-sky-500/50 focus-visible:ring-2 focus-visible:ring-sky-500";
-
 export function FilterSelect({
   value,
   options,
@@ -26,17 +27,17 @@ export function FilterSelect({
   className,
 }: FilterSelectProps) {
   return (
-    <select
+    <NativeSelect
       value={value}
       onChange={(event) => onChange(event.target.value)}
       aria-label={ariaLabel}
-      className={cn(selectClass, className)}
+      className={cn("bg-background", className)}
     >
       {options.map((option) => (
-        <option key={option.value} value={option.value}>
+        <NativeSelectOption key={option.value} value={option.value}>
           {option.label}
-        </option>
+        </NativeSelectOption>
       ))}
-    </select>
+    </NativeSelect>
   );
 }

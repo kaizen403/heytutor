@@ -43,6 +43,13 @@ try {
   assert.match(markup, /Unknown outcomes are separate from confirmed empty/);
   assert.equal((markup.match(/<caption/g) ?? []).length, 3, "each data table has a caption");
   assert.equal((markup.match(/overflow-x-auto/g) ?? []).length, 3, "tables scroll on narrow screens");
+  const scrollRegions = markup.match(/<div\b[^>]*role="region"[^>]*>/g) ?? [];
+  assert.equal(scrollRegions.length, 3, "all coverage tables have named scroll regions");
+  for (const region of scrollRegions) {
+    assert.match(region, /overflow-x-auto/, "the focusable region must own horizontal scrolling");
+    assert.match(region, /tabindex="0"/, "keyboard users must reach the scrolling region");
+    assert.match(region, /aria-label="[^"]+"/, "the scrolling region must have a name");
+  }
   assert.match(markup, /scope="col"/);
   assert.match(markup, /scope="row"/);
 
@@ -61,8 +68,9 @@ try {
   assert.match(render(null, false, "unauthorized"), /Admins only/);
   assert.match(render(null, false, "request_failed"), /Could not load coverage/);
   assert.match(render(null, false, "request_failed"), /Try again/);
-  assert.doesNotMatch(render(null, false, "request_failed"), /disabled/);
-  assert.match(render(null, true, "request_failed"), /disabled/);
+  // shadcn includes disabled: styling even on enabled buttons. Check the attribute.
+  assert.doesNotMatch(render(null, false, "request_failed"), /<button\b[^>]*\sdisabled=""/);
+  assert.match(render(null, true, "request_failed"), /<button\b[^>]*\sdisabled=""/);
   assert.match(render(null, false, "busy"), /Coverage report already running/);
   assert.match(render(null, false, "busy"), /Wait for the current coverage query/);
   assert.equal(coverageRequestPending(true, true, null), true);
@@ -76,16 +84,16 @@ try {
   assert.match(form, /To \(UTC, exclusive\)/);
   assert.match(form, /Maximum 366 days/);
   assert.match(form, /marks the scan as partial/);
-  assert.match(form, /<button(?=[^>]*disabled)[^>]*>Apply window<\/button>/);
-  assert.match(form, /<button(?=[^>]*disabled)[^>]*>[\s\S]*?Refresh<\/button>/);
+  assert.match(form, /<button(?=[^>]*\sdisabled="")[^>]*>Apply window<\/button>/);
+  assert.match(form, /<button(?=[^>]*\sdisabled="")[^>]*>[\s\S]*?Refresh<\/button>/);
   assert.doesNotMatch(form, /type="search"/, "coverage has no source-text query control");
   const idle = renderToStaticMarkup(<CoverageWindowForm from="2026-10-14" to="2026-10-21" loading={false}
     validationError={null} onFrom={noop} onTo={noop} onSubmit={event => event.preventDefault()} />);
-  assert.doesNotMatch(idle, /<button[^>]*disabled/);
+  assert.doesNotMatch(idle, /<button\b[^>]*\sdisabled=""/);
   const busyForm = renderToStaticMarkup(<CoverageWindowForm from="2026-10-14" to="2026-10-21" loading
     validationError="Choose an end date after the start date, with a maximum span of 366 days."
     onFrom={noop} onTo={noop} onSubmit={event => event.preventDefault()} />);
-  assert.match(busyForm, /<button[^>]*disabled[^>]*>Apply window/);
+  assert.match(busyForm, /<button\b[^>]*\sdisabled=""[^>]*>Apply window/);
   assert.match(busyForm, /aria-busy="true"/);
   assert.match(readFileSync(new URL("../../features/admin/shared/hooks/useAdminQuery.ts", import.meta.url), "utf8"),
     /status === 429\) return "busy"/);

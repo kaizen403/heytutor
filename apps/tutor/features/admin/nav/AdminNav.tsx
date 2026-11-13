@@ -6,7 +6,8 @@ import {
   ChartColumn,
   FlaskConical,
   Globe,
-  GraduationCap,
+  ArrowUpRight,
+  ChevronRight,
   Images,
   LayoutDashboard,
   ScrollText,
@@ -15,6 +16,10 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/brand/Logo";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { SITE_NAME } from "@/lib/site";
 
 interface AdminSection {
   href: string;
@@ -24,20 +29,30 @@ interface AdminSection {
 }
 
 const SECTIONS: AdminSection[] = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard, active: (p) => p === "/admin" },
+  {
+    href: "/admin",
+    label: "Overview",
+    icon: LayoutDashboard,
+    active: (p) => p === "/admin",
+  },
   {
     href: "/admin/playground",
-    label: "Test Playground",
+    label: "Playground",
     icon: FlaskConical,
     active: (p) => p === "/admin/playground",
   },
   {
     href: "/admin/users",
-    label: "Manage Users",
+    label: "Users",
     icon: Users,
     active: (p) => p.startsWith("/admin/users"),
   },
-  { href: "/admin/logs", label: "Logs", icon: ScrollText, active: (p) => p.startsWith("/admin/logs") },
+  {
+    href: "/admin/logs",
+    label: "Logs",
+    icon: ScrollText,
+    active: (p) => p.startsWith("/admin/logs"),
+  },
   {
     href: "/admin/fails",
     label: "Fails",
@@ -73,38 +88,86 @@ const SECTIONS: AdminSection[] = [
 export function AdminNav() {
   const pathname = usePathname() ?? "";
 
+  const currentSection = SECTIONS.find((section) => section.active(pathname));
+
   return (
-    <header className="glass-deep sticky top-0 z-40 border-x-0 border-t-0">
-      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5">
-        <Link href="/admin" className="flex shrink-0 items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-sky-500/30 bg-sky-500/12 text-sky-400">
-            <GraduationCap className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+    <header className="sticky top-0 z-40 border-b border-border bg-background">
+      <a
+        href="#admin-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
+      >
+        Skip to content
+      </a>
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-10">
+        <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href="/admin"
+            aria-label={`${SITE_NAME} admin home`}
+            className="flex shrink-0 items-center gap-2.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Logo className="size-6" />
+            <span className="text-base font-semibold tracking-tight">
+              {SITE_NAME}
+            </span>
+          </Link>
+          <span
+            className="text-lg font-light text-muted-foreground/50"
+            aria-hidden
+          >
+            /
           </span>
-          <span className="text-sm font-medium tracking-[-0.01em] text-frost">HeyTutor Admin</span>
-        </Link>
-        <nav className="flex min-w-0 flex-wrap items-center gap-1" aria-label="Admin sections">
-          {SECTIONS.map((section) => {
-            const Icon = section.icon;
-            const active = section.active(pathname);
-            return (
-              <Link
-                key={section.href}
-                href={section.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "type-accent-xs flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 transition-colors",
-                  active
-                    ? "bg-sky-500/20 text-sky-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-                    : "text-faint hover:bg-white/5 hover:text-frost",
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" aria-hidden />
-                {section.label}
-              </Link>
-            );
-          })}
-        </nav>
+          <Badge
+            variant="outline"
+            className="rounded-md font-normal text-muted-foreground"
+          >
+            Admin
+          </Badge>
+          <ChevronRight
+            className="hidden size-3.5 text-muted-foreground/50 sm:block"
+            aria-hidden
+          />
+          <span className="hidden truncate text-sm text-muted-foreground sm:block">
+            {currentSection?.label ?? "Overview"}
+          </span>
+        </div>
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground"
+        >
+          <Link href="/">
+            <span className="hidden sm:inline">Back to tutor</span>
+            <span className="sm:hidden">Tutor</span>
+            <ArrowUpRight className="size-3.5" aria-hidden />
+          </Link>
+        </Button>
       </div>
+      <nav
+        className="mx-auto flex max-w-7xl items-center gap-4 overflow-x-auto px-4 sm:gap-6 sm:px-6 lg:px-10"
+        aria-label="Admin sections"
+      >
+        {SECTIONS.map((section) => {
+          const Icon = section.icon;
+          const active = section.active(pathname);
+          return (
+            <Link
+              key={section.href}
+              href={section.href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "flex shrink-0 items-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                active
+                  ? "border-foreground text-foreground"
+                  : "border-transparent text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground",
+              )}
+            >
+              <Icon className="size-3.5" strokeWidth={1.5} aria-hidden />
+              {section.label}
+            </Link>
+          );
+        })}
+      </nav>
     </header>
   );
 }
