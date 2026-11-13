@@ -251,6 +251,11 @@ function sampleReport(): PicturesReport {
     assert(markup.includes('href="/admin/users/user_1"'), "the turn links to the user detail page");
     assert(!markup.includes("javascript:"), "a script page URL never renders as a link");
     assert(!markup.includes("NaN"));
+    const subjectRegion = markup.match(/<div\b[^>]*aria-label="Picture outcomes by subject"[^>]*>/)?.[0];
+    assert(subjectRegion, "the subject table has a named scroll region");
+    assert.match(subjectRegion, /role="region"/);
+    assert.match(subjectRegion, /overflow-x-auto/, "the named region must own horizontal scrolling");
+    assert.match(subjectRegion, /tabindex="0"/, "keyboard users must reach the scrolling region");
     const emptyMarkup = render({ ...sampleReport(), ...aggregatePictureOutcomes([], window), recent: [] });
     assert(emptyMarkup.includes("No saved lessons in this period") && emptyMarkup.includes("No picture outcomes in this period"));
     assert(emptyMarkup.includes("n/a"), "an empty period reads n/a for rates and times");

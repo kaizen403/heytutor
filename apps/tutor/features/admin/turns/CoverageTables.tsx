@@ -38,13 +38,17 @@ function GroupTable({
   chapter?: boolean;
 }) {
   return (
-    <div
-      className="overflow-hidden rounded-lg border border-border bg-card focus-visible:outline focus-visible:outline-ring"
-      role="region"
-      aria-label={`${title} coverage`}
-      tabIndex={0}
-    >
-      <Table className="caption-top w-full min-w-max border-collapse">
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <Table
+        className="caption-top w-full min-w-max border-collapse"
+        containerProps={{
+          role: "region",
+          "aria-label": `${title} coverage`,
+          tabIndex: 0,
+          className:
+            "focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-ring",
+        }}
+      >
         <TableCaption className="px-3 py-3 text-left text-sm font-medium text-frost">
           {title}
         </TableCaption>
@@ -122,13 +126,17 @@ export function CoverageTables({ report }: { report: CoverageReport }) {
           description="Unknown outcomes remain in their own counts above."
         />
       ) : (
-        <div
-          className="overflow-hidden rounded-lg border border-border bg-card focus-visible:outline focus-visible:outline-ring"
-          role="region"
-          aria-label="Confirmed empty diagnostics"
-          tabIndex={0}
-        >
-          <Table className="caption-top w-full min-w-max border-collapse">
+        <div className="overflow-hidden rounded-lg border border-border bg-card">
+          <Table
+            className="caption-top w-full min-w-max border-collapse"
+            containerProps={{
+              role: "region",
+              "aria-label": "Confirmed empty diagnostics",
+              tabIndex: 0,
+              className:
+                "focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-ring",
+            }}
+          >
             <TableCaption className="px-3 py-3 text-left text-sm font-medium text-frost">
               Confirmed empty diagnostics
             </TableCaption>

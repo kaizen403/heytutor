@@ -41,13 +41,17 @@ export function PicturesBreakdown({ report }: { report: PicturesReport }) {
     : undefined;
   return (
     <div className="space-y-4">
-      <div
-        className="overflow-hidden rounded-lg border border-border bg-card focus-visible:outline focus-visible:outline-ring"
-        role="region"
-        aria-label="Picture outcomes by subject"
-        tabIndex={0}
-      >
-        <Table className="caption-top w-full min-w-max border-collapse">
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <Table
+          className="caption-top w-full min-w-max border-collapse"
+          containerProps={{
+            role: "region",
+            "aria-label": "Picture outcomes by subject",
+            tabIndex: 0,
+            className:
+              "focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-ring",
+          }}
+        >
           <TableCaption className="px-3 py-3 text-left text-sm font-medium text-frost">
             By subject
           </TableCaption>

@@ -43,6 +43,13 @@ try {
   assert.match(markup, /Unknown outcomes are separate from confirmed empty/);
   assert.equal((markup.match(/<caption/g) ?? []).length, 3, "each data table has a caption");
   assert.equal((markup.match(/overflow-x-auto/g) ?? []).length, 3, "tables scroll on narrow screens");
+  const scrollRegions = markup.match(/<div\b[^>]*role="region"[^>]*>/g) ?? [];
+  assert.equal(scrollRegions.length, 3, "all coverage tables have named scroll regions");
+  for (const region of scrollRegions) {
+    assert.match(region, /overflow-x-auto/, "the focusable region must own horizontal scrolling");
+    assert.match(region, /tabindex="0"/, "keyboard users must reach the scrolling region");
+    assert.match(region, /aria-label="[^"]+"/, "the scrolling region must have a name");
+  }
   assert.match(markup, /scope="col"/);
   assert.match(markup, /scope="row"/);
 
