@@ -646,7 +646,8 @@ function Choice({
       }`}
     >
       {checked ? <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden /> : null}
-      {label}
+      {/* Translation may replace text nodes; keep React's insertion anchor. */}
+      <span>{label}</span>
     </button>
   );
 }
