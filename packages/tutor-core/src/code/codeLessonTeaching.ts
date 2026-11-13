@@ -1,3 +1,4 @@
+import { regionalNarration } from "../llm/indianNarration";
 import { WORK_ZONE, fitBoardText, type TutorSegment } from "@heytutor/drawing";
 import type { SubjectFamiliarity } from "../llm/systemPrompt";
 import type { NarrationLanguage } from "../llm/hinglishNarration";
@@ -284,6 +285,7 @@ Start by saying what is being asked, in plain words, using those values. The wor
 
 function dsaOpeningRows(input: DsaOpeningInput): Array<{ board: string; spoken: string }> {
   const rows: Array<{ board: string; spoken: string }> = [];
+  const regional = regionalNarration(input.language);
   const ask = problemAsk(input.question);
   const title = input.title.trim() || "the problem";
   const titleBlock = fitBoardText(title, {
@@ -294,7 +296,7 @@ function dsaOpeningRows(input: DsaOpeningInput): Array<{ board: string; spoken: 
     const spoken = index === 0 ? (ask || `the question is ${title}`) : line;
     rows.push({
       board: line,
-      spoken: input.language === "hinglish"
+      spoken: regional ? `${regional.question}: ${spoken}` : input.language === "hinglish"
         ? `सवाल ये है: ${spoken}`
         : spoken,
     });
@@ -308,7 +310,7 @@ function dsaOpeningRows(input: DsaOpeningInput): Array<{ board: string; spoken: 
     for (const [index, line] of block.lines.entries()) {
       rows.push({
         board: line,
-        spoken: input.language === "hinglish"
+        spoken: regional ? `${regional.here} ${index === 0 ? `${speakKey(key)} equals ${speakValue(value)}` : line}.` : input.language === "hinglish"
           ? `यहाँ ${index === 0 ? `${speakKey(key)} equals ${speakValue(value)}` : line}.`
           : index === 0 ? `${speakKey(key)} is ${speakValue(value)}` : line,
       });

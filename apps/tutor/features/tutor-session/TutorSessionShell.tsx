@@ -35,6 +35,8 @@ import {
 } from "@/features/tutor-session/components/SettingsDrawer";
 import {
   DEFAULT_AUDIO_LANGUAGE,
+  switchesNarrationLanguage,
+  isTutorAudioLanguage,
   toVoiceKey,
   type SubjectFamiliarity,
   type TutorVoicePreferences,
@@ -436,12 +438,12 @@ export function TutorSessionShell({
   // first paint writes defaults and clobbers language/speed/colour on reload.
   // Headless boards have no stored settings to hydrate, so they start hydrated.
   const [settingsHydrated, setSettingsHydrated] = useState(isHeadless);
-  /** The server offers Hinglish only when it holds a Sarvam key. */
+  /** The server offers Indian language voices only when it holds a Sarvam key. */
   const [hinglishAvailable, setHinglishAvailable] = useState(false);
   /**
    * The language is only written back once the server's own answer is in. A
    * failed settings load leaves the sheet on English, and saving that would
-   * erase the student's Hinglish choice.
+   * erase the student's language choice.
    */
   const serverSettingsLoadedRef = useRef(false);
   const pendingVoicePreferencesRef = useRef<TutorVoicePreferences | null>(null);
@@ -596,10 +598,10 @@ export function TutorSessionShell({
         setHinglishAvailable(hinglish);
         serverSettingsLoadedRef.current = true;
         next.fastMode = true;
-        // Hinglish comes only from the server's answer, never the local cache.
+        // The language comes only from the server's answer, never the local cache.
         next.audioLanguage =
-          hinglish && data.settings.audioLanguage === "hinglish"
-            ? "hinglish"
+          hinglish && isTutorAudioLanguage(data.settings.audioLanguage)
+            ? data.settings.audioLanguage
             : DEFAULT_AUDIO_LANGUAGE;
         next.narrationEnabled = true;
         next.lowLatencyVoice = false;
@@ -675,8 +677,8 @@ export function TutorSessionShell({
   }, [settings.familiarity, isHeadless, settingsHydrated]);
 
   // Language and accent reach the server as one voice key; the TTS client
-  // reconnects on the next segment so the new voice is used. Hinglish is the
-  // Sarvam voice; every English accent stays on Cartesia. The voice stays
+  // reconnects on the next segment for an accent change. Indian languages use
+  // Sarvam; every English accent stays on the configured English provider. The voice stays
   // natural (not low-latency), which is no longer a student toggle.
   useEffect(() => {
     if (!settingsHydrated) {
@@ -686,9 +688,9 @@ export function TutorSessionShell({
       voiceKey: toVoiceKey(settings.audioLanguage, settings.accent),
       lowLatency: false,
     };
-    const switchesLanguage =
-      (voicePreferences.voiceKey === "hi-IN") !==
-      (voicePreferencesRef.current.voiceKey === "hi-IN");
+    const switchesLanguage = switchesNarrationLanguage(
+      voicePreferencesRef.current.voiceKey, voicePreferences.voiceKey,
+    );
     if (switchesLanguage && turnActiveRef.current) {
       // This turn's words were written for the old voice; switch at the next question.
       pendingVoicePreferencesRef.current = voicePreferences;

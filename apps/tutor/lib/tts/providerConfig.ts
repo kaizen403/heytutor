@@ -1,7 +1,7 @@
-import type { TutorVoiceKey } from "@heytutor/tutor-core";
+import { isIndianVoiceKey, TUTOR_VOICE_KEYS, type TutorVoiceKey } from "@heytutor/tutor-core";
 
 export type SpeechProvider = "cartesia" | "elevenlabs";
-/** Sarvam is never a deployment-wide vendor; it only speaks the Hinglish voice. */
+/** Sarvam is never a deployment-wide vendor; it speaks Indian language voices. */
 export type TtsProvider = SpeechProvider | "sarvam";
 export type SpeechEnvironment = Record<string, string | undefined>;
 export const CARTESIA_VERSION = "2026-08-14";
@@ -10,7 +10,7 @@ export const CARTESIA_VERSION = "2026-08-14";
  * the live voice API for a native accent, and each synthesizes on sonic-3.6.
  * Per-accent env overrides below still win over these defaults.
  */
-const DEFAULT_CARTESIA_VOICES: Record<TutorVoiceKey, string> = {
+const DEFAULT_CARTESIA_VOICES: Partial<Record<TutorVoiceKey, string>> = {
   /** Simi (formerly Indian Lady): native Indian English. */
   "en-IN": "3b554273-4299-48b9-9aaf-eefd438e3941",
   /** Courtney: native British English, measured delivery for complex information. */
@@ -20,7 +20,7 @@ const DEFAULT_CARTESIA_VOICES: Record<TutorVoiceKey, string> = {
   /** No Hindi-native default yet; keeps the previous Indian-voice fallback. */
   "hi-IN": "3b554273-4299-48b9-9aaf-eefd438e3941",
 };
-const VOICE_SUFFIXES: Record<TutorVoiceKey, string> = {
+const VOICE_SUFFIXES: Partial<Record<TutorVoiceKey, string>> = {
   "en-IN": "",
   "en-GB": "_EN_GB",
   "en-US": "_EN_US",
@@ -45,7 +45,7 @@ export function speechProvider(
 export const DEFAULT_SARVAM_SPEAKER = "ritu";
 export const DEFAULT_SARVAM_MODEL = "bulbul:v3";
 
-/** Hinglish is offered only when the deployment has a Sarvam key. */
+/** Indian language choices share the Sarvam credential gate. Legacy name retained for API compatibility. */
 export function hinglishVoiceAvailable(
   env: SpeechEnvironment = process.env,
 ): boolean {
@@ -64,7 +64,7 @@ export function ttsConfig(
   voiceKey: TutorVoiceKey;
   version: string;
 } {
-  if (voiceKey === "hi-IN" && hinglishVoiceAvailable(env))
+  if (isIndianVoiceKey(voiceKey) && hinglishVoiceAvailable(env))
     return {
       provider: "sarvam",
       apiKey: env.SARVAM_API_KEY?.trim(),
@@ -73,6 +73,8 @@ export function ttsConfig(
       voiceKey,
       version: CARTESIA_VERSION,
     };
+  // An unavailable regional voice follows the same English fallback as settings.
+  if (isIndianVoiceKey(voiceKey) && voiceKey !== "hi-IN") return ttsConfig("en-IN", lowLatency, env);
   const provider = speechProvider("tts", env);
   const prefix = provider.toUpperCase();
   const perAccent = env[`${prefix}_VOICE_ID${VOICE_SUFFIXES[voiceKey]}`]?.trim();
@@ -111,12 +113,13 @@ export function availableVoiceKeys(
   env: SpeechEnvironment = process.env,
 ): TutorVoiceKey[] {
   const prefix = speechProvider("tts", env).toUpperCase();
-  return (Object.keys(VOICE_SUFFIXES) as TutorVoiceKey[]).filter(
-    (key) =>
-      (key === "hi-IN" && hinglishVoiceAvailable(env)) ||
-      Boolean(env[`${prefix}_VOICE_ID${VOICE_SUFFIXES[key]}`]?.trim()) ||
-      (prefix === "CARTESIA" && key !== "hi-IN"),
-  );
+  return TUTOR_VOICE_KEYS.filter((key) => {
+    if (isIndianVoiceKey(key)) {
+      return hinglishVoiceAvailable(env) ||
+        (key === "hi-IN" && Boolean(env[`${prefix}_VOICE_ID_HI`]?.trim()));
+    }
+    return prefix === "CARTESIA" || Boolean(env[`${prefix}_VOICE_ID${VOICE_SUFFIXES[key]}`]?.trim());
+  });
 }
 
 export function sttConfig(env: SpeechEnvironment = process.env) {

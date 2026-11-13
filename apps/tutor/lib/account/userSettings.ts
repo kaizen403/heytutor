@@ -138,7 +138,7 @@ export function parseAccountSettings(value: unknown): AccountSettings {
     // Product UI no longer exposes these; old rows must not stick.
     fastMode: true,
     familiarity,
-    // The server masks Hinglish when the deployment has no Sarvam key.
+    // The server masks Indian languages when the deployment has no Sarvam key.
     audioLanguage: isTutorAudioLanguage(row.audioLanguage) ? row.audioLanguage : DEFAULT_AUDIO_LANGUAGE,
     accent,
     narrationEnabled: true,
@@ -175,9 +175,9 @@ export function accountSettingsPatch(
   if ("speedMultiplier" in row) next.speedMultiplier = clampSpeed(Number(row.speedMultiplier));
   // fastMode / narrationEnabled / lowLatencyVoice are product defaults, not
   // user patches; ignore them so a stale client cannot turn them off.
-  // Hinglish is saved only where it can be spoken. Without a Sarvam key the
+  // An Indian language is saved only where it can be spoken. Without a Sarvam key the
   // field is ignored rather than rewritten, so a whole-object PATCH from the
-  // client (which then reads English) cannot erase a saved Hinglish choice.
+  // client (which then reads English) cannot erase a saved language choice.
   if (options.hinglishAvailable && isTutorAudioLanguage(row.audioLanguage)) {
     next.audioLanguage = row.audioLanguage;
   }

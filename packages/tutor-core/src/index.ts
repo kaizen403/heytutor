@@ -45,6 +45,7 @@ export * from "./llm/notesChatPrompt";
 export * from "./llm/givenValueIntro";
 export * from "./llm/lessonOpening";
 export * from "./llm/hinglishNarration";
+export * from "./llm/indianNarration";
 export * from "./code/codeLessonPlan";
 export * from "./code/codeFormatGate";
 export * from "./code/codeTraceGate";

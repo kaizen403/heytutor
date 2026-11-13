@@ -130,6 +130,9 @@ jobs:
           pnpm --filter @heytutor/drawing verify
           pnpm --filter @heytutor/whiteboard verify
           pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-speech-notation.ts
+          pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-browser-speech-language.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-indian-languages.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-sarvam-tts.ts
       - name: Preserve the development webpack cache
         run: pnpm --filter @heytutor/tutor verify:dev-cache
       - name: Typecheck and lint

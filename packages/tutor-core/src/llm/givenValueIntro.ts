@@ -1,3 +1,4 @@
+import { regionalNarration } from "./indianNarration";
 /**
  * Runtime-owned opening for problem-solving turns.
  *
@@ -295,6 +296,8 @@ function equationFromQuestion(statement: string): GivenCandidate | null {
 
 function spokenGivenList(givens: QuestionGiven[], lead = true, language?: NarrationLanguage): string {
   const parts = givens.map((given) => given.spoken);
+  const regional = regionalNarration(language);
+  if (regional) return parts.map((part, index) => `${index === 0 && lead ? regional.given : regional.and} ${part}.`).join(" ");
   if (language === "hinglish") {
     return parts.map((part, index) => `${index === 0 && lead ? "दिया है" : "और"} ${part}.`).join(" ");
   }

@@ -1,5 +1,5 @@
 import type { TutorSegment } from "@heytutor/drawing";
-import type { NarrationLanguage } from "@heytutor/tutor-core";
+import { REGIONAL_NARRATION, regionalNarration, type NarrationLanguage } from "@heytutor/tutor-core";
 
 /** Opt-in only: ordinary lesson ordering is unchanged without the exact flag. */
 export const EARLY_LESSON_OPENING_ENABLED = process.env.NEXT_PUBLIC_EARLY_LESSON_OPENING === "1";
@@ -23,10 +23,11 @@ const OPENING_NARRATION = {
   english: "Okay, let's take this question one step at a time.",
   hinglish: "ठीक है, इस सवाल को आराम से समझते हैं.",
 } as const;
+const EARLY_OPENING_LINES: readonly string[] = [...Object.values(OPENING_NARRATION), ...Object.values(REGIONAL_NARRATION).map((copy) => copy.opening)];
 
 /** No question or planner input can become pre-authority speech or ink. */
 export function buildEarlyLessonOpeningSegment(language: NarrationLanguage = "english"): TutorSegment {
-  return { narration: OPENING_NARRATION[language], command: null, delivery: "opening" };
+  return { narration: regionalNarration(language)?.opening ?? OPENING_NARRATION[language === "hinglish" ? "hinglish" : "english"], command: null, delivery: "opening" };
 }
 
 export interface EarlyLessonSpokenSegment {
@@ -66,7 +67,7 @@ export function classifyEarlyLessonProgress(input: EarlyLessonProgressInput): Ea
     const text = narration.trim();
     if (!text) return "none";
     return input.earlyOpeningStarted &&
-      (text === OPENING_NARRATION.english || text === OPENING_NARRATION.hinglish)
+      EARLY_OPENING_LINES.includes(text)
       ? "opening_only" : "substantive";
   };
   for (const segment of input.spokenSegments) {

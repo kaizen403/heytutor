@@ -1,5 +1,7 @@
 "use client";
 
+import { INDIAN_LANGUAGE_OPTIONS } from "@heytutor/tutor-core";
+
 import {
   Settings,
   Gauge,
@@ -54,7 +56,7 @@ interface SettingsDrawerProps {
   onCloseAutoFocus?: (event: Event) => void;
   settings: SettingsState;
   onSettingsChange: (settings: SettingsState) => void;
-  /** Hinglish is offered only when the server holds a Sarvam key. */
+  /** Indian language voices are offered only when the server holds a Sarvam key. */
   hinglishAvailable?: boolean;
 }
 
@@ -260,7 +262,7 @@ export function SettingsDrawer({
   onSettingsChange,
   hinglishAvailable = false,
 }: SettingsDrawerProps) {
-  const english = settings.audioLanguage !== "hinglish" || !hinglishAvailable;
+  const english = settings.audioLanguage === "english" || !hinglishAvailable;
   const update = (partial: Partial<SettingsState>) => {
     onSettingsChange({ ...settings, ...partial });
   };
@@ -332,17 +334,20 @@ export function SettingsDrawer({
                 onClick={() => update({ audioLanguage: "english", accent: "us" })}
               />
               {hinglishAvailable ? (
-                <SelectPill
-                  label="Hinglish"
-                  checked={!english}
-                  onClick={() => update({ audioLanguage: "hinglish" })}
-                />
+                INDIAN_LANGUAGE_OPTIONS.map(({ language, label }) => (
+                  <SelectPill
+                    key={language}
+                    label={label}
+                    checked={settings.audioLanguage === language}
+                    onClick={() => update({ audioLanguage: language })}
+                  />
+                ))
               ) : null}
             </div>
             <p className="mt-2 text-[0.6875rem] leading-4" style={{ color: theme.dark }}>
               {english
-                ? "The tutor\u2019s accent. Applies from the next spoken segment."
-                : "The tutor speaks a Hindi and English mix. The board stays in English. Switching language applies from your next question."}
+                ? "English accents apply from the next spoken segment. Language changes apply from your next question."
+                : "The tutor speaks your selected language with English maths and subject terms. The board stays in English. Switching language applies from your next question."}
             </p>
           </SettingsSection>
 
