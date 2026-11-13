@@ -114,6 +114,8 @@ jobs:
         run: node --test tools/verify/run-gates.test.mjs
       - name: Build shared packages
         run: pnpm turbo run build --filter='./packages/*'
+      - name: Recording slot lifecycle regressions (offline)
+        run: pnpm --filter @heytutor/tutor exec node --experimental-test-module-mocks --import tsx scripts/verify/verify-billing-grant.ts
       - name: Yield switch and PR246 review blocker regressions (offline)
         run: |
           pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-yield-switch-blockers.ts

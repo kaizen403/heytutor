@@ -263,6 +263,7 @@ export async function beginTurnFromRequest(request: Request): Promise<BeginTurnS
 
 export async function requireLessonGrant(
   request: Request,
+  options: { reserveBypassSlot?: boolean } = {},
 ): Promise<{ actor: SpendActor; grant: TurnGrant } | Response> {
   const actor = await requireSpendActor(request);
   if (!isSpendActor(actor)) return actor;
@@ -272,6 +273,9 @@ export async function requireLessonGrant(
       userId: actor.userId,
       traceId,
       planId: BILLING_PLANS.pro,
+      // Only chat holds and releases recording slots. TTS / policies can
+      // arrive after chat EOF; re-reserving here would strand a zero-use slot.
+      reserveSlot: options.reserveBypassSlot === true,
     });
     if (!grant) return billingResponse("concurrent_limit", 0);
     if (!await registerOwnedTrace(actor.userId, traceId) || !await assertOwnedTrace(actor.userId, traceId, request.headers.get("x-session-id") ?? undefined)) return billingResponse("no_grant", 0);
