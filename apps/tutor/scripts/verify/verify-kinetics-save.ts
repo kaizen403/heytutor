@@ -61,6 +61,7 @@ async function verify(example: Example, turnPlan: TurnPlanV3, expected: "validat
     // Submitted metadata cannot authorize changed values.
     const forged = structuredClone(attempted.sceneDocument);
     forged.quantities.find(quantity => quantity.id === "k")!.value = 999;
+    forged.source.answerQuantityValues = { k: 999 };
     assert(sceneSaveAdmissionFailure({ document: forged, question: example.question, turnPlan, tier: attempted.tier }), "forged k must fail recomputation");
   } else assert.match(selected.saveFailure ?? "", /scene_quantity_unverified|disagree/);
 }
@@ -92,6 +93,27 @@ async function main(): Promise<void> {
       [answer, "min", "retry_required", [{ id: "rate", symbol: "k", value: Number((rate * 1.002).toPrecision(8)), unit: "1/min" }]],
     ] as const) {
       await verify(example, planFor(example, value, unit, [...extra]), expected);
+      checks++;
+    }
+    for (const [unit, factor] of [["min^-1", 1], ["min⁻¹", 1], ["s^-1", 1 / 60], ["1/s", 1 / 60], ["1/h", 60]] as const) {
+      const rateQuantity = { id: "rate", symbol: "k", value: Number((rate * factor).toPrecision(12)), unit };
+      await verify(example, planFor(example, answer, "min", [rateQuantity]), "validated");
+      const compound = { ...example, question: `${example.question} Calculate the rate constant.` };
+      const requested = planFor(compound, answer, "min", [rateQuantity]);
+      requested.unknowns.push({ id: "requested_rate", symbol: "k", unit });
+      await verify(compound, requested, "validated");
+      const matchingId = structuredClone(requested);
+      matchingId.derived.find(quantity => quantity.id === "rate")!.id = "k";
+      await verify(compound, matchingId, "validated");
+      const stale = structuredClone(matchingId);
+      stale.derived.find(quantity => quantity.id === "k")!.value = Number((rate * factor * 1.01).toPrecision(8));
+      await verify(compound, stale, "retry_required");
+      checks += 4;
+    }
+    await verify(example, planFor(example, answer, "min", [{ id: "rate", symbol: "k", value: Number((rate + 1e-7).toPrecision(12)), unit: "1/min" }]), "retry_required");
+    checks++;
+    for (const unit of ["min", "1/min^2", "2/min"]) {
+      await verify(example, planFor(example, answer, "min", [{ id: "rate", symbol: "k", value: Number(rate.toPrecision(6)), unit }]), "retry_required");
       checks++;
     }
     const withCalculation = planFor(example, answer, "min", [{ id: "twice_given", symbol: "t_double", value: example.minutes * 2, unit: "min" }]);

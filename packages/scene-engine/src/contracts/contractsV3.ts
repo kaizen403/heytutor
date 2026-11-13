@@ -2642,7 +2642,7 @@ function unitScale(unit: unknown): UnitScale | null {
   const text = unit.trim()
     .replace(/[−–]/g, "-")
     .replace(/⁻/g, "^-")
-    .replace(/[¹²³⁰⁴⁵⁶⁷⁸⁹]+/g, (digits) => `^${fromSuperscriptDigits(digits.replace("¹", "1"))}`)
+    .replace(/[¹²³⁰⁴⁵⁶⁷⁸⁹]+/g, (digits) => `^${fromSuperscriptDigits(digits)}`)
     .replace(/\^-\^/g, "^-")
     .replace(/[()]/g, " ");
   if (text === "" || /^(?:1|none|dimensionless|unitless|scalar)$/i.test(text)) {
@@ -2659,6 +2659,8 @@ function unitScale(unit: unknown): UnitScale | null {
       return null;
     }
     for (const term of factors) {
+      // Unity is also a neutral factor inside a unit such as 1/min.
+      if (term === "1") continue;
       const match = term.match(/^([A-Za-zΩΩµμ%]+)(?:\^?\(?(-?\d+)\)?)?$/u);
       if (!match) return null;
       const resolved = resolveUnitSymbol(match[1]!);
