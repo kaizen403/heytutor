@@ -1454,7 +1454,11 @@ function buildFirstOrderDecay(question: string, spec: KineticsSpec, solution: Ki
   // quantity, so such a figure keeps every value under the plan's check.
   if (solution.remainingAtTimes.length === 0 && completions.length + remainings.length > 0) {
     document.source.slotSources = Object.fromEntries(document.quantities.map(({ id }) => [id, "stem"]));
-    document.source.answerQuantityIds = document.quantities.map(({ id }) => id).filter((id) => /^t_(?:completion|remaining)_\d+$/.test(id));
+    // k and half-life may be requested alongside the marked instants. All
+    // computed roles can answer a named unknown; an unnamed time still binds
+    // only to the source-requested instants, never to a half-life reference.
+    document.source.answerQuantityIds = document.quantities.map(({ id }) => id);
+    document.source.defaultAnswerQuantityIds = document.quantities.map(({ id }) => id).filter((id) => /^t_(?:completion|remaining)_\d+$/.test(id));
   }
   return document;
 }

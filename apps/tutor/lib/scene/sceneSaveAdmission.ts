@@ -140,10 +140,15 @@ function answerRolesHold(
     typeof quantity.value === "number" && Number.isFinite(quantity.value));
   const answers = numeric.filter((quantity) => answerIds.includes(quantity.id));
   if (answers.length !== answerIds.length) return false;
+  const defaultIds = document.source.defaultAnswerQuantityIds;
+  const defaults = Array.isArray(defaultIds) ? answers.filter((quantity) => defaultIds.includes(quantity.id)) : answers;
   const symbolKey = (symbol: string): string => symbol.normalize("NFKC").toLowerCase()
     .replace(/\\(?:mathrm|text|operatorname)/g, "").replace(/[^a-z0-9]+/g, "");
   const answersUnknown = (quantity: TurnPlanV3["derived"][number], unknown: TurnPlanV3["unknowns"][number]): boolean =>
     quantity.id === unknown.id || symbolKey(quantity.symbol) !== "" && symbolKey(quantity.symbol) === symbolKey(unknown.symbol);
+  const namedFor = (binding: { id: string; symbol: string }) => numeric.filter((candidate) =>
+    candidate.id === binding.id || symbolKey(candidate.id) === symbolKey(binding.symbol) ||
+    typeof candidate.symbol === "string" && symbolKey(candidate.symbol) === symbolKey(binding.symbol));
   // A validated plan may resolve an unknown by symbol while assigning its
   // result a different id. Missing that binding lets a half-life masquerade
   // as the requested completion time. Unrecognized bindings stay refused.
@@ -154,14 +159,17 @@ function answerRolesHold(
   }
   return turnPlan.derived.every((quantity) => {
     const inUnitOf = (candidate: typeof numeric[number]) => convertMeasuredValue(quantity.value, quantity.unit, candidate.unit);
-    const isAnswer = turnPlan.unknowns.some((unknown) => answersUnknown(quantity, unknown));
-    const named = numeric.filter((candidate) => candidate.id === quantity.id ||
-      typeof candidate.symbol === "string" && symbolKey(candidate.symbol) === symbolKey(quantity.symbol));
+    const unknowns = turnPlan.unknowns.filter((unknown) => answersUnknown(quantity, unknown));
+    const isAnswer = unknowns.length > 0;
+    const named = namedFor(quantity);
     if (!numeric.some((candidate) => inUnitOf(candidate) !== null)) return !isAnswer && named.length === 0;
     // Several asked instants share a unit; swapping them is still false.
     // A generic answer symbol is usable only when exactly one answer exists.
+    const roles = unknowns.map((unknown) => namedFor(unknown).filter((candidate) => answers.includes(candidate))).filter((role) => role.length > 0);
+    const allowed = roles.length ? answers.filter((answer) => roles.every((role) => role.includes(answer))) : defaults;
+    const compatible = allowed.filter((candidate) => inUnitOf(candidate) !== null);
     const pool = isAnswer
-      ? named.length ? answers.filter((answer) => named.includes(answer)) : answers.length === 1 ? answers : []
+      ? named.length ? allowed.filter((answer) => named.includes(answer)) : compatible.length === 1 ? compatible : []
       : named.length ? named : numeric;
     return pool.some((candidate) => {
       const converted = inUnitOf(candidate);

@@ -43,7 +43,7 @@ function problemFor(question: string): ProblemIR {
 }
 async function verify(example: Example, turnPlan: TurnPlanV3, expected: "validated" | "retry_required"): Promise<void> {
   const selected = selectProductionScene({ question: example.question, turnPlan, problemIR: problemFor(example.question), requiredRetryEnabled: true });
-  assert.equal(selected.visualStatus, expected, selected.reason);
+  assert.equal(selected.visualStatus, expected, `${selected.reason}; derived: ${JSON.stringify(turnPlan.derived.map(({ symbol, value, unit }) => ({ symbol, value, unit })))}`);
   const attempted = selected.attemptedRepresentation;
   assert(attempted, "the family must construct a kinetics candidate");
   assert.equal(attempted.family, "chem_kinetics");
@@ -90,6 +90,62 @@ async function main(): Promise<void> {
       [answer, "min", "retry_required", [{ id: "rate", symbol: "k", value: Number((rate * 1.002).toPrecision(8)), unit: "1/min" }]],
     ] as const) {
       await verify(example, planFor(example, value, unit, [...extra]), expected);
+      checks++;
+    }
+    for (const requested of ["rate", "half", "both"] as const) {
+      const rateRequest = requested !== "half" ? " Calculate the rate constant." : "";
+      const halfRequest = requested !== "rate" ? " Calculate the half-life." : "";
+      const compound = { ...example, question: example.question + rateRequest + halfRequest };
+      const extra: Scalar[] = [];
+      const unknowns: TurnPlanV3["unknowns"] = [];
+      if (requested !== "half") {
+        extra.push({ id: "rate", symbol: "k", value: Number(rate.toPrecision(3)), unit: "1/min" });
+        unknowns.push({ id: "requested_rate", symbol: "k", unit: "1/min" });
+      }
+      if (requested !== "rate") {
+        extra.push({ id: "half", symbol: "t_1/2", value: Number(half.toFixed(2)), unit: "min" });
+        unknowns.push({ id: "requested_half", symbol: "t_1/2", unit: "min" });
+      }
+      const compoundPlan = planFor(compound, answer, "min", extra);
+      compoundPlan.unknowns.push(...unknowns);
+      await verify(compound, compoundPlan, "validated");
+      const converted = structuredClone(compoundPlan);
+      converted.derived[0]!.value = Number((answer / 60).toFixed(4));
+      converted.derived[0]!.unit = "h";
+      for (const quantity of converted.derived.slice(1)) {
+        if (quantity.id === "half") {
+          quantity.value = Number((half / 60).toFixed(4));
+          quantity.unit = "h";
+        }
+      }
+      for (const quantity of converted.derived) quantity.sourceText = `${quantity.symbol} ≈ ${quantity.value} ${quantity.unit}`;
+      await verify(compound, converted, "validated");
+      checks++;
+      for (const id of extra.map(quantity => quantity.id)) {
+        const stale = structuredClone(compoundPlan);
+        stale.derived.find(quantity => quantity.id === id)!.value = id === "rate" ? 0.02 : 90;
+        await verify(compound, stale, "retry_required");
+        checks++;
+      }
+      if (requested !== "rate") {
+        const aliased = structuredClone(compoundPlan);
+        aliased.unknowns.find(unknown => unknown.id === "requested_half")!.symbol = "t_half";
+        aliased.derived.find(quantity => quantity.id === "half")!.symbol = "t_half";
+        await verify(compound, aliased, "validated");
+        checks++;
+        const wrongRole = structuredClone(compoundPlan);
+        wrongRole.derived.find(quantity => quantity.id === "half")!.value = round(answer);
+        await verify(compound, wrongRole, "retry_required");
+        checks++;
+      }
+      checks++;
+    }
+    for (const symbol of ["t₂", `t_${example.requested}`]) {
+      const misbound = planFor(example, half);
+      misbound.unknowns[0]!.symbol = symbol;
+      misbound.derived[0]!.id = misbound.unknowns[0]!.id;
+      misbound.derived[0]!.symbol = "t_1/2";
+      await verify(example, misbound, "retry_required");
       checks++;
     }
   }
