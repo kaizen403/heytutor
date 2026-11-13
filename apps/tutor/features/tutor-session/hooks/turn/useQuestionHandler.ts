@@ -1370,6 +1370,12 @@ export function useQuestionHandler(
             lessonFigures: billed.lessonFigures === true && !doubt && !resume && !dsaClassification.isDsa,
             // lesson-figures-ask:end
             onRequestOutcome: (outcome) => {
+              if (outcome.abortReason) {
+                tel.mark("planner-request-aborted", {
+                  planner: "turn_plan", phase: outcome.phase, lane: outcome.lane, request_kind: outcome.requestKind,
+                  abort_reason: outcome.abortReason, elapsed_ms: outcome.elapsedMs, planner_request_id: outcome.requestId,
+                });
+              }
               if (outcome.code === "accepted") turnPlanAdmitted = true;
               if (turnPlanOutcomes.length < 3) turnPlanOutcomes.push(outcome);
               const previous = page.failureTelemetry ?? { subject: "other" };
@@ -1629,10 +1635,18 @@ export function useQuestionHandler(
                 waitForRequiredScenePeers: waitForRequiredScenePeers(planningTurnPlan.visualRequirement),
                 fastMode: fastModeRef.current,
                 onRequestOutcome: outcome => {
+                  if (outcome.abortReason) {
+                    tel.mark("planner-request-aborted", {
+                      planner: "scene", phase: outcome.phase, lane: outcome.lane,
+                      abort_reason: outcome.abortReason, elapsed_ms: outcome.elapsedMs, planner_request_id: outcome.requestId,
+                    });
+                  }
+                  // A lane stopped because a peer won, or because the turn ended, is not a failure.
+                  if (outcome.abortReason === "superseded" || outcome.abortReason === "turn_cancelled") return;
                   sceneRequestFailure = sceneRequestFailureTelemetry({
                     httpStatus: outcome.httpStatus, bodyParsed: outcome.bodyParsed,
                     errorPresent: outcome.error !== null, declined: Boolean(outcome.declineReason),
-                    timedOut: outcome.elapsedMs >= run.timeoutMs,
+                    timedOut: outcome.abortReason === "deadline" || outcome.elapsedMs >= run.timeoutMs,
                   }) ?? sceneRequestFailure;
                 },
                 ...plannerRequest,
@@ -1650,7 +1664,10 @@ export function useQuestionHandler(
         // lesson-figures-families:begin
         lessonSceneFamilies = sceneCapabilities.families;
         // lesson-figures-families:end
-        if (planning.gate.chemistryLane) page.failureTelemetry = { ...page.failureTelemetry, subject: "chemistry" };
+        // A family cue can claim a maths or physics stem; the plan's subject still names the lesson.
+        if (planning.gate.chemistryLane && (page.failureTelemetry?.subject ?? "other") === "other") {
+          page.failureTelemetry = { ...page.failureTelemetry, subject: "chemistry" };
+        }
         diagramStrategyDecision = planning.gate.diagramStrategy;
         tel.meta({ diagram_strategy: diagramStrategyDecision.strategy });
         const skippedExactForMissingCapability = shouldPlanExactScene && !shouldAttemptLlmScene;
@@ -1752,7 +1769,12 @@ export function useQuestionHandler(
             : attempted && !sceneSelection.sourceAllowed ? { stage: "scene_planner", code: "fallback_suppressed" } as const
               : value?.document.visualDecision.mode === "text_only" ? { stage: "scene_planner", code: "planner_declined" } as const
                 : result && !result.validation.valid ? { stage: "validation", code: "candidate_invalid" } as const
-                  : sceneRequestFailure;
+                  // The chemistry lane never runs the planner: a family figure
+                  // refused downstream, or no family that draws the topic.
+                  : !result && planning.gate.chemistryLane && !sceneRequestFailure && sceneSelection.visualStatus === "retry_required"
+                    ? attempted ? { stage: "validation", code: "candidate_invalid" } as const
+                      : { stage: "scene_planner", code: "missing_capability" } as const
+                    : sceneRequestFailure;
           if (failure) page.failureTelemetry = { ...page.failureTelemetry, subject: page.failureTelemetry?.subject ?? "other", ...failure };
         }
         if (sceneSelection.reason === "the question asks for no figure") {
@@ -1975,6 +1997,13 @@ export function useQuestionHandler(
                 signal: run.signal,
                 timeoutMs: Math.min(TURN_PLAN_DEADLINE_MS, run.timeoutMs),
                 fastMode: fastModeRef.current,
+                onRequestOutcome: (outcome) => {
+                  if (!outcome.abortReason) return;
+                  tel.mark("planner-request-aborted", {
+                    planner: "doubt_turn_plan", phase: outcome.phase, lane: outcome.lane, request_kind: outcome.requestKind,
+                    abort_reason: outcome.abortReason, elapsed_ms: outcome.elapsedMs, planner_request_id: outcome.requestId,
+                  });
+                },
               }),
               planAuthority: (composed, run) => planAndSolveProblemV1(composed, null, {
                 proxyUrl: plannerUrl,

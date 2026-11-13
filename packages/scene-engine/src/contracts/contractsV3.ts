@@ -315,6 +315,37 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
 }
 
 /**
+ * Numeric checks for intermediate work in an already validated plan. A value
+ * must restate its own given (with proved unit conversion), or be recomputed
+ * by the existing arithmetic reader from givens and previously proved work.
+ * Bare restatements of derived values grant no proof. These IDs do not prove
+ * source geometry or answer roles; those require their independent checks.
+ */
+export function proveTurnPlanIntermediateQuantities(plan: TurnPlanV3): ReadonlySet<string> {
+  const proved = new Set<string>();
+  if (turnPlanTextOverLimit(plan)) return proved;
+  const knownUnits = collectPlanUnits({ ...plan });
+  const bindingMeta: NumericBindingMetaMap = new Map();
+  const bindings = collectNumericBindings(plan.givens, bindingMeta);
+  const key = (text: string) => normalizeNumericBindingKey(text).normalize("NFKC").replace(/[_\s]/g, "");
+  for (const index of derivedEvaluationOrder(plan.derived)) {
+    const quantity = plan.derived[index]!;
+    const keys = new Set([key(quantity.id), key(quantity.symbol)]);
+    const restatesGiven = plan.givens.some(given =>
+      [given.id, given.symbol].some(name => keys.has(key(name))) &&
+      equivalentRoundedMeasuredQuantity(given.value, given.unit, quantity.value, quantity.unit));
+    const evidence = evaluateExplicitArithmetic(quantity.sourceText ?? "", quantity.unit,
+      knownUnits, bindings, true, [quantity.id, quantity.symbol], { bindingMeta, declaredValue: quantity.value });
+    const arithmetic = evidence.value !== null && !evidence.mixedUnits &&
+      equivalentRoundedMeasuredQuantity(evidence.value, quantity.unit, quantity.value, quantity.unit);
+    if (evidence.invalid || evidence.conflicting || !(restatesGiven || arithmetic)) continue;
+    proved.add(quantity.id);
+    addNumericBinding(bindings, quantity, bindingMeta);
+  }
+  return proved;
+}
+
+/**
  * Runtime validation for model-produced plans. TypeScript interfaces do not
  * protect the JSON boundary, so reject malformed or internally inconsistent
  * facts before they become authoritative for the scene and narration.
@@ -2611,7 +2642,7 @@ function unitScale(unit: unknown): UnitScale | null {
   const text = unit.trim()
     .replace(/[−–]/g, "-")
     .replace(/⁻/g, "^-")
-    .replace(/[¹²³⁰⁴⁵⁶⁷⁸⁹]+/g, (digits) => `^${fromSuperscriptDigits(digits.replace("¹", "1"))}`)
+    .replace(/[¹²³⁰⁴⁵⁶⁷⁸⁹]+/g, (digits) => `^${fromSuperscriptDigits(digits)}`)
     .replace(/\^-\^/g, "^-")
     .replace(/[()]/g, " ");
   if (text === "" || /^(?:1|none|dimensionless|unitless|scalar)$/i.test(text)) {
@@ -2628,6 +2659,8 @@ function unitScale(unit: unknown): UnitScale | null {
       return null;
     }
     for (const term of factors) {
+      // Unity is also a neutral factor inside a unit such as 1/min.
+      if (term === "1") continue;
       const match = term.match(/^([A-Za-zΩΩµμ%]+)(?:\^?\(?(-?\d+)\)?)?$/u);
       if (!match) return null;
       const resolved = resolveUnitSymbol(match[1]!);

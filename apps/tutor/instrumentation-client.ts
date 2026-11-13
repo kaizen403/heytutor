@@ -23,6 +23,11 @@ if (dsn && sentryBrowserRuntimeEnabled()) {
       "ResizeObserver loop limit exceeded",
       "ResizeObserver loop completed with undelivered notifications.",
       /^AbortError/,
+      // A fetch the network or a navigation dropped, as each browser words it.
+      // Anchored so an error that only mentions these words still reports.
+      /^(?:TypeError: )?Load failed(?: \([^)]*\))?$/,
+      /^(?:TypeError: )?NetworkError when attempting to fetch resource\.?$/,
+      /^(?:TypeError: )?Failed to fetch(?: \([^)]*\))?$/,
     ],
     denyUrls: [/^chrome-extension:\/\//, /^moz-extension:\/\//, /^safari-extension:\/\//],
   });

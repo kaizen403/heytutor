@@ -31,7 +31,14 @@ import {
   nextScheduleStartSec,
   playbackAudibleOriginSec,
 } from "./playbackSchedule";
-import { createLectureAudioContext, releaseLectureAudioContext, unlockTutorAudio } from "./audioContext";
+import {
+  createLectureAudioContext,
+  releaseLectureAudioContext,
+  returnPrimedSpeechAudio,
+  settleContextChange,
+  takePrimedSpeechAudio,
+  unlockTutorAudio,
+} from "./audioContext";
 import { TUTOR_VOICE_SETTINGS, voiceSettingsKey } from "./voiceSettings";
 import {
   applyBufferSourcePlaybackRate,
@@ -129,6 +136,11 @@ class NativePlaybackStalledError extends NativePlaybackError {
   }
 }
 const NATIVE_PLAYBACK_STALL_MS = 1_500;
+/**
+ * The clip that last loaded each native element. Gesture-primed elements are
+ * reused, so a late callback may only touch an element its clip still owns.
+ */
+const nativeClipOwners = new WeakMap<HTMLAudioElement, object>();
 
 /**
  * Cache identity for one generated sentence.
@@ -654,9 +666,10 @@ export class StreamingSpeechClient implements TTSClient {
     this.halted = false;
     this.paused = false;
     this.audioContext = this.audioContext ?? createLectureAudioContext();
+    const ctx = this.audioContext;
     unlockTutorAudio();
-    if (this.audioContext.state === "suspended") {
-      void this.audioContext.resume().then(() => {
+    if (ctx.state === "suspended") {
+      void settleContextChange(ctx, ctx.resume()).then(() => {
         tutorDebug("tts", "audio unlocked", { state: this.audioContext?.state });
       });
     }
@@ -2423,16 +2436,22 @@ export class StreamingSpeechClient implements TTSClient {
     }
     let url: string;
     let audio: HTMLAudioElement;
+    let primed: HTMLAudioElement | null = null;
     try {
       const bytes = concatUint8Arrays(chunks);
       const buffer = new ArrayBuffer(bytes.byteLength);
       new Uint8Array(buffer).set(bytes);
       const blob = new Blob([buffer], { type: speechAudioMimeType(bytes) });
       url = URL.createObjectURL(blob);
-      audio = new Audio(url);
+      primed = takePrimedSpeechAudio();
+      if (primed) primed.src = url;
+      audio = primed ?? new Audio(url);
     } catch {
       return null;
     }
+    const clip = {};
+    nativeClipOwners.set(audio, clip);
+    const ownsAudio = () => nativeClipOwners.get(audio) === clip;
     applyHtmlAudioPlaybackRate(audio, this.playbackRate);
     applyHtmlAudioMute(audio, this.muted);
     this.stopHtmlAudio();
@@ -2452,7 +2471,7 @@ export class StreamingSpeechClient implements TTSClient {
         audio.load();
       };
       const announceStart = () => {
-        if (settled || this.currentHtmlAudio !== audio) { unload(); return; }
+        if (settled || this.currentHtmlAudio !== audio) { if (ownsAudio()) unload(); return; }
         if (this.paused) { audio.pause(); return; }
         const position = audio.currentTime;
         if (!Number.isFinite(position) || position <= resumeAtSec) return;
@@ -2481,6 +2500,10 @@ export class StreamingSpeechClient implements TTSClient {
         }
         if (this.activeSources.length === 0) {
           this.playing = false;
+        }
+        // A refused or stalled element is dropped, so a retry gets a fresh output.
+        if (primed && (!error || (error instanceof DOMException && error.name === "AbortError"))) {
+          returnPrimedSpeechAudio(primed);
         }
         if (error) reject(error);
         else resolve();
@@ -2528,7 +2551,7 @@ export class StreamingSpeechClient implements TTSClient {
         progressTimer = setTimeout(checkProgress, 100);
       };
       const observePlaying = () => {
-        if (this.blockedHtmlAudio === audio) this.blockedHtmlAudio = null;
+        if (this.blockedHtmlAudio === audio && ownsAudio()) this.blockedHtmlAudio = null;
         announceStart();
         if (!watching && !settled) {
           watching = true;
@@ -2672,7 +2695,7 @@ export class StreamingSpeechClient implements TTSClient {
     this.pauseEpoch += 1;
     this.clearTimers();
     this.currentHtmlAudio?.pause();
-    void this.audioContext?.suspend();
+    if (this.audioContext) void settleContextChange(this.audioContext, this.audioContext.suspend());
     // Chromium often ignores speechSynthesis.pause(); cancel is the reliable mute.
     this.speechFallback.pause();
     tutorDebug("tts", "pause");
@@ -2686,8 +2709,10 @@ export class StreamingSpeechClient implements TTSClient {
       const generation = this.speakGeneration;
       const onStart = this.currentHtmlOnStart;
       const onFailure = this.failHtmlAudio;
+      const clip = nativeClipOwners.get(htmlAudio);
       void htmlAudio.play().then(
         () => {
+          if (nativeClipOwners.get(htmlAudio) !== clip) return;
           if (this.speakGeneration !== generation || this.currentHtmlAudio !== htmlAudio) {
             htmlAudio.pause();
             htmlAudio.removeAttribute("src");
@@ -2697,7 +2722,8 @@ export class StreamingSpeechClient implements TTSClient {
           onStart?.();
         },
         (error: unknown) => {
-          if (this.speakGeneration === generation && this.currentHtmlAudio === htmlAudio && this.pauseEpoch === playPauseEpoch) {
+          if (this.speakGeneration === generation && this.currentHtmlAudio === htmlAudio && nativeClipOwners.get(htmlAudio) === clip &&
+            this.pauseEpoch === playPauseEpoch) {
             if (this.holdBlockedHtmlAudio(error, htmlAudio)) return;
             onFailure?.(error);
           }

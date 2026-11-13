@@ -787,6 +787,32 @@ async function verifyFailedTurnDelivery(): Promise<void> {
     "a live picture lesson waits for its final outcome too");
   strictAssert.equal(telemetry.buildFailedTurnSentryEvent({ ...shownPicture, sceneArtifacts: { ...shownPicture.sceneArtifacts, failureTelemetry: { failed: true, code: "lesson_not_taught" } } }, failureEnv)?.message,
     "Tutor turn failed", "a picture lesson that did not teach is still a failed turn");
+  const silentTurn = { ...failedTurn, visualStatus: "validated", sceneArtifacts: { turnPlan: { visualRequirement: "required" },
+    failureTelemetry: { subject: "physics", issueCodes: [telemetry.TEACHING_VOICE_DEGRADED], question: "Synthetic student question" } } };
+  const silentEvent = telemetry.buildFailedTurnSentryEvent(silentTurn, failureEnv);
+  assert(silentEvent, "a verified lesson with silent sentences still reaches Sentry");
+  strictAssert.equal(silentEvent.message, "Tutor turn failed");
+  strictAssert.equal(silentEvent.level, "warning", "silent sentences are a warning: the lesson still taught");
+  strictAssert.deepEqual(silentEvent.fingerprint, ["turn-failure", "teaching", "speech_silent_segments", "physics"]);
+  strictAssert.deepEqual(silentEvent.extra.issue_codes, [telemetry.TEACHING_VOICE_DEGRADED]);
+  const scrubbedSilent = scrubSentryEvent({ ...structuredClone(silentEvent), user: { id: "synthetic-user-id" },
+    contexts: { lesson: { question: "Synthetic student question" } } } as SentryScrubEvent);
+  strictAssert.equal(scrubbedSilent.level, "warning", "the privacy boundary keeps the warning level");
+  strictAssert.equal(scrubbedSilent.tags?.code, "speech_silent_segments", "the privacy boundary keeps the silent-speech code");
+  strictAssert.deepEqual(scrubbedSilent.fingerprint, ["turn-failure", "teaching", "speech_silent_segments", "physics"]);
+  assert(!JSON.stringify(scrubbedSilent).includes("Synthetic student") && !JSON.stringify(scrubbedSilent).includes("synthetic-user-id"),
+    "a silent-speech warning passes the same privacy boundary");
+  strictAssert.equal(telemetry.buildFailedTurnSentryEvent({ ...silentTurn, status: "live" }, failureEnv), null,
+    "a live lesson with a silent sentence waits until it finishes");
+  strictAssert.equal(telemetry.buildFailedTurnSentryEvent({ ...shownPicture, sceneArtifacts: { ...shownPicture.sceneArtifacts,
+    failureTelemetry: { subject: "physics", issueCodes: [telemetry.TEACHING_VOICE_DEGRADED] } } }, failureEnv)?.tags.code,
+  "speech_silent_segments", "silent sentences outrank a shown picture's info report");
+  const silentFailure = telemetry.buildFailedTurnSentryEvent({ ...failedTurn, sceneArtifacts: { ...failedTurn.sceneArtifacts as object,
+    failureTelemetry: { subject: "physics", stage: "scene_planner", code: "candidate_invalid", issueCodes: [telemetry.TEACHING_VOICE_DEGRADED] } } }, failureEnv);
+  strictAssert.equal(silentFailure?.tags.code, "candidate_invalid", "a failed turn keeps its own failure code");
+  assert(silentFailure?.extra.issue_codes.includes(telemetry.TEACHING_VOICE_DEGRADED), "a failed turn still lists its silent sentences");
+  assert(read("lib/obs/failedTurnSentry.ts").includes(`'issueCodes' @> '["${telemetry.TEACHING_VOICE_DEGRADED}"]'::jsonb`),
+    "the delivery claim picks up a verified lesson with silent sentences");
   strictAssert.equal(telemetry.buildFailedTurnSentryEvent({ ...failedTurn, status: "live" }, failureEnv), null,
     "a provisional live checkpoint waits for final outcome");
   strictAssert.equal(telemetry.buildFailedTurnSentryEvent({ ...failedTurn, visualStatus: "validated" }, failureEnv), null,

@@ -29,6 +29,7 @@ import {
   shouldAbandonTurn, silentSentenceRemainingMs, voiceFailureDisposition,
 } from "../../features/tutor-session/lib/turn/turnFailurePolicy";
 import { sessionCaption, VOICE_UNAVAILABLE_NOTICE } from "../../features/tutor-session/lib/board/sessionCaption";
+import { PROVIDER_ONLY_STARTUP_DEADLINE_MS } from "../../features/tutor-session/lib/turn/speechStartup";
 import { DEFAULT_SETTINGS } from "../../lib/account/lessonSettings";
 
 const app = fileURLToPath(new URL("../../", import.meta.url));
@@ -194,13 +195,21 @@ check("two stalled sentences in a row are both taught: ink drawn, rows saved, no
       assert.deepEqual(result.value, { voiceDegraded: true }, `sentence ${index} reports a voice degraded beat`);
       assert(elapsedMs >= 6_500, "the provider had its full startup deadline first");
       assert.equal(h.jobs[index]!.abandoned, true, "the stalled provider sentence is abandoned");
+      if (index === 1) {
+        assert(elapsedMs >= PROVIDER_ONLY_STARTUP_DEADLINE_MS, "the provider keeps the time the browser handoff used to take");
+      }
     }
-    assert.equal(h.browserAttempts() >= 2, true, "browser speech was tried for each sentence");
+    assert.equal(h.browserAttempts(), 1, "browser speech that failed to start is not tried again in the turn");
+    assert(h.telemetry.includes("tts-browser-recovery-skipped"), "the skipped handoff is marked");
     assert.deepEqual(h.drawn, ["F = ma", "F = ma"], "each sentence's WRITE ink still reaches the board");
     const rows = h.params.recordedSegmentsRef.current;
     assert.equal(rows.length, 2, "every taught segment is saved");
     assert(rows.every((row) => row.audioBytes === null && row.timings === null), "silent rows keep no audio or alignment");
     assert.equal(h.telemetry.filter((name) => name === "tts-voice-degraded").length, 2, "each silent sentence is reported");
+    const nextTurn = segment("A new question gets its own voice attempts.");
+    h.params.turnGenerationRef.current = 2;
+    await h.settle(h.runner.runSegment(nextTurn, 0, [nextTurn], 2));
+    assert.equal(h.browserAttempts(), 2, "a new turn may try browser speech again");
     // The queue only counts rejected beats; two resolved beats never reach the abandon threshold.
     assert.equal(shouldAbandonTurn(0), false);
   } finally { h.close(); }

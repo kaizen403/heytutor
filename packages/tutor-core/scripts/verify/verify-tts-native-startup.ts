@@ -18,6 +18,10 @@ class NativeAudio {
   static hold = false;
   static rejectNext = false;
   static advanceOnPlay = false;
+  /** WebKit: an element plays outside a gesture only once a gesture has played it. */
+  static webkit = false;
+  static gesture = false;
+  unlocked = false;
   releases: Array<() => void> = [];
   playbackRate = 1;
   preservesPitch = false;
@@ -31,6 +35,10 @@ class NativeAudio {
   onplaying: (() => void) | null = null;
   constructor(url: string) { this.src = url; NativeAudio.instances.push(this); }
   async play() {
+    if (NativeAudio.webkit) {
+      if (NativeAudio.gesture) this.unlocked = true;
+      else if (!this.unlocked) throw new DOMException("element not played in a gesture", "NotAllowedError");
+    }
     if (NativeAudio.rejectNext) {
       NativeAudio.rejectNext = false;
       throw new DOMException("native playback blocked", "NotAllowedError");
@@ -581,4 +589,41 @@ if (!selected || selected === "blocked-mute") {
     } finally { next.stop(); NativeAudio.rejectNext = false; }
   }
   console.log("native blocked mute: retained playback progresses; manual pause and stop preserved");
+}
+
+if (!selected || selected === "webkit-gesture") {
+  // Production, 4-11 Nov 2026: after one "Tap to enable audio" a lesson was
+  // blocked again on later sentences, because each sentence made a fresh
+  // element that the tap had never played.
+  NativeAudio.webkit = true;
+  wsEnabled = true;
+  const previousSocket = Socket.latest;
+  const next = new StreamingSpeechClient();
+  const blockedAt: number[] = [];
+  try {
+    for (const index of [1, 2, 3]) {
+      let started = false;
+      const speaking = next.speakSegment(`Synthetic sentence number ${index}.`, {
+        onPlaybackBlocked: state => { if (state) blockedAt.push(index); }, onStart: () => { started = true; },
+      });
+      void speaking.catch(() => {});
+      await waitFor(() => Socket.latest !== previousSocket && Socket.latest.segments === index, `sentence ${index} generated`);
+      Socket.latest.emit({ context_id: `segment_${index}`, ...packet, isFinal: true });
+      await waitFor(() => started || blockedAt.includes(index), `sentence ${index} starts or asks for a tap`);
+      if (!started) {
+        NativeAudio.gesture = true;
+        next.unlockAudio();
+        next.resume();
+        NativeAudio.gesture = false;
+        await waitFor(() => started, `the tap plays sentence ${index}`);
+      }
+      const playing = NativeAudio.instances.filter(audio => audio.src.startsWith("blob:") && !audio.paused);
+      assert.equal(playing.length, 1, `sentence ${index} plays on one element`);
+      assert(playing[0]!.unlocked, `sentence ${index} plays on an element a gesture played`);
+      playing[0]!.end();
+      await speaking;
+    }
+    assert.deepEqual(blockedAt, [1], "one tap keeps every later sentence audible");
+  } finally { next.stop(); NativeAudio.webkit = false; }
+  console.log("webkit gesture: one tap unlocks the rest of the lesson");
 }

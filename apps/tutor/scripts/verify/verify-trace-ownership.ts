@@ -40,8 +40,12 @@ function storeUpdate(value: { traceId: string }): void {
   const previous = telemetry.get(value.traceId) ?? [];
   telemetry.set(value.traceId, [...previous, value]);
 }
+const plannerAbortReports: unknown[] = [];
 mock.module(resolve(root, "lib/obs/langfuse.ts"), {
-  namedExports: { recordTurnEvents: storeUpdate, updateTurnTrace: storeUpdate, flushSafely: async () => undefined },
+  namedExports: {
+    recordTurnEvents: storeUpdate, updateTurnTrace: storeUpdate, flushSafely: async () => undefined,
+    recordPlannerAbortReason: (report: unknown) => { plannerAbortReports.push(report); },
+  },
 });
 const route = load(resolve(root, "app/api/trace/event/route.ts")) as typeof import("../../app/api/trace/event/route");
 const ownership = load(resolve(root, "lib/obs/traceOwnership.ts")) as typeof import("../../lib/obs/traceOwnership");
@@ -101,6 +105,30 @@ test("client metadata cannot overwrite server accounting fields", async () => {
   assert.equal("llm_cost_usd" in metadata, false);
   assert.equal("billing_authorized" in metadata, false);
   assert.equal("client_telemetry" in metadata, true);
+});
+
+test("a planner abort report names only a known reason for a well-formed request in the student's trace", async () => {
+  plannerAbortReports.length = 0;
+  await ownership.registerOwnedTrace(authenticatedUserId, "planner-trace");
+  const requestId = "0b6f9c1e-4a2d-4c3b-9e8f-1a2b3c4d5e6f";
+  const event = (metadata: Record<string, unknown>) => ({
+    name: "planner-request-aborted", startTime: new Date().toISOString(), endTime: new Date().toISOString(), metadata,
+  });
+  const post = (traceId: string) => route.POST(new Request("https://app.accelute.co/api/trace/event", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ traceId, events: [
+      event({ planner_request_id: requestId, abort_reason: "superseded" }),
+      event({ planner_request_id: requestId, abort_reason: "forged" }),
+      event({ planner_request_id: "not-a-request-id", abort_reason: "deadline" }),
+    ] }),
+  }));
+  assert.equal((await post("planner-trace")).status, 200);
+  assert.deepEqual(plannerAbortReports, [
+    { userId: authenticatedUserId, traceId: "planner-trace", plannerRequestId: requestId, abortReason: "superseded" },
+  ]);
+  plannerAbortReports.length = 0;
+  assert([403, 404].includes((await post("foreign-trace")).status));
+  assert.equal(plannerAbortReports.length, 0);
 });
 
 test("expired registrations cannot authorize telemetry", async () => {

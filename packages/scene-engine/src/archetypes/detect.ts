@@ -1045,6 +1045,9 @@ const CUE_SETS: readonly CueSet[] = [
     id: "capacitor_network",
     cues: [[/\bcapacitors\b/i, 4], [/\b(?:μF|uF|microfarad|pF|nF)\b/i, 2], [/\b(?:in series|in parallel|combination|equivalent capacitance|effective capacitance)\b/i, 2]],
     vetoes: [/\bparallel[- ]plate\b/i, /\bresistor/i],
+    // "combination" or "in series" alone names no capacitor, and the weaker
+    // cue sets it outscored would only take the same connective.
+    refusesUnless: [/\bcapacit|\bmicrofarad|\d\s*[μu]F\b|\b[pn]F\b/i],
     extract: (stem, plan, bag) => {
       const values = farads(stem);
       setSlot(bag, "capacitors", values.length ? values : null, "stem");

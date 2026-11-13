@@ -10,7 +10,7 @@
  * figure: which chemistry figure is the router's job, and each family's own
  * cue set carries its vetoes.
  */
-import { chemicalKineticsContext, coordinationContext, coordinationSpeciesTokens, electronicMagnetismContext, isExcludedAtomicFormula } from "./semanticCues";
+import { chemicalKineticsContext, clinicalPracticeContext, clinicalPracticeTerms, coordinationContext, coordinationSpeciesTokens, electronicMagnetismContext, isExcludedAtomicFormula } from "./semanticCues";
 import { formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
 import { readChargeMarkers } from "./chargeMarker";
 import { readWrittenCharges } from "./speciesChargeGuard";
@@ -60,8 +60,9 @@ function complexNumberCue(text: string): string {
 
 /**
  * Chemistry when the stem carries chemistry vocabulary or formulas and is not
- * dominated by physics apparatus. Ties go to chemistry only when a formula is
- * present, since "energy", "cell" and "current" belong to both subjects.
+ * dominated by physics apparatus or clinical practice. Ties go to chemistry
+ * only when a formula is present, since "energy", "cell" and "current" belong
+ * to both subjects.
  */
 export function isChemistryStem(question: string): boolean {
   const text = normalizeChemistryText(question);
@@ -73,14 +74,15 @@ export function isChemistryStem(question: string): boolean {
   // into "V10", and a physics stem names the gas it compresses.
   if (words === 0 && complexes === 0 && formulas < 2) return false;
   const chemistry = words + formulas;
-  const physics = countMatches(text, PHYSICS_STRONG);
-  if (physics === 0) return true;
-  if (chemistry > physics) return true;
+  const other = countMatches(text, PHYSICS_STRONG) +
+    (clinicalPracticeContext(text) ? clinicalPracticeTerms(text).length : 0);
+  if (other === 0) return true;
+  if (chemistry > other) return true;
   // A comparison of several hydrogen transitions is atomic structure even
   // when "wavelength" ties the subject evidence. Single-transition questions
   // retain their shared physics route; unsupported comparisons cannot borrow
   // its one-arrow figure or unverified planner geometry.
-  return chemistry === physics && (formulas > 0 || hydrogenComparison);
+  return chemistry === other && (formulas > 0 || hydrogenComparison);
 }
 
 function chemicalWords(text: string, originalQuestion: string): string[] {

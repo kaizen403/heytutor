@@ -147,6 +147,7 @@ echo "deploy went on"
         second = self.run_release("b2", expect_live="b1")
         self.assertEqual(second.returncode, 0, second.stderr)
         self.assertEqual(os.readlink(self.tutor / ".next"), ".next-b")
+        self.assertFalse((self.tutor / ".next-legacy").exists(), "the legacy build goes once a release replaced a release")
         chunks = self.tutor / ".next/static/chunks"
         for name in ["old.js", "b1.js", "b2.js"]:
             self.assertTrue((chunks / name).exists(), name)

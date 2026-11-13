@@ -1,5 +1,5 @@
 {
- "note": "Recorded lens and mirror stems (lecture-lab runs and repo data sets, none held out) with main's archetype at aeb3eb11e. `leavesOptics` marks the stems whose only mirror is a mirror image of a point.",
+ "note": "Recorded lens and mirror stems (lecture-lab runs and repo data sets, none held out) with main's archetype at aeb3eb11e. `leavesOptics` marks the stems whose only mirror is a mirror image of a point. Lens and mirror combination stems expect no archetype: main read \"combination\" alone as a capacitor network.",
  "stems": [
   {
    "question": "(a)\n\n(b)\n\nEne\nEe\n\nGi) The coil of an ac generator consists of 100 turns of wire, each of\narea 0.5 m?. The resistance of the wire is 100 Q. The coil is\nrotating in a magnetic field of 0.8 T perpendicular to its axis of\nrotation, at a constant angular speed of 60 radian per second.\nCalculate the maximum emf generated and power dissipated in\nthe coil.\n\nG) State Huygen’s principle. With the help of a diagram, show how\na plane wave is reflected from a surface. Hence verify the law of\n\nreflection. 5\n\nGi) A concave mirror of focal length 12 cm forms a three times\nmagnified virtual image of an object. Find the distance of the\n\nobject from the mirror.\nOR\n\nG) Draw a labelled ray diagram showing the image formation by a\nrefracting telescope. Define its magnifying power. Write two\n\nlimitations of a refracting telescope over a reflecting telescope.\n\nGi) The focal lengths of the objective and the eye-piece of a\ncompound microscope are 1.0 cm and 2.5 cm respectively. Find\nthe tube length of the microscope for obtaining a magnification\nof 300.",
@@ -677,7 +677,7 @@
   {
    "question": "Draw a labelled diagram for Combination of a thin lens and a spherical mirror. Show the principal axis and the named rays.",
    "source": "repo data set",
-   "archetype": "capacitor_network"
+   "archetype": null
   },
   {
    "question": "Draw a labelled diagram for Combination of thin lenses in contact. Show the principal axis and the named rays.",
@@ -727,13 +727,13 @@
   {
    "question": "Draw Combination of a thin lens and a spherical mirror and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
    "source": "recorded run",
-   "archetype": "capacitor_network",
+   "archetype": null,
    "lawIds": [
     "geometric_optics_ray_tracing",
     "thin_lens_equation",
     "mirror_equation"
    ],
-   "hintedArchetype": "capacitor_network"
+   "hintedArchetype": null
   },
   {
    "question": "Draw Combination of thin lenses in contact and mark any named directions, levels, or components on the figure.",
@@ -863,7 +863,7 @@
   {
    "question": "Draw the standard setup for Combination of a thin lens and a spherical mirror and label the named quantities. Show the principal axis and the named rays.",
    "source": "repo data set",
-   "archetype": "capacitor_network"
+   "archetype": null
   },
   {
    "question": "Draw the standard setup for Combination of thin lenses in contact and label the named quantities. Show the principal axis and the named rays.",
@@ -932,12 +932,12 @@
   {
    "question": "Explain combination of a thin lens and a spherical mirror.",
    "source": "recorded run",
-   "archetype": "capacitor_network",
+   "archetype": null,
    "lawIds": [
     "paraxial thin-lens power addition",
     "paraxial spherical-mirror focal-length relation"
    ],
-   "hintedArchetype": "capacitor_network"
+   "hintedArchetype": null
   },
   {
    "question": "Explain combination of thin lenses in contact.",
@@ -1067,13 +1067,13 @@
   {
    "question": "How does a lens and mirror combination form the final image?",
    "source": "recorded run",
-   "archetype": "capacitor_network",
+   "archetype": null,
    "lawIds": [
     "refraction by a lens",
     "law of reflection",
     "ray-tracing principle"
    ],
-   "hintedArchetype": "capacitor_network"
+   "hintedArchetype": null
   },
   {
    "question": "image formed by a concave mirror",

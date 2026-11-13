@@ -28,6 +28,7 @@ import {
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import {
+  plannerAbort,
   tutorDebug,
   type NarrationLanguage,
   type ProblemAuthorityV1Response,
@@ -547,7 +548,7 @@ export async function planDoubtFigure(input: {
     return { status: "drawn", question, turnPlan, authority, representation, presentation, elapsedMs: now() - startedAt };
   } finally {
     input.signal.removeEventListener("abort", abort);
-    controller.abort();
+    controller.abort(plannerAbort(now() >= input.deadlineAt ? "deadline" : "superseded"));
   }
 }
 

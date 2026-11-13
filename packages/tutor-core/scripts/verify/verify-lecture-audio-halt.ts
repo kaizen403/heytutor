@@ -3,6 +3,7 @@ import {
   createLectureAudioContext,
   getSharedAudioContext,
   haltAllLectureAudio,
+  settleContextChange,
   unlockTutorAudio,
 } from "../../src/tts/audioContext";
 import { ElevenLabsWebSocketTTSClient } from "../../src/tts/elevenLabsWebSocketClient";
@@ -155,6 +156,36 @@ assert.equal(
   contextCount,
   contextsDuringResume,
   `stop() during resume recreated an AudioContext (${contextsBeforeSpeak} -> ${contextCount})`,
+);
+
+// HEYTUTOR-1Q: tapping "Stop teaching" resumes every context on pointerdown,
+// then its click closes them, and Chrome rejects each pending resume().
+class ClosingAudioContext extends FakeAudioContext {
+  private rejectResume: ((error: unknown) => void) | null = null;
+  override async resume(): Promise<void> {
+    await new Promise<void>((_, reject) => { this.rejectResume = reject; });
+  }
+  override async close(): Promise<void> {
+    this.state = "closed";
+    this.rejectResume?.(new DOMException("AudioContext closed before a pending resume() could complete.", "InvalidStateError"));
+  }
+}
+const unhandled: unknown[] = [];
+const noteUnhandled = (reason: unknown) => { unhandled.push(reason); };
+process.on("unhandledRejection", noteUnhandled);
+Object.defineProperty(globalThis, "AudioContext", { configurable: true, value: ClosingAudioContext });
+const stopping = new ElevenLabsWebSocketTTSClient();
+stopping.unlockAudio();
+stopping.pause();
+stopping.stop();
+haltAllLectureAudio();
+await new Promise((resolve) => setTimeout(resolve, 10));
+process.off("unhandledRejection", noteUnhandled);
+assert.deepEqual(unhandled, [], "a resume() or suspend() overtaken by Stop's close() is not an unhandled rejection");
+await assert.rejects(
+  settleContextChange(new ClosingAudioContext() as unknown as AudioContext, Promise.reject(new Error("device lost"))),
+  /device lost/,
+  "a rejection on an open context still surfaces",
 );
 
 console.log("verify-lecture-audio-halt: closing the tab/stop must silence WebAudio and speechSynthesis");

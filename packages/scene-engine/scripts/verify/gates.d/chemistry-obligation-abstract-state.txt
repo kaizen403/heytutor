@@ -1,0 +1,1 @@
+tsx scripts/chemistry-lab/obligation-abstract-state.ts
