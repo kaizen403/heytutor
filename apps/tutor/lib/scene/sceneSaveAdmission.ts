@@ -145,13 +145,23 @@ function answerRolesHold(
   if (answers.length !== answerIds.length) return false;
   const defaultIds = document.source.defaultAnswerQuantityIds;
   const defaults = Array.isArray(defaultIds) ? answers.filter((quantity) => defaultIds.includes(quantity.id)) : answers;
-  const symbolKey = (symbol: string): string => symbol.normalize("NFKC").toLowerCase()
-    .replace(/\\(?:mathrm|text|operatorname)/g, "").replace(/[^a-z0-9]+/g, "");
+  // Normalize notation only: t_12 and t_1/2 describe different answers.
+  // Keep operators, case and powers while accepting subscript formatting.
+  const symbolKey = (symbol: string): string => symbol.normalize("NFC")
+    .replace(/[₀-₉]/g, (digit) => String(digit.charCodeAt(0) - 0x2080))
+    .replace(/[¼½¾⅐-⅟↉]/g, (fraction) => fraction.normalize("NFKC"))
+    .replace(/[⁄∕]/g, "/")
+    .replace(/\\(?:mathrm|text|operatorname)\{([^{}]+)\}/g, "$1")
+    .replace(/_\{([^{}]+)\}/g, "$1").replace(/[_\s]/g, "");
   const answersUnknown = (quantity: TurnPlanV3["derived"][number], unknown: TurnPlanV3["unknowns"][number]): boolean =>
     quantity.id === unknown.id || symbolKey(quantity.symbol) !== "" && symbolKey(quantity.symbol) === symbolKey(unknown.symbol);
-  const namedFor = (binding: { id: string; symbol: string }) => numeric.filter((candidate) =>
-    candidate.id === binding.id || symbolKey(candidate.id) === symbolKey(binding.symbol) ||
-    typeof candidate.symbol === "string" && symbolKey(candidate.symbol) === symbolKey(binding.symbol));
+  const namedFor = (binding: { id: string; symbol: string }) => {
+    const key = symbolKey(binding.symbol);
+    const bySymbol = numeric.filter((candidate) => symbolKey(candidate.id) === key ||
+      typeof candidate.symbol === "string" && symbolKey(candidate.symbol) === key);
+    // A recognized answer symbol must not gain another role from a plan id.
+    return bySymbol.length ? bySymbol : numeric.filter((candidate) => candidate.id === binding.id);
+  };
   let provedIntermediates: ReadonlySet<string> | undefined;
   // A validated plan may resolve an unknown by symbol while assigning its
   // result a different id. Missing that binding lets a half-life masquerade

@@ -165,6 +165,40 @@ async function main(): Promise<void> {
       checks++;
     }
   }
+  const twelve = { question: "A first order reaction is 40% complete in 50 minutes. Calculate the time for 12% completion.", initial: 40, minutes: 50, requested: 12 };
+  const twelveRate = -Math.log(0.6) / 50;
+  const twelveTime = -Math.log(0.88) / twelveRate;
+  const twelveHalf = Math.LN2 / twelveRate;
+  const percentPlan = planFor(twelve, twelveTime);
+  percentPlan.unknowns[0]!.symbol = percentPlan.derived[0]!.symbol = "t_12";
+  await verify(twelve, percentPlan, "validated");
+  const percentStale = structuredClone(percentPlan);
+  percentStale.derived[0]!.value = round(twelveHalf);
+  percentStale.derived[0]!.sourceText = `t_12 = ${round(twelveHalf)} min`;
+  await verify(twelve, percentStale, "retry_required");
+  checks += 2;
+  for (const symbol of ["t_{12}", "t₁₂"]) {
+    const formatted = structuredClone(percentPlan);
+    formatted.derived[0]!.symbol = symbol;
+    await verify(twelve, formatted, "validated");
+    checks++;
+  }
+  for (const symbol of ["t_1/2", "t_{1/2}", "t½"]) {
+    const compound = { ...twelve, question: `${twelve.question} Calculate the half-life.` };
+    const pair = planFor(compound, twelveTime, "min", [{ id: "half", symbol, value: round(twelveHalf), unit: "min" }]);
+    pair.unknowns[0]!.symbol = pair.derived[0]!.symbol = "t_12";
+    pair.unknowns.push({ id: "half", symbol, unit: "min" });
+    await verify(compound, pair, "validated");
+    const swapped = structuredClone(pair);
+    swapped.derived[0]!.value = round(twelveHalf);
+    swapped.derived[1]!.value = round(twelveTime);
+    await verify(compound, swapped, "retry_required");
+    checks += 2;
+  }
+  const misleadingId = structuredClone(percentStale);
+  misleadingId.unknowns[0]!.id = misleadingId.derived[0]!.id = "t_half";
+  await verify(twelve, misleadingId, "retry_required");
+  checks++;
   const multiple = { ...examples[0]!, question: "A first order reaction is 50% complete in 120 minutes. Calculate the time for 90% completion and the time for 99% completion." };
   const rate = Math.LN2 / 120;
   const t90 = -Math.log(0.1) / rate;
