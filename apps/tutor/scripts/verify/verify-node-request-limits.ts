@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
+import { createConnection } from "node:net";
 import { protectNodeRequest } from "../../lib/http/nodeRequest";
 
 async function main() {
@@ -16,7 +17,23 @@ await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
 const address = server.address();
 assert(address && typeof address === "object");
 const url = `http://127.0.0.1:${address.port}/api/chat`;
+const rawGet = (target: string): Promise<string> => new Promise((resolve, reject) => {
+  const socket = createConnection({ host: "127.0.0.1", port: address.port });
+  let reply = "";
+  socket.setTimeout(2000, () => socket.destroy(new Error("raw request timed out")));
+  socket.on("error", reject);
+  socket.on("data", chunk => { reply += chunk.toString(); });
+  socket.on("end", () => resolve(reply));
+  socket.on("connect", () => socket.write(`GET ${target} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n`));
+});
 try {
+  for (const target of ["//", "///", "http://", "http://[bad"]) {
+    const prior = handled;
+    const reply = await rawGet(target);
+    assert.match(reply, /^HTTP\/1\.1 400 /, `malformed target ${target} gets a bounded client error`);
+    assert.equal(handled, prior, "a malformed target never reaches Next or consumes a request slot");
+    assert.match(reply, /connection: close/i);
+  }
   const normal = await fetch(url, { method: "POST", body: "hello" });
   assert.equal(await normal.text(), "5");
   const prior = handled;
