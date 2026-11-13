@@ -2868,6 +2868,7 @@ export class StreamingSpeechClient implements TTSClient {
       this.voicePreferences.voiceKey !== preferences.voiceKey ||
       this.voicePreferences.lowLatency !== preferences.lowLatency;
     this.voicePreferences = { ...preferences };
+    this.speechFallback.setVoicePreferences(preferences);
     if (!changed) {
       return;
     }

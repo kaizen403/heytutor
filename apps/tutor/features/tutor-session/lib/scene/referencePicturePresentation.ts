@@ -1,3 +1,4 @@
+import { regionalNarration } from "@heytutor/tutor-core";
 /**
  * The board presentation of a stored reference picture: two runtime-owned
  * `DRAW_PICTURE` beats (outline, then fill), one anchor covering the picture,
@@ -174,6 +175,12 @@ export function referencePictureIntroLines(
   const subject = shownSubject(picture.shows);
   const keyed = (picture.legend?.length ?? 0) > 0;
   const kind = keyed ? "numbered " : picture.labels.length > 0 ? "labelled " : "";
+  const regional = regionalNarration(language);
+  if (regional) return {
+    outline: { narration: `${regional.here} ${subject ? `${kind}diagram: ${subject}` : `${kind}diagram`}.`, token: "diagram" },
+    fill: { narration: regional.colour, token: "colour" },
+    ...(keyed ? { legend: { narration: regional.key, token: "key" } } : {}),
+  };
   if (language === "hinglish") {
     return {
       outline: {

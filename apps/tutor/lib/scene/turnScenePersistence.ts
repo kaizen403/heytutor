@@ -28,7 +28,7 @@ import {
   type TutorSegment,
   type VerifiedDiagram,
 } from "@heytutor/drawing";
-import { codeLessonBlockById, type CodeLessonPlan } from "@heytutor/tutor-core";
+import { recordedNarrationLanguage, codeLessonBlockById, type CodeLessonPlan } from "@heytutor/tutor-core";
 import { admitLessonFigures, admitStoredScene, isRepresentationTier, withoutLegacyTeachingNotes } from "@/lib/scene/sceneAdmission";
 import {
   isLessonFigureAdvanceId,
@@ -402,9 +402,9 @@ export async function canonicalizeTurnSceneMetadata(
   // drawn under. Rebuilt in English under a Hinglish recording, those words
   // were not in the stored sentence, so replay and export found no cue and
   // drew every part at the top of it. The voice is read from the recording.
-  const narrationLanguage = metadata.segments.some((segment) =>
-    isStoredCommandTrustedGeometry(segment.command) && /\p{Script=Devanagari}/u.test(segment.narration),
-  ) ? "hinglish" as const : undefined;
+  const narrationLanguage = recordedNarrationLanguage(metadata.segments
+    .filter((segment) => isStoredCommandTrustedGeometry(segment.command))
+    .map((segment) => segment.narration).join(" "));
   // A resume teaches under its page's figure: its stamp follows the page
   // lesson's own saved row, not the switch now. Elsewhere the switch decides.
   let curveLabels = doubtFigure === null && (options.curveLabelsEnabled ?? resolveDiagramCurveLabels());

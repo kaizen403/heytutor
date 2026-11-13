@@ -10,7 +10,6 @@ import { cookies } from "next/headers";
 import { HTUTOR_UID_COOKIE } from "@/lib/cookies";
 import { isAdminEmail } from "@/lib/auth/admins";
 import { isAllowedLoginEmail } from "@/lib/auth/studentEmail";
-import { HTUTOR_LOGIN_ROLE_COOKIE, isLoginRole, type LoginRole } from "@/lib/auth/loginRole";
 import { findOrCreateSignedInUser } from "@/lib/auth/signedInUser";
 import { prisma } from "@/lib/db/prisma";
 
@@ -37,16 +36,6 @@ async function anonymousCookieId(): Promise<string | null> {
   try {
     const store = await cookies();
     return store.get(HTUTOR_UID_COOKIE)?.value ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function loginRoleFromCookie(): Promise<LoginRole | null> {
-  try {
-    const store = await cookies();
-    const value = store.get(HTUTOR_LOGIN_ROLE_COOKIE)?.value;
-    return isLoginRole(value) ? value : null;
   } catch {
     return null;
   }
@@ -116,7 +105,7 @@ const authConfig = {
       if (
         user.email &&
         !(await isAdminEmail(user.email)) &&
-        !isAllowedLoginEmail(user.email, undefined, await loginRoleFromCookie()) &&
+        !isAllowedLoginEmail(user.email) &&
         !(isDevLoginEnabled() && user.email === "dev@localhost")
       ) {
         return false;

@@ -1,5 +1,7 @@
 /**
- * Onboarding splits on college student vs individual into two setup pages.
+ * Login is one Google button for every account. Onboarding asks college
+ * student or individual, then about you, then lessons, and names where the
+ * learner goes next (checkout, credits, or their saved question).
  * Age still gates under-13. DSA stays a coming-soon chip.
  */
 import { readFileSync } from "node:fs";
@@ -18,6 +20,7 @@ import {
   profileSubtitle,
 } from "../../lib/account/types";
 import { ONBOARDING_COPY } from "../../lib/account/onboardingCopy";
+import { signupIntent } from "../../lib/auth/signupIntent";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -83,14 +86,30 @@ assert(ONBOARDING_COPY.role.title === "College student or individual?", "the fir
 assert(ONBOARDING_COPY.role.college.label === "College student", "college card is College student");
 assert(ONBOARDING_COPY.role.other.label === "Individual", "the other card is Individual, not not-in-college");
 assert(
+  /Class 8 to 12/.test(ONBOARDING_COPY.role.other.hint) && /JEE/.test(ONBOARDING_COPY.role.other.hint),
+  "the individual card says school students and JEE prep belong there",
+);
+assert(
   ONBOARDING_COPY.college.title.includes("college") && ONBOARDING_COPY.other.title.includes("classroom"),
   "the two setup pages must not share a title",
 );
 assert(!/[—–]| - /.test(ONBOARDING_COPY.role.title), "the first question carries no dash punctuation");
+assert(ONBOARDING_COPY.steps.length === 3, "onboarding is three short steps");
+
+assert(signupIntent("/usage?plan=plus&currency=INR") === "plus", "the landing Plus button carries the Plus intent");
+assert(signupIntent("/settings/usage?currency=USD") === "credits", "the landing credits button carries the credits intent");
+assert(signupIntent("/?q=Why%20is%20the%20sky%20blue") === "question", "a landing question carries the lesson intent");
+assert(signupIntent("/") === null && signupIntent("//evil.example") === null, "no intent without a destination");
+assert(
+  signupIntent("/onboarding?next=%2Fusage%3Fplan%3Dplus") === "plus",
+  "login reads the destination wrapped in the signed-out onboarding redirect",
+);
+assert(signupIntent("/onboarding?next=%2F%2Fevil.example") === null, "a wrapped destination is still made safe");
 
 const root = resolve(import.meta.dirname, "../..");
 const screen = readFileSync(resolve(root, "features/account/OnboardingScreen.tsx"), "utf8");
-assert(screen.includes('"role" | "setup"') || screen.includes("type Step = \"role\" | \"setup\""), "onboarding is role then a setup page");
+assert(screen.includes('type Step = "role" | "about" | "lessons"'), "onboarding is role, about you, then lessons");
+assert(screen.includes("SIGNUP_INTENT_COPY"), "onboarding tells the learner where setup leads");
 assert(screen.includes("pickRole(\"college\")") && screen.includes("pickRole(\"other\")"), "both answers on the first page");
 assert(screen.includes("GraduationCap") && screen.includes("User"), "role cards carry college and individual logos");
 assert(screen.includes("classYearsForRole"), "the setup page is chosen from the role");
@@ -103,12 +122,15 @@ const api = readFileSync(resolve(root, "app/api/account/onboarding/route.ts"), "
 assert(api.includes("isLearnerRole") && api.includes("classYearFitsRole"), "the server must keep the role and the year together");
 assert(api.includes("learnerRole: body.learnerRole"), "the role is stored on the account");
 
+const page = readFileSync(resolve(root, "app/onboarding/page.tsx"), "utf8");
+assert(page.includes("isStudentEmail") && page.includes("suggestedRole"), "a school email preselects the college card");
+
 const login = readFileSync(resolve(root, "features/account/LoginScreen.tsx"), "utf8");
-assert(login.includes("Continue as a student"), "login offers Continue as a student");
-assert(login.includes("Continue as an Individual"), "login offers Continue as an Individual");
-assert(login.includes("GoogleMark"), "Google sign-in buttons carry the Google logo");
-assert(!login.includes("Continue as local student"), "local student is no longer a third label");
-assert(!login.includes("Continue with Google"), "the Google buttons are labelled by role");
+assert(login.includes("Continue with Google"), "login has one Google button");
+assert(!login.includes("Continue as a student") && !login.includes("Continue as an Individual"), "login no longer asks for a role");
+assert(login.includes("GoogleMark"), "the Google sign-in button carries the Google logo");
+assert(!login.includes("isStudentEmail"), "login does not refuse personal accounts");
+assert(login.includes("SIGNUP_INTENT_COPY"), "login names where the visitor was going");
 assert(!/[—–]/.test(login), "login copy carries no dash punctuation");
 
 console.log("onboarding verification passed");

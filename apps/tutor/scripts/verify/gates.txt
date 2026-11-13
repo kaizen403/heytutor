@@ -68,6 +68,7 @@ tsx scripts/verify/verify-label-glossary.ts
 tsx scripts/verify/verify-math-text.ts
 tsx scripts/verify/verify-lesson-notes.ts
 tsx scripts/verify/verify-voice-language.ts
+tsx scripts/verify/verify-indian-languages.ts
 tsx scripts/verify/verify-lecture-mp4.ts
 tsx scripts/verify/verify-type-along.ts
 tsx scripts/verify/verify-code-lesson-persistence.ts

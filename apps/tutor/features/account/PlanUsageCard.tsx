@@ -174,8 +174,11 @@ function PlanOffer({
   const razorpay = catalog?.provider === "razorpay";
   const price = catalog?.plans[planId];
   return (
-    <div className={`rounded-xl border p-3 ${selected ? "border-sky-500/60" : "border-white/10"}`}>
-      <p className="text-sm font-medium text-frost">{plan.name}</p>
+    <div className={`rounded-xl border p-3 ${selected ? "border-sky-500/60 bg-sky-500/[0.06]" : "border-white/10"}`}>
+      <p className="flex items-center gap-2 text-sm font-medium text-frost">
+        {plan.name}
+        {selected && !current ? <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-normal text-sky-200">Your pick</span> : null}
+      </p>
       <p className="mt-1 text-lg text-frost">
         {price?.fullAmount ? <span className="mr-2 text-sm text-white/45 line-through"><span className="sr-only">Was </span>{formatCheckoutPrice({ amount: price.fullAmount, currency: price.currency })}<span className="sr-only">, now</span></span> : null}
         {price ? formatCheckoutPrice(price) : currency === "USD" ? `$${plan.priceUsdPerMonth}` : currency === "INR" ? catalog ? "INR amount unavailable" : "Checking INR amount…" : "Loading price…"}
@@ -188,7 +191,7 @@ function PlanOffer({
         disabled={(!razorpay && current) || busy !== null || !catalog?.available || !price}
         onClick={() => void onCheckout()}
       >
-        {busy === planId ? "Opening checkout…" : current && razorpay ? "Extend your month" : current ? "Current plan" : "Upgrade now"}
+        {busy === planId ? "Opening checkout…" : current && razorpay ? "Extend your month" : current ? "Current plan" : selected ? "Continue to payment" : "Upgrade now"}
       </SiteButton>
       {razorpay ? <p className="mt-2 text-xs text-white/55">{current || (currentPlan === "pro" && planId === "plus") ? "Starts after your existing paid months." : "One month of access from payment confirmation."}</p> : null}
     </div>

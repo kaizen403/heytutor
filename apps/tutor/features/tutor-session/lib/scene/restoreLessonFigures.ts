@@ -17,7 +17,7 @@
  */
 import { compileSceneDocument, validateSceneDocument } from "@heytutor/scene-engine";
 import { isStoredCommandTrustedGeometry, verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
-import type { NarrationLanguage } from "@heytutor/tutor-core";
+import { recordedNarrationLanguage, type NarrationLanguage } from "@heytutor/tutor-core";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { storedTurnSceneQuestion } from "@/lib/boards/doubtFigure";
 import { figureCollidesWithAdvanceIds, isLessonFigureAdvanceId, lessonFigureSceneInput, lessonFiguresOf } from "@/lib/boards/lessonFigures";
@@ -36,9 +36,9 @@ function normalizeQuestion(value: string): string {
 
 /** The voice the lesson's intro was recorded in, read as the server reads it. */
 export function storedTurnNarrationLanguage(turn: Pick<StoredTurn, "segments">): NarrationLanguage | undefined {
-  return turn.segments.some((segment) =>
-    isStoredCommandTrustedGeometry(segment.command) && /\p{Script=Devanagari}/u.test(segment.narration),
-  ) ? "hinglish" : undefined;
+  return recordedNarrationLanguage(turn.segments
+    .filter((segment) => isStoredCommandTrustedGeometry(segment.command))
+    .map((segment) => segment.narration).join(" "));
 }
 
 /**

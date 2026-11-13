@@ -8,14 +8,20 @@
  * and every piece of mathematics is spoken in English. Board rows, tags and
  * ids stay exactly as an English lesson writes them.
  */
-import type { TutorVoiceKey } from "../tts/voiceLanguage";
+import { INDIAN_LANGUAGE_OPTIONS, type TutorAudioLanguage, type TutorVoiceKey } from "../tts/voiceLanguage";
+import { regionalNarrationAddon } from "./indianNarration";
 import { boardRowY } from "./systemPrompt";
 
-export type NarrationLanguage = "english" | "hinglish";
+export type NarrationLanguage = TutorAudioLanguage;
 
-/** The voice decides the narration: Hinglish only when the Sarvam voice speaks. */
+export function narrationLanguageAddon(language: NarrationLanguage | undefined): string {
+  if (!language || language === "english") return "";
+  return language === "hinglish" ? HINGLISH_NARRATION_ADDON : regionalNarrationAddon(language);
+}
+
+/** The chosen voice carries the narration language through every lesson path. */
 export function narrationLanguageForVoice(voiceKey: TutorVoiceKey | undefined): NarrationLanguage {
-  return voiceKey === "hi-IN" ? "hinglish" : "english";
+  return INDIAN_LANGUAGE_OPTIONS.find((option) => option.voiceKey === voiceKey)?.language ?? "english";
 }
 
 const ROW_A = boardRowY(2);
