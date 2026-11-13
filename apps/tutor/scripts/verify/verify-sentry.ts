@@ -842,6 +842,30 @@ async function verifyFailedTurnDelivery(): Promise<void> {
   strictAssert.deepEqual(scrubbedQuantity.extra?.issue_codes, ["displayed_quantity_unverified", "scene_quantity_mismatch", "unknown_issue"],
     "the privacy boundary keeps the same validation codes");
   assert(!JSON.stringify(scrubbedQuantity).includes("synthetic_private_issue"), "an unrecognized issue code cannot pass the privacy boundary");
+  // Nov 12 production traces: process-source refusal and repaired 3D vectors
+  // were reported as unknown_issue, hiding the actual authority boundary.
+  for (const [subject, codes] of [
+    ["physics", ["invalid_pv_process", "pv_source_unproved", "repair_required_geometry_lost"]],
+    ["maths", ["invalid_space_vector_start", "invalid_space_cross_start", "repair_required_geometry_lost", "vector_collinear_overlap"]],
+  ] as const) {
+    const supplied = [...codes, "synthetic_private_scene_details"];
+    strictAssert.deepEqual(telemetry.readFailedTurnTelemetry({ subject, issueCodes: supplied })?.issueCodes, [...codes],
+      `${subject} source/repair identifiers survive client diagnostic parsing`);
+    const event = telemetry.buildFailedTurnSentryEvent({
+      ...failedTurn,
+      sceneArtifacts: {
+        turnPlan: { visualRequirement: "required" },
+        failureTelemetry: { subject, failed: true, stage: "validation", code: "candidate_invalid" },
+        degradation: { reason: "candidate_invalid", candidateCount: 5, issueCodes: supplied },
+      },
+    }, failureEnv);
+    assert(event, "a refused scene still produces its failure event");
+    strictAssert.deepEqual(event.extra.issue_codes, [...codes, "unknown_issue"]);
+    strictAssert.equal(event.extra.unknown_issue_count, 1, "only arbitrary text is unknown");
+    const scrubbed = scrubSentryEvent(event);
+    strictAssert.deepEqual(scrubbed.extra?.issue_codes, [...codes, "unknown_issue"], "privacy scrubbing retains bounded diagnostic identifiers");
+    assert(!JSON.stringify(scrubbed).includes("synthetic_private_scene_details"), "raw scene details never cross the Sentry boundary");
+  }
   strictAssert.deepEqual(telemetry.turnPlanFailureTelemetry({ code: "timeout", httpStatus: null }), { stage: "turn_plan", code: "planner_deadline" });
   strictAssert.deepEqual(telemetry.turnPlanFailureTelemetry({ code: "http_error", httpStatus: 429 }), { stage: "turn_plan", code: "rate_limit" });
   strictAssert.equal(telemetry.turnPlanFailureTelemetry({ code: "accepted", httpStatus: 200 }), undefined);

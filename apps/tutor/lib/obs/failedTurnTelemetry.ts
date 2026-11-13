@@ -40,6 +40,9 @@ export const FAILED_TURN_ISSUE_CODES = [
   // fatal; free-text messages and dynamic suffixes stay unknown_issue.
   "displayed_quantity_unverified", "scene_quantity_unverified", "scene_quantity_mismatch", "scene_unit_mismatch",
   "invalid_projectile_trajectory_units",
+  // Source/repair refusals: preserve the guard's identifier, never its prose.
+  "invalid_pv_process", "pv_source_unproved", "repair_required_geometry_lost",
+  "invalid_space_vector_start", "invalid_space_cross_start",
   "matrix_source_input_unsupported", "matrix_source_missing_program",
   "spherical_refraction_image_disagrees",
   "coordinate_source_unsupported", "coordinate_source_input_unsupported", "coordinate_source_mismatch",
