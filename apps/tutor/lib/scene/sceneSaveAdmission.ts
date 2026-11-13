@@ -17,6 +17,7 @@ import {
   displayedSceneQuantityTexts,
   certifyVseprSourceDocument,
   convertMeasuredValue,
+  proveTurnPlanIntermediateQuantities,
   RELATIVE_MOTION_SOURCE_MODEL,
   synthesizeFamilyScene,
   validateCoordinateDistanceSourceInputs,
@@ -125,10 +126,12 @@ function engineDerivedValues(question: string, turnPlan: TurnPlanV3): EngineDeri
 /**
  * Roles for a regenerated figure that names its answers (`answerQuantityIds`):
  * a plan answer (derived for an unknown) must be one of the figure's answers,
- * and every other derived value one of its quantities, compared after an
+ * and named figure values must match their own quantities, compared after an
  * exact unit conversion. An unrelated value no figure quantity can be
  * converted to cannot contradict it. A plan that gives the half life as the answer fails
  * here, though the figure also shows it. Null when no answers are named.
+ * Other intermediate work may be checked against its own given/arithmetic;
+ * it need not be one of the figure's displayed results.
  */
 function answerRolesHold(
   document: SceneDocument,
@@ -149,6 +152,7 @@ function answerRolesHold(
   const namedFor = (binding: { id: string; symbol: string }) => numeric.filter((candidate) =>
     candidate.id === binding.id || symbolKey(candidate.id) === symbolKey(binding.symbol) ||
     typeof candidate.symbol === "string" && symbolKey(candidate.symbol) === symbolKey(binding.symbol));
+  let provedIntermediates: ReadonlySet<string> | undefined;
   // A validated plan may resolve an unknown by symbol while assigning its
   // result a different id. Missing that binding lets a half-life masquerade
   // as the requested completion time. Unrecognized bindings stay refused.
@@ -162,6 +166,8 @@ function answerRolesHold(
     const unknowns = turnPlan.unknowns.filter((unknown) => answersUnknown(quantity, unknown));
     const isAnswer = unknowns.length > 0;
     const named = namedFor(quantity);
+    if (!isAnswer && named.length === 0 &&
+      (provedIntermediates ??= proveTurnPlanIntermediateQuantities(turnPlan)).has(quantity.id)) return true;
     if (!numeric.some((candidate) => inUnitOf(candidate) !== null)) return !isAnswer && named.length === 0;
     // Several asked instants share a unit; swapping them is still false.
     // A generic answer symbol is usable only when exactly one answer exists.

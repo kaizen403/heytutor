@@ -78,6 +78,8 @@ async function main(): Promise<void> {
       [answer / 60, "h", "validated", []],
       [answer, "min", "validated", [{ id: "half", symbol: "t_1/2", value: round(half), unit: "min" }]],
       [answer, "min", "validated", [{ id: "rate", symbol: "k", value: Number(rate.toPrecision(3)), unit: "1/min" }]],
+      [answer, "min", "validated", [{ id: "given_seconds", symbol: "t_1", value: example.minutes * 60, unit: "s" }]],
+      [answer, "min", "retry_required", [{ id: "given_seconds", symbol: "t_1", value: example.minutes * 60 + 60, unit: "s" }]],
       [500, "min", "retry_required", []],
       [500 / 60, "h", "retry_required", []],
       [round(answer * 1.002), "min", "retry_required", []],
@@ -92,6 +94,20 @@ async function main(): Promise<void> {
       await verify(example, planFor(example, value, unit, [...extra]), expected);
       checks++;
     }
+    const withCalculation = planFor(example, answer, "min", [{ id: "twice_given", symbol: "t_double", value: example.minutes * 2, unit: "min" }]);
+    const intermediate = withCalculation.derived.find(quantity => quantity.id === "twice_given")!;
+    intermediate.dependsOn = ["g2"];
+    intermediate.sourceText = `t_double = 2*g2 = ${example.minutes * 2} min`;
+    await verify(example, withCalculation, "validated");
+    checks++;
+    const unproved = structuredClone(withCalculation);
+    unproved.derived.find(quantity => quantity.id === "twice_given")!.sourceText = `t_double = ${example.minutes * 2} min`;
+    await verify(example, unproved, "retry_required");
+    checks++;
+    const staleCalculation = planFor(example, 500);
+    staleCalculation.derived[0]!.sourceText = "t_2 = 5*100 = 500 min";
+    await verify(example, staleCalculation, "retry_required");
+    checks++;
     for (const requested of ["rate", "half", "both"] as const) {
       const rateRequest = requested !== "half" ? " Calculate the rate constant." : "";
       const halfRequest = requested !== "rate" ? " Calculate the half-life." : "";

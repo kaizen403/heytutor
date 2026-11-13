@@ -315,6 +315,37 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
 }
 
 /**
+ * Numeric checks for intermediate work in an already validated plan. A value
+ * must restate its own given (with proved unit conversion), or be recomputed
+ * by the existing arithmetic reader from givens and previously proved work.
+ * Bare restatements of derived values grant no proof. These IDs do not prove
+ * source geometry or answer roles; those require their independent checks.
+ */
+export function proveTurnPlanIntermediateQuantities(plan: TurnPlanV3): ReadonlySet<string> {
+  const proved = new Set<string>();
+  if (turnPlanTextOverLimit(plan)) return proved;
+  const knownUnits = collectPlanUnits({ ...plan });
+  const bindingMeta: NumericBindingMetaMap = new Map();
+  const bindings = collectNumericBindings(plan.givens, bindingMeta);
+  const key = (text: string) => normalizeNumericBindingKey(text).normalize("NFKC").replace(/[_\s]/g, "");
+  for (const index of derivedEvaluationOrder(plan.derived)) {
+    const quantity = plan.derived[index]!;
+    const keys = new Set([key(quantity.id), key(quantity.symbol)]);
+    const restatesGiven = plan.givens.some(given =>
+      [given.id, given.symbol].some(name => keys.has(key(name))) &&
+      equivalentRoundedMeasuredQuantity(given.value, given.unit, quantity.value, quantity.unit));
+    const evidence = evaluateExplicitArithmetic(quantity.sourceText ?? "", quantity.unit,
+      knownUnits, bindings, true, [quantity.id, quantity.symbol], { bindingMeta, declaredValue: quantity.value });
+    const arithmetic = evidence.value !== null && !evidence.mixedUnits &&
+      equivalentRoundedMeasuredQuantity(evidence.value, quantity.unit, quantity.value, quantity.unit);
+    if (evidence.invalid || evidence.conflicting || !(restatesGiven || arithmetic)) continue;
+    proved.add(quantity.id);
+    addNumericBinding(bindings, quantity, bindingMeta);
+  }
+  return proved;
+}
+
+/**
  * Runtime validation for model-produced plans. TypeScript interfaces do not
  * protect the JSON boundary, so reject malformed or internally inconsistent
  * facts before they become authoritative for the scene and narration.
