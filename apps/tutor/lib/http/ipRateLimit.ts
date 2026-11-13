@@ -1,11 +1,9 @@
 import { SENTRY_TUNNEL_PATH } from "../obs/sentryTunnel";
 
 const WINDOW_MS = 60_000;
-const AUTH_WINDOW_MS = 10 * 60_000;
 
 const IP_RATE_LIMITS = {
   paid: { limit: 120, windowMs: WINDOW_MS },
-  auth: { limit: 40, windowMs: AUTH_WINDOW_MS },
   account: { limit: 60, windowMs: WINDOW_MS },
   billing: { limit: 60, windowMs: WINDOW_MS },
   boards: { limit: 180, windowMs: WINDOW_MS },
@@ -64,7 +62,7 @@ export function clientIpFromForwarded(
 }
 
 export function rateLimitBucketForPath(pathname: string): IpRateBucket | null {
-  if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) return "auth";
+  // Auth.js session polling must not spend a shared IP budget for Google sign-in.
   if (pathname === "/api/account" || pathname.startsWith("/api/account/")) return "account";
   // Provider delivery IPs are shared; signed webhooks retain their retry path.
   if (pathname.startsWith("/api/billing/") && !pathname.endsWith("/webhook")) return "billing";
@@ -89,7 +87,7 @@ export function consumeIpRateLimit(input: {
   const windowMs = input.windowMs ?? policy.windowMs;
   const now = nowFn();
   if (buckets.size >= 10_000) {
-    for (const [entry, state] of buckets) if ((state.hits.at(-1) ?? 0) <= now - AUTH_WINDOW_MS) buckets.delete(entry);
+    for (const [entry, state] of buckets) if ((state.hits.at(-1) ?? 0) <= now - WINDOW_MS) buckets.delete(entry);
     if (buckets.size >= 10_000 && !buckets.has(`${input.bucket}:${input.ip}`)) return { ok: false, retryAfterSec: 60 };
   }
   const key = `${input.bucket}:${input.ip}`;
