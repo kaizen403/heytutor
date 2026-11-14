@@ -826,6 +826,24 @@ const routeChecks: [string, () => Promise<void>][] = [
       assert.equal(calls, kind === "cancel" ? 1 : 3);
     }
   }],
+  ["photo schema failures open the circuit and the next question uses Fireworks", async () => {
+    for (const body of [null, [], {}, { choices: [] }, { choices: [{ message: [] }] }, { choices: [{ message: {} }] }]) {
+      const trace = arrange(RELAY);
+      const sent: Sent[] = [];
+      installProvider(sent, () => Response.json(body));
+      for (let attempt = 0; attempt < 3; attempt++) {
+        assert.equal((await extraction.POST(photoRequest(trace))).status, 502);
+        assert.equal(Boolean(provider.compatCircuit.openReason()), attempt === 2, "count each invalid provider body exactly once");
+        assert.equal(reservations.size, 0);
+      }
+      const next = `${trace}-next-question`;
+      ownedTraces.set(next, { userId: actor.userId, expiresAt: new Date(Date.now() + 86_400_000) });
+      assert(grants.createLessonGrant({ userId: actor.userId, traceId: next, usdMillicents: remaining }).ok);
+      assert.equal((await extraction.POST(photoRequest(next))).status, 502);
+      assert.equal(sent.at(-1)!.url, FIREWORKS_URL, "the shared circuit protects the next photo request");
+      assert.equal(sent.length, 4);
+    }
+  }],
   ["a valid photo decline clears prior relay failures, and request errors never open it", async () => {
     const trace = arrange(RELAY);
     const sent: Sent[] = [];

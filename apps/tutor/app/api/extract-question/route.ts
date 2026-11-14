@@ -189,13 +189,22 @@ export async function POST(request: Request): Promise<Response> {
       if (!request.signal.aborted) noteProviderOutcome(llm, { ok: false });
       throw error;
     }
-    if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+    const invalidReply = (): never => {
+      if (!request.signal.aborted) noteProviderOutcome(llm, { ok: false });
       throw new Error("Invalid OCR response");
+    };
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) invalidReply();
     const data = raw as { choices?: unknown[]; usage?: unknown };
+    const choice: unknown = Array.isArray(data.choices) ? data.choices[0] : undefined;
+    const message = typeof choice === "object" && choice !== null && !Array.isArray(choice) && "message" in choice
+      ? choice.message : undefined;
+    if (typeof message !== "object" || message === null || Array.isArray(message) ||
+      !("content" in message && (message.content === null || typeof message.content === "string" || Array.isArray(message.content))) &&
+      !("refusal" in message && typeof message.refusal === "string")) invalidReply();
     noteProviderOutcome(llm, { ok: true });
     const parsed = parseProviderUsage(data.usage);
     return {
-      extraction: readExtractionChoice(data.choices?.[0]),
+      extraction: readExtractionChoice(choice),
       usage: usageDetailsFromParsed(parsed),
       reasoningTokens: parsed.reasoning,
     };
