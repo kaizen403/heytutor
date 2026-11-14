@@ -140,6 +140,25 @@ export function looksLikeCodingProblem(question: string): boolean {
     /^(?:\s*[,.;:=([\]{}]|\s*$|\s+(?:and|where|of|with|whose|which|that|is|has|containing|return|remove|replace|reverse|sort|merge|filter|compute|calculate|find|count|determine|check)\b)/i.test(afterName);
   const collectionInput = typedInput && /array|list|matri|grid|tree/i.test(typedInput[1]!);
   const declaredInput = namedInput || collectionInput || /^\s*[,;:"'[]/.test(afterType);
+  // "String" also names a physical object. A qualified description and a
+  // generic calculation do not establish program data, even without units.
+  // Require text-data evidence, structured program input, or an explicit
+  // return instruction. Ordinary unnamed string transformations remain valid.
+  const stringInput = typedInput && /^strings?$/i.test(typedInput[1]!);
+  const modifiers = typedInput?.[0].slice(0, -typedInput[1]!.length)
+    .replace(/^given\s+(?:(?:an?|the|two)\s+)?/i, "").trim();
+  const boundExpression = namedInput && binding && new RegExp(
+    "(?:^|[^\\w./:])" + binding + "\\s*(?:\\.[a-zA-Z_]\\w*|\\[[^\\]\\n]+\\])",
+  ).test(question);
+  const stringData = concreteIO ||
+    /^\s*(?:[a-zA-Z_]\w*\s*=\s*)?["'[]/.test(afterType) ||
+    /\b(?:characters?|letters?|digits?|vowels?|consonants?|substrings?|subsequences?|palindromes?|anagrams?|uppercase|lowercase|alphanumeric|binary|unicode|ascii)\b/i.test(question) ||
+    /\b(?:time|space)\s+complexity\b|\bO\(\s*(?:n|1|log\s*n)/i.test(question) ||
+    boundExpression ||
+    /\breturn\s+\S/i.test(question) ||
+    (!modifiers && /\b(?:reverse|sort|merge|filter)\s+\S/i.test(question)) ||
+    (!modifiers && namedInput && /\b(?:find|calculate|compute|determine)\s+(?:(?:the|its|their)\s+)?(?:length|size)\b/i.test(question));
+  if (stringInput && !stringData) return false;
   const inputOperation = typedInput && declaredInput && /\b(?:return|remove|replace|reverse|sort|merge|filter|compute|calculate|find|count|determine|check)\s+\S/i.test(question);
   // Generic calculations need a declared name or a collection input. Bare
   // numeric givens in an arithmetic exercise do not establish programming.

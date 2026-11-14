@@ -63,6 +63,13 @@ async function verifyComputationalAdmissions() {
     "Given a rectangular two-dimensional integer matrix values, find its largest element.",
     "Given an array readings, return readings with negative entries removed. Your solution must run within 2 seconds.",
     "Given a string text, return it unchanged. The runtime budget is 500 ms.",
+    "Given a binary string, count the ones.",
+    "Given a compressed string encoded, return encoded unchanged.",
+    "Given a Unicode string text, calculate its character count.",
+    "Given a string word, find its length.",
+    "Given a compressed string value, determine value.length.",
+    "Given a compressed string value, determine `value.length`.",
+    "Given a compressed string value, determine its prefix. Time complexity must be linear.",
     ...["`value`", "**value**", "*value*", "_value_", "__value__", "$value$"].map(binding =>
       `Given an integer ${binding}, calculate its digit count.`,
     ),
@@ -80,6 +87,15 @@ async function verifyComputationalAdmissions() {
     "Given a string that's fixed with length 2 m and mass 3 kg, remove the mass. What's its frequency?",
     "Given a string stretched between two walls, remove the attached mass and describe its motion.",
     "Given a lecture about strings, remove the misconception and explain the topic. Example: target audience.",
+    "Given a vibrating string, determine its fundamental frequency in terms of length, tension and linear density.",
+    "Given a vibrating string s, determine its fundamental frequency in terms of length, tension and linear density.",
+    "Given a stretched string, calculate its wave speed from tension T and linear density mu.",
+    "Given an elastic string, find the energy stored in it in terms of its extension.",
+    "Given a string under tension T, calculate its frequency.",
+    "Given a string, find its fundamental frequency in terms of length L.",
+    "Given a string s, calculate its fundamental frequency in terms of L and T. Constraints: L > 0.",
+    "Given a vibrating string, determine its fundamental frequency in terms of length and tension. Source: https://example.com/physics.",
+    "Given a vibrating string s, calculate its frequency. Read https://s.example/physics.",
   ];
   try {
     for (const question of [...questions, ...nonCoding]) {
