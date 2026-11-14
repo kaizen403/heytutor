@@ -32,6 +32,9 @@ async function verifyComputationalAdmissions() {
     "Given an integer value, calculate its digit count.",
     "Given a string word return word in uppercase",
     "Given string text return it unchanged",
+    "Given the head of a singly linked list, reverse the list and return the reversed list.",
+    "Given the head of a doubly linked list, reverse the list and return the reversed list.",
+    "Given the root of a binary tree, return its depth.",
     ...["`value`", "**value**", "*value*", "_value_", "__value__", "$value$"].map(binding =>
       `Given an integer ${binding}, calculate its digit count.`,
     ),
