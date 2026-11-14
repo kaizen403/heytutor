@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { fetchBoards, updateBoard, deleteBoardApi } from "@/lib/boards/boardsClient";
+import { updateBoard, deleteBoardApi } from "@/lib/boards/boardsClient";
+import { startBoardListRead } from "@/lib/boards/boardListRead";
 import { sortBoards, withArchived, withPinned, withVisibility, type BoardEntry } from "@/lib/boards/types";
 import { boardPath } from "@/features/tutor-session/lib/board/boardRoute";
 import { AppShell } from "./AppShell";
@@ -13,10 +14,16 @@ export function AccountAppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const me = useAccountMe();
   const [boards, setBoards] = useState<BoardEntry[]>([]);
-
-  useEffect(() => {
-    void fetchBoards().then(setBoards);
+  const [boardsError, setBoardsError] = useState<string | null>(null);
+  const [boardsAttempt, setBoardsAttempt] = useState(0);
+  const retryBoards = useCallback(() => {
+    setBoardsError(null);
+    setBoardsAttempt((current) => current + 1);
   }, []);
+  useEffect(() => startBoardListRead((list) => {
+    setBoardsError(null);
+    setBoards(sortBoards(list));
+  }, setBoardsError), [boardsAttempt]);
 
   const activeBoardId = pathname.startsWith("/c/")
     ? decodeURIComponent(pathname.slice(3).split("/")[0] ?? "")
@@ -80,6 +87,8 @@ export function AccountAppShell({ children }: { children: ReactNode }) {
     <AppShell
       variant="account"
       boards={boards}
+      boardsError={boardsError}
+      onRetryBoards={retryBoards}
       activeBoardId={activeBoardId}
       onSelect={onSelect}
       onNew={onNew}

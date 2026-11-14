@@ -32,6 +32,8 @@ import { remainingPctBarWidth, remainingPctLabel } from "@/lib/billing/studentCo
 
 interface BoardHistoryProps {
   boards: BoardEntry[];
+  boardsError?: string | null;
+  onRetryBoards?: () => void;
   activeBoardId: string | null;
   /** Board currently teaching or replaying; it spins a pen in the list. */
   busyBoardId?: string | null;
@@ -147,6 +149,8 @@ function writeStoredSidebarWidth(width: number): void {
 
 interface BoardHistoryContentProps {
   boards: BoardEntry[];
+  boardsError?: string | null;
+  onRetryBoards?: () => void;
   activeBoardId: string | null;
   busyBoardId?: string | null;
   onSelect: (id: string) => void;
@@ -256,6 +260,8 @@ function AccountNavLink({
 
 function BoardHistoryContent({
   boards,
+  boardsError,
+  onRetryBoards,
   activeBoardId,
   busyBoardId = null,
   onSelect,
@@ -421,7 +427,13 @@ function BoardHistoryContent({
       <div className="bh__section-label">Recent boards</div>
 
       <div className="bh__list">
-        {filtered.length === 0 && (
+        {boardsError && (
+          <div className="bh__empty" role="status">
+            <p>{boardsError}</p>
+            {onRetryBoards && <button type="button" className="mt-2 underline" onClick={onRetryBoards}>Retry loading boards</button>}
+          </div>
+        )}
+        {filtered.length === 0 && !boardsError && (
           <p className="bh__empty">
             {searchQuery
               ? "No boards match."
@@ -1472,6 +1484,8 @@ const STYLES = `
 
 export function BoardHistory({
   boards,
+  boardsError,
+  onRetryBoards,
   activeBoardId,
   busyBoardId = null,
   onSelect,
@@ -1625,6 +1639,8 @@ export function BoardHistory({
 
   const contentProps: BoardHistoryContentProps = {
     boards,
+    boardsError,
+    onRetryBoards,
     activeBoardId,
     busyBoardId,
     onSelect: handleSelect,

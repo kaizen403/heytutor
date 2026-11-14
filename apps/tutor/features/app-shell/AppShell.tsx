@@ -27,6 +27,8 @@ type AppShellProps = AppShellBoardHandlers & {
 
 export function AppShell({
   boards,
+  boardsError,
+  onRetryBoards,
   activeBoardId,
   busyBoardId = null,
   onSelect,
@@ -98,6 +100,8 @@ export function AppShell({
 
   const sidebarProps = {
     boards,
+    boardsError,
+    onRetryBoards,
     activeBoardId,
     busyBoardId,
     onSelect,
