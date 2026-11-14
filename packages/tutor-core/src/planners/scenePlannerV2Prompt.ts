@@ -131,14 +131,13 @@ OPERATOR INPUT CONTRACTS
 ${contracts}
 
 AVAILABLE PROOF PREDICATES
-${proofPredicates.join(", ")}
+${proofPredicates.join(",")}
 ${capabilityGuidance}
 ${conversation}
 ${workedExamples}
 QUESTION
 ${question}
-
-Return the complete ${SCENE_DOCUMENT_VERSION} JSON object now.`;
+`;
   const prompt = assemble(operatorContracts);
   // Combined semantic families may outgrow the same transport budget as the
   // universal catalog. Keep every contract shape and conditional output order.
@@ -147,14 +146,14 @@ Return the complete ${SCENE_DOCUMENT_VERSION} JSON object now.`;
     : prompt;
 }
 
-export const SCENE_DOCUMENT_PLANNER_PROMPT = `Return complete scene-document/v2 JSON only: no pixels,tags,prose,raw paths or topic templates.
+export const SCENE_DOCUMENT_PLANNER_PROMPT = `Complete scene-document/v2 JSON only:no pixels,tags,prose,raw paths,topic templates.
 Keys:schemaVersion,visualDecision,source,quantities,entities,constructions,relations:[],assertions,annotations,requiredEntityIds,revealGroups,teachingTimeline.
 Entity:{id,kind,role?,label?};Construction:{id,operator,inputs,outputs};Relation:{id,predicate,entities,value?};Assertion:{id,predicate,entities,expected,severity};Annotation:{id,kind,targetIds,text?,placementIntent?,quantityId?,style?}.
 
 AUTHORITY
 - Faithful:scene;else text_only,empty arrays,source/operator reason.
 - Show the problem setup, not a solved answer sheet. Do not place derived scalar answers initially;calculate after setup. Spatial givens:exact plan-backed geometry.
-- Question/AUTHORITATIVE TURN PLAN:fixed evidence;copy exact quantity id/value/unit. Invent no measurements,signs,components,topology,assumptions beyond one symbolic representative. Display lengths are not physical values.
+- Question/AUTHORITATIVE TURN PLAN:fixed;copy exact quantity id/value/unit. Invent no measurements,signs,components,topology,assumptions beyond one symbolic representative. Display lengths are not physical values.
 - Symbolic:owner symbols,never stock quantities. Missing values alone never justify text_only. Named class without a member (curve,conic,lines,planes,vectors,region):one generic nondegenerate member;literals prove shape,not data. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
 - Data-requesting plan claims never block it. Invariants/examples:advice;source wins. Complete symbolic scenes.
 - All arrays present,even empty. Unique IDs;one producer/entity,ordered dependencies,reused IDs. No duplicate geometry/terminal pairs. Keep output arity/order.
