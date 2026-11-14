@@ -21,6 +21,7 @@ import { resolveFireworksVisionModels } from "@/lib/llm/fireworksModels";
 import {
   completionTokenCap,
   endpointEnv,
+  noteProviderOutcome,
   providerChatBody,
   resolveLlmEndpoint,
 } from "@/lib/llm/llmProvider";
@@ -155,27 +156,43 @@ export async function POST(request: Request): Promise<Response> {
     generationName: "vision-ocr",
   });
   let attempts = 0;
-  const post = (candidate: string, secondLook: boolean) => {
+  const post = async (candidate: string, secondLook: boolean) => {
     attempts += 1;
-    return fetch(llm.url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "content-type": "application/json",
-      },
-      signal: AbortSignal.any([request.signal, AbortSignal.timeout(30_000)]),
-      body: JSON.stringify(requestBody(candidate, secondLook)),
-    });
+    try {
+      const response = await fetch(llm.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+        },
+        signal: AbortSignal.any([request.signal, AbortSignal.timeout(30_000)]),
+        body: JSON.stringify(requestBody(candidate, secondLook)),
+      });
+      if (!response.ok) noteProviderOutcome(llm, { ok: false, status: response.status });
+      return response;
+    } catch (error) {
+      // Leaving the photo flow is not an upstream outage. Connection failures
+      // and our provider timeout do count, just as they do in the chat route.
+      if (!request.signal.aborted) noteProviderOutcome(llm, { ok: false });
+      throw error;
+    }
   };
   const readReply = async (response: Response) => {
     if (!response.ok) {
       await response.body?.cancel();
       throw new Error(`OCR upstream ${response.status} from ${model}`);
     }
-    const raw: unknown = await response.json();
+    let raw: unknown;
+    try {
+      raw = await response.json();
+    } catch (error) {
+      if (!request.signal.aborted) noteProviderOutcome(llm, { ok: false });
+      throw error;
+    }
     if (typeof raw !== "object" || raw === null || Array.isArray(raw))
       throw new Error("Invalid OCR response");
     const data = raw as { choices?: unknown[]; usage?: unknown };
+    noteProviderOutcome(llm, { ok: true });
     const parsed = parseProviderUsage(data.usage);
     return {
       extraction: readExtractionChoice(data.choices?.[0]),

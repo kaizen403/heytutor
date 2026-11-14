@@ -82,6 +82,7 @@ mock.module(resolve(root, "../../packages/tutor-core/src/index.ts"), {
     getMockCodeLessonPlan: () => {
       throw new Error("Configured provider verification cannot use mock code lessons");
     },
+    normalizeTutorQuestion: (value: string) => value.trim(),
   },
 });
 
@@ -175,6 +176,7 @@ const failedTurns = load(path("lib/obs/failedTurnTelemetry.ts")) as typeof impor
 const sentryPrivacy = load(path("lib/obs/sentryPrivacy.ts")) as typeof import("../../lib/obs/sentryPrivacy");
 const billingClient = load(path("lib/billing/billingClient.ts")) as typeof import("../../lib/billing/billingClient");
 const chat = load(path("app/api/chat/route.ts")) as typeof import("../../app/api/chat/route");
+const extraction = load(path("app/api/extract-question/route.ts")) as typeof import("../../app/api/extract-question/route");
 
 type Env = Record<string, string | undefined>;
 
@@ -777,7 +779,77 @@ function chatRequest(traceId: string, headers: Record<string, string> = {}, body
 const PLANNER_HEADERS = { "x-planner": "1", "x-turn-planner-version": "3" };
 const PLANNED_TEACHING = { "x-heytutor-teaching-pass": "planned" };
 
+function photoRequest(traceId: string, signal?: AbortSignal): Request {
+  // Real static WebP fixture, parsed by the route's ordinary image admission.
+  const image = "data:image/webp;base64,UklGRjAAAABXRUJQVlA4ICQAAACwAgCdASogABAAPm0skUWkIqGYBABABsS0gAA9kAAA/vshgAA=";
+  return new Request("https://example.test/api/extract-question", {
+    method: "POST", headers: { "content-type": "application/json", "x-heytutor-trace-id": traceId },
+    body: JSON.stringify({ image }), signal,
+  });
+}
+
 const routeChecks: [string, () => Promise<void>][] = [
+  ["photo relay 401 opens the shared circuit before another photo is dispatched", async () => {
+    const trace = arrange(RELAY);
+    const sent: Sent[] = [];
+    installProvider(sent, () => new Response("synthetic auth failure", { status: 401 }));
+    const first = await extraction.POST(photoRequest(trace));
+    assert.equal(first.status, 502, "the failed request remains honest about its result");
+    assert.match(provider.compatCircuit.openReason() ?? "", /401/);
+    assert.equal(reservations.size, 0, "failed dispatch finalizes its reservation");
+    const second = await extraction.POST(photoRequest(trace));
+    assert.equal(second.status, 502);
+    assert.equal(sent[0]!.url, RELAY_URL);
+    assert.equal(sent[1]!.url, FIREWORKS_URL, "the next photo avoids the rejected relay");
+    assert.equal(sent[1]!.authorization, "Bearer fireworks-test-key");
+    assert.notEqual(sent[1]!.body.model, RELAY.OPENAI_COMPAT_MODEL);
+    assert.equal(reservations.size, 0);
+  }],
+  ["photo transport and broken-body failures each count once, while cancellation counts nothing", async () => {
+    for (const kind of ["connect", "body", "cancel"] as const) {
+      const trace = arrange(RELAY);
+      const controller = new AbortController();
+      let calls = 0;
+      globalThis.fetch = async () => {
+        calls++;
+        if (kind === "body") return new Response(new ReadableStream({ start(stream) { stream.error(new TypeError("synthetic interrupted body")); } }));
+        if (kind === "cancel") controller.abort();
+        throw new TypeError("synthetic connection failure");
+      };
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const response = await extraction.POST(photoRequest(trace, controller.signal));
+        assert.equal(response.status, kind === "cancel" && attempt > 0 ? 400 : 502);
+        assert.equal(reservations.size, 0, "all terminal paths finalize their receipts");
+        assert.equal(Boolean(provider.compatCircuit.openReason()), kind !== "cancel" && attempt === 2,
+          `${kind}: three upstream failures open the circuit; client cancellation does not`);
+      }
+      assert.equal(calls, kind === "cancel" ? 1 : 3);
+    }
+  }],
+  ["a valid photo decline clears prior relay failures, and request errors never open it", async () => {
+    const trace = arrange(RELAY);
+    const sent: Sent[] = [];
+    let photo = 0;
+    const post = () => {
+      const next = `${trace}-photo-${++photo}`;
+      ownedTraces.set(next, { userId: actor.userId, expiresAt: new Date(Date.now() + 86_400_000) });
+      assert(grants.createLessonGrant({ userId: actor.userId, traceId: next, usdMillicents: remaining }).ok);
+      return extraction.POST(photoRequest(next));
+    };
+    installProvider(sent, () => new Response("synthetic busy", { status: 503 }));
+    assert.equal((await post()).status, 502);
+    assert.equal((await post()).status, 502);
+    installProvider(sent, () => Response.json({ choices: [{ message: { content: "NO_QUESTION" } }],
+      usage: { prompt_tokens: 100, completion_tokens: 10 } }));
+    assert.equal((await post()).status, 422, "provider success can truthfully decline a photo");
+    installProvider(sent, () => new Response("synthetic busy", { status: 503 }));
+    assert.equal((await post()).status, 502);
+    assert.equal(provider.compatCircuit.openReason(), null, "success clears the prior failures");
+    installProvider(sent, () => new Response("synthetic bad request", { status: 400 }));
+    for (let attempt = 0; attempt < 3; attempt++) assert.equal((await post()).status, 502);
+    assert.equal(provider.compatCircuit.openReason(), null, "bad requests are not a provider outage");
+    assert.equal(reservations.size, 0);
+  }],
   ["fireworks: the planner body and URL are today's", async () => {
     const sent: Sent[] = [];
     // Unset, and fireworks with every Azure variable present.
