@@ -263,6 +263,8 @@ function loadHarness(
       let abortController = new AbortController();
       const clearSpotlight = deps.clearSpotlight;
       function setPhase(next) { phaseSets.push(next); }
+      // Optional render callback read by the real finishLectureUi closure.
+      const onVoiceDegraded = undefined;
       function setIsPaused() {}
       function setCurrentSegmentText() {}
       function setInputInteracted() {}

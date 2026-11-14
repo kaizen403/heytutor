@@ -1,3 +1,4 @@
+import { httpAudioLines, HttpTtsDownloadError, type HttpAudioDownloadBudget } from "./httpAudioDownload";
 import { speechAudioMimeType, wavDurationSec } from "./audioFormat";
 import {
   DEFAULT_VOICE_PREFERENCES,
@@ -224,6 +225,7 @@ interface HttpPrefetch {
   firstByteMs?: number;
   /** Only the sentence that claimed this still-downloading prefetch may wait on it. */
   onDownloadProgress?: () => void;
+  downloadBudget: HttpAudioDownloadBudget;
 }
 
 function readAudioBase64(chunk: TimestampChunkPayload): string | undefined {
@@ -551,6 +553,7 @@ export class StreamingSpeechClient implements TTSClient {
       timings: { charStartTimes: [], charDurations: [], totalDuration: 0 },
       done: Promise.resolve(),
       generating: true,
+      downloadBudget: { bytes: 0 },
     };
     this.prefetches.set(prefetchKey(spokenText, options, voice), entry);
     entry.done = this.fillHttpPrefetch(entry, options).finally(() => {
@@ -862,6 +865,7 @@ export class StreamingSpeechClient implements TTSClient {
     }
 
     const allowWebSocket = Date.now() >= this.wsDisabledUntil;
+    let downloadBudget: HttpAudioDownloadBudget = { bytes: 0 };
     const voice = voiceIdentity(this.voicePreferences);
     // A sentence already generating on its own context: no round trip left to
     // pay, so it takes precedence over every other way of producing audio.
@@ -875,16 +879,19 @@ export class StreamingSpeechClient implements TTSClient {
       const prefetch = this.prefetches.get(prefetchKey(spokenText, options, voice));
       if (prefetch) {
         this.prefetches.delete(prefetchKey(spokenText, options, voice));
+        downloadBudget = prefetch.downloadBudget;
         prefetch.onDownloadProgress = options.onAudioInTransit;
         try {
           await prefetch.done;
+          if (this.speakGeneration !== generation) return;
+          if (prefetch.error instanceof HttpTtsDownloadError) throw prefetch.error;
           if (!prefetch.error && (prefetch.buffers.length > 0 || prefetch.chunks.length > 0)) {
             await this.playPrefetchedHttp(prefetch, options, generation);
             return;
           }
         } catch (error) {
           prefetch.controller.abort();
-          if (error instanceof NativePlaybackError) throw error;
+          if (error instanceof NativePlaybackError || error instanceof HttpTtsDownloadError) throw error;
         } finally {
           prefetch.onDownloadProgress = undefined;
         }
@@ -965,7 +972,7 @@ export class StreamingSpeechClient implements TTSClient {
       return;
     }
 
-    const speakOverHttp = () => this.streamHttpSegment(spokenText, options, generation);
+    const speakOverHttp = () => this.streamHttpSegment(spokenText, options, generation, downloadBudget);
     try {
       try {
         await speakOverHttp();
@@ -987,7 +994,7 @@ export class StreamingSpeechClient implements TTSClient {
         return;
       }
       this.stopActiveAudio("http-segment-failed");
-      if (error instanceof NativePlaybackError) throw error;
+      if (error instanceof NativePlaybackError || error instanceof HttpTtsDownloadError) throw error;
       tutorDebug("tts", "HTTP segment failed, trying speechSynthesis", {
         error: error instanceof Error ? error.message : String(error),
       });
@@ -2013,7 +2020,7 @@ export class StreamingSpeechClient implements TTSClient {
       const ingested = await this.ingestHttpAudio(entry.spokenText, {
         ...options,
         onAudioInTransit: () => entry.onDownloadProgress?.(),
-      }, entry.controller);
+      }, entry.controller, entry.downloadBudget);
       entry.firstByteMs = ingested.firstByteMs;
       entry.buffers = ingested.buffers;
       entry.chunks = ingested.chunks;
@@ -2149,25 +2156,12 @@ export class StreamingSpeechClient implements TTSClient {
     spokenText: string,
     options: SpeakSegmentOptions,
     controller: AbortController,
+    downloadBudget: HttpAudioDownloadBudget,
   ): Promise<{ buffers: AudioBuffer[]; chunks: Uint8Array[]; timings: AudioTimings; firstByteMs?: number }> {
     const requestedAt = performance.now();
     let firstByteMs: number | undefined;
     await this.httpGate.acquire(controller.signal);
     try {
-      const response = await this.fetchHttpTtsStream(spokenText, options, controller.signal);
-      if (!response.ok) {
-        throw new Error(`TTS stream error ${response.status}`);
-      }
-      if (response.headers.get("x-heytutor-tts-skipped")) {
-        throw new Error("TTS skipped");
-      }
-      if (!response.body) {
-        throw new Error("TTS stream returned no body");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let sseBuffer = "";
       let chunkOffsetSec = 0;
       const chunks: Uint8Array[] = [];
       const timings: AudioTimings = {
@@ -2186,21 +2180,10 @@ export class StreamingSpeechClient implements TTSClient {
         chunkOffsetSec = mergeChunkTimings(timings, payload, chunkOffsetSec);
       };
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (controller.signal.aborted) throw new DOMException("tts stopped", "AbortError");
-        if (done) break;
-        if (value.length > 0) options.onAudioInTransit?.();
-        sseBuffer += decoder.decode(value, { stream: true });
-        const lines = sseBuffer.split(/\r?\n/);
-        sseBuffer = lines.pop() ?? "";
-        for (const line of lines) {
-          await ingestLine(line);
-        }
-      }
-      if (sseBuffer.trim()) {
-        await ingestLine(sseBuffer);
-      }
+      for await (const line of httpAudioLines(
+        () => this.fetchHttpTtsStream(spokenText, options, controller.signal),
+        controller, options.onAudioInTransit, downloadBudget,
+      )) await ingestLine(line);
       if (chunks.length === 0) {
         throw new Error("TTS stream returned no audio");
       }
@@ -2214,6 +2197,7 @@ export class StreamingSpeechClient implements TTSClient {
     spokenText: string,
     options: SpeakSegmentOptions,
     generation: number,
+    downloadBudget: HttpAudioDownloadBudget,
   ): Promise<void> {
     const controller = new AbortController();
     this.httpControllers.add(controller);
@@ -2236,27 +2220,6 @@ export class StreamingSpeechClient implements TTSClient {
 
       await this.httpGate.acquire(controller.signal);
       httpSlotHeld = true;
-      let response: Response;
-      try {
-        response = await this.fetchHttpTtsStream(spokenText, options, controller.signal);
-      } catch (error) {
-        // Firefox reports an aborted fetch as "NetworkError when attempting
-        // to fetch resource" instead of AbortError. The signal is the signal.
-        if (controller.signal.aborted) {
-          throw new DOMException("tts stopped", "AbortError");
-        }
-        throw error;
-      }
-      throwIfStopped();
-      if (!response.ok) throw new Error(`TTS stream error ${response.status}`);
-      if (response.headers.get("x-heytutor-tts-skipped")) {
-        throw new Error("TTS skipped");
-      }
-      if (!response.body) throw new Error("TTS stream returned no body");
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let sseBuffer = "";
       let chunkOffsetSec = 0;
       let started = false;
       const sourceDonePromises: Promise<void>[] = [];
@@ -2322,21 +2285,13 @@ export class StreamingSpeechClient implements TTSClient {
         }
       };
 
-      while (true) {
-        const { value, done } = await reader.read();
+      for await (const line of httpAudioLines(
+        () => this.fetchHttpTtsStream(spokenText, options, controller.signal),
+        controller, options.onAudioInTransit, downloadBudget,
+      )) {
         throwIfStopped();
-        if (done) break;
-        // A complete JSON audio packet may span many network reads. Keep the
-        // claimed voice while its body is arriving; progress is not a start,
-        // captured clip, or permission to play an incomplete sentence.
-        if (value.length > 0) options.onAudioInTransit?.();
-        throwIfStopped();
-        sseBuffer += decoder.decode(value, { stream: true });
-        const lines = sseBuffer.split(/\r?\n/);
-        sseBuffer = lines.pop() ?? "";
-        for (const line of lines) await playLine(line);
+        await playLine(line);
       }
-      if (sseBuffer.trim()) await playLine(sseBuffer);
       if (capturedChunks.length > 0 && isCurrentSpeak()) {
         options.onAudioCaptured?.({
           bytes: concatUint8Arrays(capturedChunks),

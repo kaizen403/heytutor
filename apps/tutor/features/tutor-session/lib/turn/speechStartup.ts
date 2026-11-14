@@ -1,3 +1,5 @@
+import { HTTP_TTS_DOWNLOAD_TIMEOUT_MS } from "@heytutor/tutor-core";
+
 /** A resolved fallback promise is not proof that the student heard anything. */
 export async function requireSpeechStart(
   speech: Promise<void>,
@@ -121,7 +123,7 @@ export async function speakWithStartupRecovery(input: {
   const activeDeadlineMs = () => Math.max(
     deadlineMs,
     readyAtMs === null ? 0 : readyAtMs + SPEECH_MEDIA_READY_GRACE_MS,
-    inTransitAtMs === null ? 0 : inTransitAtMs + SPEECH_AUDIO_IN_TRANSIT_GRACE_MS,
+    inTransitAtMs === null ? 0 : Math.min(HTTP_TTS_DOWNLOAD_TIMEOUT_MS, inTransitAtMs + SPEECH_AUDIO_IN_TRANSIT_GRACE_MS),
   );
   const primary = input.primary(
     () => {
@@ -136,7 +138,7 @@ export async function speakWithStartupRecovery(input: {
       }
     },
     () => {
-      // Each positive download read renews the inactivity allowance.
+      // Audio-string progress renews inactivity within a cumulative download cap.
       // Only before the cutoff: a notice that lands after the browser voice
       // took over cannot reopen the provider.
       if (ownsPrimary && clock.elapsedMs() < activeDeadlineMs()) {
