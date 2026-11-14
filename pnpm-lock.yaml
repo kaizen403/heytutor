@@ -28,6 +28,9 @@ patchedDependencies:
   braces@3.0.3:
     hash: 43410bd1fcc991b825ba182c79c54f618ad8683b87ff53a647ff14e548a6f5ff
     path: patches/braces@3.0.3.patch
+  langfuse-core@3.38.20:
+    hash: e59c22f79060ca654fea216bc003633fc57984d6e65a76d16fbefc7280a3e756
+    path: patches/langfuse-core@3.38.20.patch
   minimatch@11.0.4:
     hash: c4f85a4b6e6f97907c9a946b2b569c2cffdb49b96bf7b31afb2b9610d93dada4
     path: patches/minimatch@11.0.4.patch
@@ -7958,13 +7961,13 @@ snapshots:
 
   konva@10.3.0: {}
 
-  langfuse-core@3.38.20:
+  langfuse-core@3.38.20(patch_hash=e59c22f79060ca654fea216bc003633fc57984d6e65a76d16fbefc7280a3e756):
     dependencies:
       mustache: 4.2.0
 
   langfuse@3.38.20:
     dependencies:
-      langfuse-core: 3.38.20
+      langfuse-core: 3.38.20(patch_hash=e59c22f79060ca654fea216bc003633fc57984d6e65a76d16fbefc7280a3e756)
 
   language-subtag-registry@0.3.23: {}
 
