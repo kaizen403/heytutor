@@ -1,5 +1,7 @@
 "use client";
 
+import { INDIAN_LANGUAGE_OPTIONS } from "@heytutor/tutor-core";
+
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -100,7 +102,7 @@ export function SettingsScreen({ section }: { section: string }) {
     saveQueueRef.current?.enqueue(partial);
   };
 
-  const english = settings.audioLanguage !== "hinglish" || !hinglishAvailable;
+  const english = settings.audioLanguage === "english" || !hinglishAvailable;
 
   if (loadState !== "ready" || !profile?.id) return (
     <AccountPageFrame title="Settings" subtitle="Account settings. The in-lesson drawer stays a quick sheet for the board.">
@@ -206,12 +208,19 @@ export function SettingsScreen({ section }: { section: string }) {
                 <Choice label="UK" checked={english && settings.accent === "uk"} onClick={() => patch({ audioLanguage: "english", accent: "uk" })} />
                 <Choice label="US" checked={english && settings.accent === "us"} onClick={() => patch({ audioLanguage: "english", accent: "us" })} />
                 {hinglishAvailable ? (
-                  <Choice label="Hinglish" checked={!english} onClick={() => patch({ audioLanguage: "hinglish" })} />
-                ) : null}
+                INDIAN_LANGUAGE_OPTIONS.map(({ language, label }) => (
+                  <Choice
+                    key={language}
+                    label={label}
+                    checked={settings.audioLanguage === language}
+                    onClick={() => patch({ audioLanguage: language })}
+                  />
+                ))
+              ) : null}
               </div>
               {!english ? (
                 <p className="mt-2 text-xs text-[rgba(237,237,235,0.55)]">
-                  The tutor speaks a Hindi and English mix. The board stays in English.
+                  The tutor speaks your selected language with English maths and subject terms. The board stays in English.
                 </p>
               ) : null}
               <label className="mt-4 block text-xs text-[rgba(237,237,235,0.55)]">

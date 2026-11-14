@@ -8,7 +8,11 @@ import { EmptyState } from "../shared/components/EmptyState";
 import { KpiCard } from "../shared/components/KpiCard";
 import { useAdminQuery } from "../shared/hooks/useAdminQuery";
 import { formatUsd } from "@/lib/obs/runCost";
-import { formatCount, formatMillicentsUsd, formatRelativeTime } from "../shared/lib/format";
+import {
+  formatCount,
+  formatMillicentsUsd,
+  formatRelativeTime,
+} from "../shared/lib/format";
 import { UserBoards } from "./UserBoards";
 import { UserMessages } from "./UserMessages";
 import { UserProfileCard } from "./UserProfileCard";
@@ -51,13 +55,21 @@ export function UserDetailView({ userId }: { userId: string }) {
           <KpiCard label="Messages" value={formatCount(user.chatMessages)} />
           <KpiCard
             label="Spend this period"
-            value={user.spendMillicents == null ? "—" : formatMillicentsUsd(user.spendMillicents)}
+            value={
+              user.spendMillicents == null
+                ? "—"
+                : formatMillicentsUsd(user.spendMillicents)
+            }
             hint="billed AI + voice"
             tone="sky"
           />
           <KpiCard
             label="AI / voice"
-            value={data.inference.totalUsd > 0 ? formatUsd(data.inference.totalUsd) : "—"}
+            value={
+              data.inference.totalUsd > 0
+                ? formatUsd(data.inference.totalUsd)
+                : "—"
+            }
             hint={
               data.inference.totalUsd > 0
                 ? `${formatUsd(data.inference.llmUsd)} AI · ${formatUsd(data.inference.ttsUsd)} voice${
@@ -70,7 +82,9 @@ export function UserDetailView({ userId }: { userId: string }) {
           />
           <KpiCard
             label="Last turn"
-            value={user.lastTurnAt ? formatRelativeTime(user.lastTurnAt) : "never"}
+            value={
+              user.lastTurnAt ? formatRelativeTime(user.lastTurnAt) : "never"
+            }
             tone={user.activeNow ? "sky" : "default"}
           />
         </div>
@@ -99,10 +113,18 @@ export function UserDetailView({ userId }: { userId: string }) {
       <div className="space-y-4">
         {backLink()}
         <EmptyState
-          title={error === "unauthorized" ? "Admins only" : "Could not load this user"}
+          title={
+            error === "unauthorized"
+              ? "Admins only"
+              : "Could not load this user"
+          }
           description="The user detail API did not answer. Try refreshing."
           action={
-            <button type="button" onClick={refresh} className="text-xs text-sky-300">
+            <button
+              type="button"
+              onClick={refresh}
+              className="text-xs text-foreground"
+            >
               Try again
             </button>
           }

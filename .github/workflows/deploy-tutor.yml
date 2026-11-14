@@ -114,6 +114,8 @@ jobs:
         run: node --test tools/verify/run-gates.test.mjs
       - name: Build shared packages
         run: pnpm turbo run build --filter='./packages/*'
+      - name: Recording slot lifecycle regressions (offline)
+        run: pnpm --filter @heytutor/tutor exec node --experimental-test-module-mocks --import tsx scripts/verify/verify-billing-grant.ts
       - name: Yield switch and PR246 review blocker regressions (offline)
         run: |
           pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-yield-switch-blockers.ts
@@ -130,6 +132,9 @@ jobs:
           pnpm --filter @heytutor/drawing verify
           pnpm --filter @heytutor/whiteboard verify
           pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-speech-notation.ts
+          pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-browser-speech-language.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-indian-languages.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-sarvam-tts.ts
       - name: Preserve the development webpack cache
         run: pnpm --filter @heytutor/tutor verify:dev-cache
       - name: Typecheck and lint

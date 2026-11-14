@@ -1,55 +1,42 @@
+import {
+  AlignLeft,
+  CircleAlert,
+  CircleCheck,
+  CircleDashed,
+  Image,
+  RotateCcw,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { outcomeLabel, type TurnOutcome } from "@/lib/admin/outcome";
 import { cn } from "@/lib/utils";
 
-const OUTCOME_STYLE: Record<TurnOutcome, { bg: string; text: string; border: string }> = {
-  validated: {
-    bg: "rgba(74, 158, 255, 0.14)",
-    text: "#9CCBFF",
-    border: "rgba(74, 158, 255, 0.32)",
-  },
-  picture_shown: {
-    bg: "rgba(155, 142, 196, 0.14)",
-    text: "#C4B8E8",
-    border: "rgba(155, 142, 196, 0.32)",
-  },
-  text_only: {
-    bg: "rgba(255, 255, 255, 0.06)",
-    text: "rgba(237, 237, 235, 0.68)",
-    border: "rgba(255, 255, 255, 0.20)",
-  },
-  retry_required: {
-    bg: "rgba(224, 104, 88, 0.15)",
-    text: "#E06858",
-    border: "rgba(224, 104, 88, 0.32)",
-  },
-  failed: {
-    bg: "rgba(224, 104, 88, 0.15)",
-    text: "#E06858",
-    border: "rgba(224, 104, 88, 0.32)",
-  },
-  unverified: {
-    bg: "rgba(255, 255, 255, 0.04)",
-    text: "rgba(237, 237, 235, 0.45)",
-    border: "rgba(255, 255, 255, 0.12)",
-  },
-};
+const OUTCOME_ICON = {
+  validated: CircleCheck,
+  picture_shown: Image,
+  text_only: AlignLeft,
+  retry_required: RotateCcw,
+  failed: CircleAlert,
+  unverified: CircleDashed,
+} satisfies Record<TurnOutcome, typeof CircleCheck>;
 
-interface OutcomePillProps {
+export function OutcomePill({
+  outcome,
+  className,
+}: {
   outcome: TurnOutcome;
   className?: string;
-}
-
-export function OutcomePill({ outcome, className }: OutcomePillProps) {
-  const config = OUTCOME_STYLE[outcome];
+}) {
+  const Icon = OUTCOME_ICON[outcome];
   return (
-    <span
+    <Badge
+      variant="outline"
       className={cn(
-        "type-accent-xs inline-flex shrink-0 items-center rounded-full border px-2 py-0.5",
+        "gap-1.5 rounded-md bg-muted/40 font-normal text-foreground",
         className,
       )}
-      style={{ backgroundColor: config.bg, color: config.text, borderColor: config.border }}
     >
+      <Icon strokeWidth={1.5} aria-hidden />
       {outcomeLabel(outcome)}
-    </span>
+    </Badge>
   );
 }

@@ -57,7 +57,7 @@ for (const bad of ["", "fr-FR", "en", null, undefined, 42, {}]) {
 assert(normalizeVoiceKey("hi-IN") === "hi-IN", "a valid voice key was rewritten");
 
 // --- settings type guards reject junk from localStorage --------------------
-assert(isTutorAudioLanguage("hinglish") && !isTutorAudioLanguage("marathi"), "language guard is wrong");
+assert(isTutorAudioLanguage("hinglish") && !isTutorAudioLanguage("klingon"), "language guard is wrong");
 // Rows saved as "hindi" before the Hinglish voice meant an English lesson.
 assert(!isTutorAudioLanguage("hindi"), "a legacy hindi row must not switch a student to Hinglish");
 assert(isTutorAccent("uk") && !isTutorAccent("aus"), "accent guard is wrong");
@@ -145,7 +145,7 @@ assert(
   "the drawer must not offer the legacy Hindi value",
 );
 assert(
-  settingsDrawer.includes('update({ audioLanguage: "hinglish" })') &&
+  settingsDrawer.includes("INDIAN_LANGUAGE_OPTIONS.map") &&
     settingsDrawer.includes("{hinglishAvailable ? ("),
   "the drawer offers Hinglish only when the server holds a Sarvam key",
 );
@@ -171,7 +171,7 @@ assert(
   "account settings must not offer the legacy Hindi value",
 );
 assert(
-  settingsScreen.includes('patch({ audioLanguage: "hinglish" })') &&
+  settingsScreen.includes("INDIAN_LANGUAGE_OPTIONS.map") &&
     settingsScreen.includes("{hinglishAvailable ? ("),
   "account settings offer Hinglish only when the server holds a Sarvam key",
 );
@@ -201,7 +201,7 @@ assert(
   "shell must collapse language + accent into the voice key",
 );
 assert(
-  shell.includes('hinglish && data.settings.audioLanguage === "hinglish"') &&
+  shell.includes("hinglish && isTutorAudioLanguage(data.settings.audioLanguage)") &&
     shell.includes("toVoiceKey(DEFAULT_AUDIO_LANGUAGE, accent)"),
   "Hinglish comes only from the server's answer; a stale local cache starts in English",
 );

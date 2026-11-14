@@ -22,7 +22,7 @@ export function chemistryVisualObligationCheck(set: VisualObligationSet, documen
   const question = typeof document.source.question === "string" ? document.source.question : "";
   const audit = auditChemistryRepresentation(document, question);
   for (const obligation of set.obligations) {
-    if (obligation.kind !== "named_body") continue;
+    if (obligation.kind !== "named_body" || !obligation.supported) continue;
     const label = obligation.problemLabel?.trim() ?? "";
     if (GENERIC.test(label)) {
       ignoredIds.push(obligation.id); continue;

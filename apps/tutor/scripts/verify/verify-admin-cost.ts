@@ -7,6 +7,8 @@ import { TurnsTable } from "../../features/admin/turns/TurnsTable";
 import { millicentsToUsd, usdToMillicents } from "../../lib/billing/catalog";
 import { previousPeriodKey, recentPeriodKeys } from "../../lib/admin/costPeriods";
 import { formatMillicentsUsd } from "../../features/admin/shared/lib/format";
+import { createStaleCache } from "../../lib/admin/staleCache";
+import { windowObservationsPath } from "../../lib/obs/langfuseQuery";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -39,6 +41,46 @@ assert(read("features/admin/users/UserBoards.tsx").includes("CostChip"), "each u
 assert(read("lib/admin/turnsQueries.ts").includes("fetchRunCostForTraces"), "the turn log attaches per-turn cost");
 assert(read("lib/admin/costPeriods.ts").includes("billingPeriodKey"), "month keys stay on the UTC ledger calendar");
 
+const windowPath = windowObservationsPath(new Date("2026-11-04T00:00:00.000Z"), new Date("2026-11-11T00:00:00.000Z"), "next");
+assert(windowPath.startsWith("/api/public/v2/observations?"), "the 7d window reads v2 observations, not the rate-limited legacy list");
+assert(!windowPath.includes("page=") && windowPath.includes("cursor=next"), "the 7d window pages by cursor");
+assert(!read("lib/obs/langfuseQuery.ts").includes("`/api/public/observations?"), "no admin read uses the legacy observations list");
+assert(read("lib/admin/costQueries.ts").includes("createStaleCache"), "the overview's 7d window is cached between polls");
+
+async function verifyStaleCache(): Promise<void> {
+  type Value = { ok: boolean; n: number };
+  let loads = 0;
+  const loadCount = (): number => loads;
+  let next: Value = { ok: true, n: 1 };
+  const cache = createStaleCache<Value>({
+    load: async () => {
+      loads += 1;
+      return next;
+    },
+    isFailure: (value) => !value.ok,
+    freshMs: 1_000,
+    staleMs: 10_000,
+  });
+  const [a, b] = await Promise.all([cache.read(0), cache.read(0)]);
+  assert(loadCount() === 1 && a.n === 1 && b.n === 1, "concurrent polls share one Langfuse load");
+  assert((await cache.read(500)).n === 1 && loadCount() === 1, "a fresh value is reused without a load");
+  next = { ok: false, n: 2 };
+  const stale = await cache.read(2_000);
+  assert(loadCount() === 2 && stale.n === 1, "a rate-limited load keeps the last good total");
+  assert((await cache.read(2_500)).n === 1 && loadCount() === 2, "failed loads cool down instead of retrying every poll");
+  assert((await cache.read(9_500)).n === 1 && loadCount() === 3, "a failed refresh may still use the original good total");
+  assert((await cache.read(10_000)).n === 2 && loadCount() === 3, "cooldown never extends the good total's stale lifetime");
+  assert((await cache.read(20_000)).n === 2, "past the stale limit the failure is shown");
+  assert((await cache.read(20_500)).n === 2 && loadCount() === 4, "cooldown also applies when no usable good total remains");
+  next = { ok: true, n: 3 };
+  assert((await cache.read(21_000)).n === 3, "a later good load replaces the failure");
+  cache.clear();
+  next = { ok: false, n: 4 };
+  assert((await cache.read(21_100)).n === 4, "clear removes the saved value and cooldown");
+  const coldLoads = loadCount();
+  assert((await cache.read(21_500)).n === 4 && loadCount() === coldLoads, "cold-start failures also wait before retrying");
+}
+
 Object.defineProperty(globalThis, "React", { value: React, configurable: true });
 const turn: AdminTurnRow = {
   turnId: "turn-one", question: "Explain gravity", outcome: "validated", tier: "exact_verified",
@@ -67,4 +109,9 @@ assert(rated.includes("During 4/5") && rated.includes("After 2/5"), "the log sho
 assert(rated.includes("the figure was wrong"), "the log shows the student's note");
 assert(rated.includes("text-danger"), "a 1 or 2 star rating is marked on the log");
 
-console.log("✓ admin cost analytics: ledger months, millicents, and panel surfaces");
+verifyStaleCache().then(() => {
+  console.log("✓ admin cost analytics: ledger months, millicents, panel surfaces, cached 7d window");
+}, (error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

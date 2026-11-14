@@ -19,6 +19,7 @@
  * measures the path students get. Everything with I/O is injected.
  */
 import type { FigureSource, TurnPlanV3 } from "@heytutor/scene-engine";
+import { plannerAbort } from "@heytutor/tutor-core";
 import { deepEqual, finalizeScenePlanAfterAuthority } from "./diagramGeneration";
 
 /**
@@ -340,9 +341,9 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     run.spanEnded = true;
     run.span?.end(metadata);
   };
-  const stopRun = (run: Run, metadata: Record<string, unknown>) => {
+  const stopRun = (run: Run, metadata: Record<string, unknown>, reason?: DOMException) => {
     run.releaseValidation?.(false);
-    run.controller.abort();
+    run.controller.abort(reason);
     inFlight.delete(run);
     endRunSpan(run, metadata);
   };
@@ -445,7 +446,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       } else {
         abortReason = decision.reason;
         const discarded = speculative;
-        stopRun(discarded, { speculative: true, restarted: false, aborted: decision.reason });
+        stopRun(discarded, { speculative: true, restarted: false, aborted: decision.reason }, plannerAbort("superseded"));
         input.telemetry?.mark("scene-speculative-abort", { reason: decision.reason });
         speculative = null;
         if (decision.restart) {
@@ -530,8 +531,7 @@ function mergeAbortSignals(first: AbortSignal, second: AbortSignal): AbortSignal
   if (first.aborted) return first;
   if (second.aborted) return second;
   const controller = new AbortController();
-  const abort = () => controller.abort();
-  first.addEventListener("abort", abort, { once: true });
-  second.addEventListener("abort", abort, { once: true });
+  first.addEventListener("abort", () => controller.abort(first.reason), { once: true });
+  second.addEventListener("abort", () => controller.abort(second.reason), { once: true });
   return controller.signal;
 }

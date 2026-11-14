@@ -12,6 +12,9 @@ export type QuestionImage = {
   mimeType: string;
   ext: string;
   bytes: Uint8Array;
+  /** Pixel size read from the header. */
+  width: number;
+  height: number;
 };
 
 const MAX_IMAGE_SIDE = 4096;
@@ -29,7 +32,16 @@ function safeDimensions(width: number, height: number): boolean {
 
 /** Static raster headers only. Never expand compressed image data here. Every
  * chunk/segment walk advances within the already bounded uploaded bytes. */
-function validImageContent(bytes: Buffer, mimeType: string): boolean {
+function validImageContent(
+  bytes: Buffer,
+  mimeType: string,
+  size: { width: number; height: number },
+): boolean {
+  const fits = (width: number, height: number): boolean => {
+    size.width = width;
+    size.height = height;
+    return safeDimensions(width, height);
+  };
   if (mimeType === "image/png") {
     if (
       bytes.length < 33 ||
@@ -38,7 +50,7 @@ function validImageContent(bytes: Buffer, mimeType: string): boolean {
         .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ||
       bytes.readUInt32BE(8) !== 13 ||
       bytes.toString("ascii", 12, 16) !== "IHDR" ||
-      !safeDimensions(bytes.readUInt32BE(16), bytes.readUInt32BE(20))
+      !fits(bytes.readUInt32BE(16), bytes.readUInt32BE(20))
     )
       return false;
     let sawData = false;
@@ -82,7 +94,7 @@ function validImageContent(bytes: Buffer, mimeType: string): boolean {
       ) {
         return (
           length >= 8 &&
-          safeDimensions(
+          fits(
             bytes.readUInt16BE(position + 5),
             bytes.readUInt16BE(position + 3),
           )
@@ -110,7 +122,7 @@ function validImageContent(bytes: Buffer, mimeType: string): boolean {
       if (kind === "ANIM" || kind === "ANMF") return false;
       if (kind === "VP8X") {
         if (length !== 10 || (bytes[start]! & 2) !== 0) return false;
-        validCanvas = safeDimensions(
+        validCanvas = fits(
           bytes.readUIntLE(start + 4, 3) + 1,
           bytes.readUIntLE(start + 7, 3) + 1,
         );
@@ -124,7 +136,7 @@ function validImageContent(bytes: Buffer, mimeType: string): boolean {
             !bytes
               .subarray(start + 3, start + 6)
               .equals(Buffer.from([0x9d, 0x01, 0x2a])) ||
-            !safeDimensions(
+            !fits(
               bytes.readUInt16LE(start + 6) & 0x3fff,
               bytes.readUInt16LE(start + 8) & 0x3fff,
             )
@@ -134,7 +146,7 @@ function validImageContent(bytes: Buffer, mimeType: string): boolean {
           if (length < 5 || bytes[start] !== 0x2f) return false;
           const bits = bytes.readUInt32LE(start + 1);
           if (
-            !safeDimensions((bits & 0x3fff) + 1, ((bits >>> 14) & 0x3fff) + 1)
+            !fits((bits & 0x3fff) + 1, ((bits >>> 14) & 0x3fff) + 1)
           )
             return false;
         }
@@ -148,7 +160,7 @@ function validImageContent(bytes: Buffer, mimeType: string): boolean {
     if (
       bytes.length < 14 ||
       !["GIF87a", "GIF89a"].includes(bytes.toString("ascii", 0, 6)) ||
-      !safeDimensions(bytes.readUInt16LE(6), bytes.readUInt16LE(8))
+      !fits(bytes.readUInt16LE(6), bytes.readUInt16LE(8))
     )
       return false;
     let position =
@@ -175,7 +187,7 @@ function validImageContent(bytes: Buffer, mimeType: string): boolean {
         kind !== 0x2c ||
         position + 9 > bytes.length ||
         ++frames > 1 ||
-        !safeDimensions(
+        !fits(
           bytes.readUInt16LE(position + 4),
           bytes.readUInt16LE(position + 6),
         )
@@ -201,11 +213,12 @@ export function readQuestionImage(image: unknown): QuestionImage | null {
   const base64 = match[2].replace(/\s+/g, "");
   try {
     const bytes = Buffer.from(base64, "base64");
+    const size = { width: 0, height: 0 };
     if (
       bytes.length === 0 ||
       bytes.toString("base64").replace(/=+$/, "") !==
         base64.replace(/=+$/, "") ||
-      !validImageContent(bytes, mimeType)
+      !validImageContent(bytes, mimeType, size)
     )
       return null;
     return {
@@ -213,6 +226,8 @@ export function readQuestionImage(image: unknown): QuestionImage | null {
       mimeType,
       ext,
       bytes,
+      width: size.width,
+      height: size.height,
     };
   } catch {
     return null;

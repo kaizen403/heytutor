@@ -225,6 +225,7 @@ function spokenFocusTargets(
 }
 
 const DEVANAGARI = /\p{Script=Devanagari}/u;
+const INDIAN_SCRIPT = /[\p{Script=Devanagari}\p{Script=Bengali}\p{Script=Gujarati}\p{Script=Kannada}\p{Script=Malayalam}\p{Script=Oriya}\p{Script=Gurmukhi}\p{Script=Tamil}\p{Script=Telugu}]/u;
 
 /**
  * The board stays in English on a Hinglish lesson: only the voice mixes
@@ -233,6 +234,11 @@ const DEVANAGARI = /\p{Script=Devanagari}/u;
  */
 export function isDevanagariWrite(command: DrawCommand): boolean {
   return command.type === "WRITE" && DEVANAGARI.test(command.text ?? "");
+}
+
+/** Regional narration cannot send unsupported native-script glyphs to the English board. */
+export function isIndianScriptWrite(command: DrawCommand): boolean {
+  return command.type === "WRITE" && INDIAN_SCRIPT.test(command.text ?? "");
 }
 
 export function prepareVerifiedLessonSegments(
@@ -263,7 +269,7 @@ export function prepareVerifiedLessonSegments(
     const keptCommands = withSpokenFocus.flatMap((command) => {
       const candidates = command.type === "WRITE" ? fitWorkTextCommand(command) : [command];
       return candidates.filter((candidate) => {
-        if (!isBlockedVerifiedDiagramCommand(candidate, diagram) && !isDevanagariWrite(candidate)) return true;
+        if (!isBlockedVerifiedDiagramCommand(candidate, diagram) && !isIndianScriptWrite(candidate)) return true;
         blockedCommandCount += 1;
         return false;
       });

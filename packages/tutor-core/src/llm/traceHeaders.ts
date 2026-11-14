@@ -7,8 +7,19 @@ export const HEYTUTOR_SESSION_ID_HEADER = "x-session-id";
  * URI-encoded so μ / ° survive HTTP headers.
  */
 export const HEYTUTOR_QUESTION_HEADER = "x-heytutor-question";
+/** One planner HTTP request; a later client report of why it was aborted names the same id. */
+export const PLANNER_REQUEST_ID_HEADER = "x-planner-request-id";
 
 const TRACE_ID_MAX_CHARS = 128;
+
+/** A random UUID, so the id carries no question or model content. */
+export function newPlannerRequestId(): string | undefined {
+  try {
+    return globalThis.crypto?.randomUUID?.();
+  } catch {
+    return undefined;
+  }
+}
 const QUESTION_HEADER_MAX_CHARS = 2_000;
 
 export function readTraceIdHeader(value: string | null | undefined): string | undefined {

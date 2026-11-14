@@ -1,3 +1,4 @@
+import { regionalNarration } from "@heytutor/tutor-core";
 import { prepareNeutralPanelPresentation } from "./neutralPanelPresentation";
 export { NeutralPanelPresentationDeclined } from "./neutralPanelPresentation";
 
@@ -599,11 +600,11 @@ function collapseIntroSpeech(
   if (options.codeLesson && commands.length > 0) {
     const caption = options.caption?.trim();
     return [{
-      narration: options.narrationLanguage === "hinglish"
+      narration: regionalNarration(options.narrationLanguage)?.example ?? (options.narrationLanguage === "hinglish"
         ? caption ? `इस example को समझते हैं. ${hinglishFigureNarration(caption)}` : "अब इस worked example को साथ में समझते हैं."
         : caption
         ? `Here is the example we will work through: ${caption.charAt(0).toLowerCase()}${caption.slice(1)}.`
-        : "Here is the example we will work through.",
+        : "Here is the example we will work through."),
       command: commands[0] ?? null,
       commands,
       verifiedDiagramIntro: true,
@@ -1221,6 +1222,8 @@ function capitaliseSentence(text: string): string {
 
 /** The group's cue as the sentence a teacher says while drawing the group. */
 function spokenCueSentence(cue: string, groupIndex: number, language?: NarrationLanguage): string {
+  const regional = regionalNarration(language);
+  if (regional) return groupIndex === 0 ? regional.setup : regional.next;
   // Keep the cue's explanation, not only its entity names. The grammar
   // below is independent of the figure's topic; technical terms stay English.
   if (language === "hinglish") {
@@ -1267,7 +1270,7 @@ function entityPhrase(entity: SceneEntity, namedInCue = false, language?: Narrat
   const spokenLabel = label && SPEAKABLE_LABEL.test(label) && !words.includes(label.toLowerCase())
     ? ` ${label}`
     : "";
-  if (language === "hinglish") return `${headPhrase.replace(/^(?:the|a|an|its)\s/i, "")}${spokenLabel}`;
+  if (language && language !== "english") return `${headPhrase.replace(/^(?:the|a|an|its)\s/i, "")}${spokenLabel}`;
   const article = /^(?:the|a|an|its)\s/i.test(headPhrase) ? "" : "the ";
   return `${article}${headPhrase}${spokenLabel}`;
 }
@@ -1303,6 +1306,10 @@ function splitCueSentences(cue: string): string[] {
 
 /** One short sentence that names the group's parts, for a beat whose cue outlasts its ink. */
 function namingSentence(phrases: string[], groupIndex: number, language?: NarrationLanguage): string {
+  const regional = regionalNarration(language);
+  if (regional) return phrases.length
+    ? `${regional.here} ${phrases.join(`, ${regional.and} `)}.`
+    : groupIndex === 0 ? regional.setup : regional.next;
   if (language === "hinglish") {
     if (phrases.length === 0) {
       return groupIndex === 0 ? "पहले इस figure का setup देखते हैं." : "अब figure का अगला हिस्सा देखते हैं.";
@@ -1331,6 +1338,8 @@ const WALK_CLOSING_TIERS = WALK_CLOSINGS.english.length;
 
 function walkedSetupSentence(phrases: string[], groupIndex: number, language?: NarrationLanguage, closingTier = 0): string {
   const tier = Math.max(0, Math.min(closingTier, WALK_CLOSING_TIERS - 1));
+  const regional = regionalNarration(language);
+  if (regional) return `${groupIndex === 0 ? regional.setup : regional.next} ${regional.here} ${phrases.join(`, ${regional.and} `)}. ${regional.ready}`;
   if (language === "hinglish") {
     const parts = phrases.map((phrase, index) => `${index === 0 ? "पहले" : index === phrases.length - 1 ? "और आखिर में" : "फिर"} ${phrase}`);
     return `${groupIndex === 0 ? "ये setup है" : "अब अगला हिस्सा देखते हैं"}. ${parts.join(", ")}. ${WALK_CLOSINGS.hinglish[tier]}`;
@@ -1362,6 +1371,8 @@ function joinSpokenList(items: string[]): string {
  * under and each label a moment to be lettered in.
  */
 function extendCueSentence(base: string, phrases: string[], nothingNamed: boolean, language?: NarrationLanguage): string {
+  const regional = regionalNarration(language);
+  if (regional) return `${base.trim()} ${regional.here} ${phrases.join(`, ${regional.and} `)}.`;
   if (language === "hinglish") {
     const list = phrases.length < 2 ? phrases[0] ?? "" : `${phrases.slice(0, -1).join(", ")} और ${phrases.at(-1)}`;
     return `${base.trim()} यहाँ ${list} हैं.`;
@@ -1601,7 +1612,8 @@ function cueRevealBeat(input: {
   };
   // Keep main's ink/voice pacing, but planner prose is never an opening
   // narration channel, even when dense ink could accommodate its explanation.
-  const neutralSetup = input.language === "hinglish"
+  const regional = regionalNarration(input.language);
+  const neutralSetup = regional ? input.groupIndex === 0 ? regional.setup : regional.next : input.language === "hinglish"
     ? input.groupIndex === 0 ? "पहले इस figure का setup देखते हैं." : "अब figure का अगला हिस्सा देखते हैं."
     : input.groupIndex === 0 ? "Here is the setup." : "Next, the setup continues.";
   const composeCue = (_cue: string, _explain: boolean, closingTiers = 1): ComposedBeat =>
@@ -1683,7 +1695,7 @@ function groupRevealNarration({
   rolesByEntityId: ReadonlyMap<string, string>;
 }): string {
   if (chunkIndex > 0) {
-    return language === "hinglish" ? "अब setup का बाकी हिस्सा पूरा करते हैं." : "The rest of this setup completes the figure.";
+    return regionalNarration(language)?.next ?? (language === "hinglish" ? "अब setup का बाकी हिस्सा पूरा करते हैं." : "The rest of this setup completes the figure.");
   }
   const hasLabels = drawCommands.some((command) =>
     command.type === "LABEL" || command.type === "DIMENSION",
@@ -1718,6 +1730,10 @@ function revealNarration({
   chunkIndex: number;
   groupCount: number;
 }): string {
+  const regional = regionalNarration(language);
+  if (regional) return phase === "detail" ? `${regional.labels} ${cueSubject(cue)}.`
+    : phase === "direction" ? regional.directions
+    : groupIndex === 0 && chunkIndex === 0 && phaseIndex === 0 ? regional.setup : regional.next;
   if (language === "hinglish") {
     if (chunkIndex === 0 && phaseIndex === 0 && isSpokenProse(cue)) return hinglishFigureNarration(cue);
     if (phase === "detail") return chunkIndex > 0 || phaseIndex > 0
@@ -1782,6 +1798,8 @@ function detailNarration(
     });
   }
 
+  const regional = regionalNarration(language);
+  if (regional) return `${regional.labels} ${named.map(([label, meaning]) => meaning ? `${label}, ${meaning}` : label).join(`, ${regional.and} `)}.`;
   const identified = named.filter(([, meaning]) => Boolean(meaning));
   if (language === "hinglish") {
     const clauses = identified.length === named.length

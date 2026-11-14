@@ -83,7 +83,7 @@ export async function handleTtsRequest(
   // Measured after digits become words: that is the text Sarvam receives.
   if (config.provider === "sarvam" && billedCharacters > SARVAM_MAX_TEXT_CHARS)
     return Response.json(
-      { error: `Hinglish speech takes up to ${SARVAM_MAX_TEXT_CHARS} characters per request.` },
+      { error: `Speech takes up to ${SARVAM_MAX_TEXT_CHARS} characters per request.` },
       { status: 413 },
     );
   if (

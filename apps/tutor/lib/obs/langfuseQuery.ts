@@ -144,21 +144,6 @@ async function fetchSessionTraceIds(
   return readTraceIds(payload).slice(0, MAX_TRACES_PER_SESSION);
 }
 
-function readTotalPages(payload: unknown): number {
-  if (!isRecord(payload) || !isRecord(payload.meta)) return 1;
-  const totalPages = asPositiveInt(payload.meta.totalPages) ?? asPositiveInt(payload.meta.pageCount);
-  return totalPages ?? 1;
-}
-
-function asPositiveInt(value: unknown): number | undefined {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) return Math.floor(value);
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number.parseInt(value, 10);
-    if (Number.isFinite(parsed) && parsed > 0) return parsed;
-  }
-  return undefined;
-}
-
 export async function fetchRunCostForTraces(traceIds: string[], ownersByTraceId: ReadonlyMap<string, string> = new Map()): Promise<{
   configured: boolean;
   byTraceId: Record<string, { llmUsd: number; ttsUsd: number; totalUsd: number; observationTraceId?: string }>;
@@ -261,8 +246,20 @@ export async function fetchRunCostForTraces(traceIds: string[], ownersByTraceId:
   }
 }
 
-const WINDOW_PAGE_SIZE = 100;
-const WINDOW_MAX_PAGES = 3;
+const WINDOW_MAX_PAGES = 10;
+
+/** v2 observations with a cursor: the legacy page-numbered list is rate limited far sooner. */
+export function windowObservationsPath(from: Date, to: Date, cursor?: string): string {
+  const params = new URLSearchParams({
+    fields: "core,basic,usage,metadata,model",
+    limit: String(SESSION_OBSERVATION_LIMIT),
+    type: "GENERATION",
+    fromStartTime: from.toISOString(),
+    toStartTime: to.toISOString(),
+  });
+  if (cursor) params.set("cursor", cursor);
+  return `/api/public/v2/observations?${params.toString()}`;
+}
 
 export async function fetchRunCostForWindow(input: {
   from: Date;
@@ -279,28 +276,20 @@ export async function fetchRunCostForWindow(input: {
     return { configured: false, report: aggregateRunCost([]), truncated: false };
   }
 
-  const maxPages = Math.max(1, Math.min(input.maxPages ?? WINDOW_MAX_PAGES, 8));
+  const maxPages = Math.max(1, Math.min(input.maxPages ?? WINDOW_MAX_PAGES, SESSION_OBSERVATION_PAGES));
   try {
     const observations: CostObservation[] = [];
-    let truncated = false;
-    for (let page = 1; page <= maxPages; page += 1) {
-      const params = new URLSearchParams({
-        type: "GENERATION",
-        limit: String(WINDOW_PAGE_SIZE),
-        page: String(page),
-        fromStartTime: input.from.toISOString(),
-        toStartTime: input.to.toISOString(),
-      });
-      const payload = await langfuseGet(credentials, `/api/public/observations?${params.toString()}`);
+    let truncated = true;
+    let cursor: string | undefined;
+    for (let page = 0; page < maxPages; page += 1) {
+      const payload = await langfuseGet(credentials, windowObservationsPath(input.from, input.to, cursor));
       observations.push(...readObservations(payload, "window"));
-      const totalPages = readTotalPages(payload);
-      if (page >= totalPages) {
+      const next = readCursor(payload);
+      if (!next || next === cursor) {
         truncated = false;
         break;
       }
-      if (page === maxPages) {
-        truncated = true;
-      }
+      cursor = next;
     }
     return { configured: true, report: aggregateRunCost(observations), truncated };
   } catch (error) {

@@ -331,6 +331,12 @@ function claimBrowserSpeech(client: SpeechSynthesisTTSClient): void {
 }
 
 export class SpeechSynthesisTTSClient implements TTSClient {
+  private voiceKey: TutorVoiceKey = DEFAULT_VOICE_KEY;
+
+  setVoicePreferences(preferences: TutorVoicePreferences): void {
+    this.voiceKey = preferences.voiceKey;
+  }
+
   private lastPlaybackStart: PlaybackStartSignal | null = null;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private cancelUtterance: (() => void) | null = null;
@@ -444,10 +450,13 @@ export class SpeechSynthesisTTSClient implements TTSClient {
         next.pitch = 1.0;
         next.volume = this.muted ? 0 : 1.0;
 
+        next.lang = this.voiceKey;
         const voices = window.speechSynthesis.getVoices();
+        const language = this.voiceKey.split("-")[0]!;
         const preferredVoice =
-          voices.find((voice) => voice.lang.startsWith("en") && voice.name.includes("Google")) ??
-          voices.find((voice) => voice.lang.startsWith("en"));
+          voices.find((voice) => voice.lang.toLowerCase() === this.voiceKey.toLowerCase()) ??
+          voices.find((voice) => voice.lang.startsWith(language) && voice.name.includes("Google")) ??
+          voices.find((voice) => voice.lang.startsWith(language));
         if (preferredVoice) next.voice = preferredVoice;
 
         next.onstart = () => {

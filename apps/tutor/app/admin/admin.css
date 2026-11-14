@@ -1,0 +1,88 @@
+@theme inline {
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  .admin-theme * {
+    border-color: var(--border);
+  }
+}
+
+.admin-theme {
+  --background: #141414;
+  --foreground: #ededed;
+  --card: #191919;
+  --card-foreground: var(--foreground);
+  --primary: #ededed;
+  --primary-foreground: #171717;
+  --secondary: #262626;
+  --secondary-foreground: #ededed;
+  --muted: #222222;
+  --muted-foreground: #a3a3a3;
+  --accent: #262626;
+  --accent-foreground: #fafafa;
+  --destructive: var(--danger);
+  --input: #353535;
+  --ring: #a3a3a3;
+  --border: #2b2b2b;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --ink-950: var(--background);
+  --ink-900: #171717;
+  --ink-850: var(--card);
+  --ink-700: var(--muted);
+  --ink-600: var(--accent);
+  --frost: var(--foreground);
+  --text-soft: #b4b4b4;
+  --text-faint: var(--muted-foreground);
+  --stroke: var(--border);
+  --stroke-strong: var(--input);
+  color-scheme: dark;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01";
+}
+
+.admin-theme
+  :is(
+    h1,
+    h2,
+    h3,
+    h4,
+    .type-accent-xs,
+    .type-accent-s,
+    .type-accent-m,
+    .type-button,
+    .btn
+  ) {
+  font-family: var(--font-sans);
+}
+
+.admin-theme .type-accent-xs {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.admin-theme .glass {
+  border-radius: 0.5rem;
+  background: var(--card);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.admin-theme ::selection {
+  background: var(--secondary);
+  color: var(--foreground);
+}

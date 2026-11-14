@@ -1,8 +1,10 @@
 "use client";
 
+import { Input } from "@/components/ui/input";
+
 import { X } from "lucide-react";
 import type { TurnsOutcomeFilter } from "@/lib/admin/types";
-import { SiteButton } from "@/components/ui/site-button";
+import { Button } from "@/components/ui/button";
 import { FilterSelect } from "../shared/components/FilterSelect";
 
 const OUTCOME_OPTIONS: Array<{ value: TurnsOutcomeFilter; label: string }> = [
@@ -45,14 +47,14 @@ export function TurnFilters({
 }: TurnFiltersProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="relative min-w-[16rem] flex-1">
-        <input
+      <div className="relative min-w-0 basis-64 flex-1">
+        <Input
           type="search"
           value={searchInput}
           onChange={(event) => onSearchInputChange(event.target.value)}
           placeholder="Search questions…"
           aria-label="Search questions"
-          className="h-9 w-full rounded-lg border border-stroke bg-ink-900 px-3 text-xs text-frost outline-none transition-colors placeholder:text-faint hover:border-sky-500/50 focus-visible:ring-2 focus-visible:ring-sky-500"
+          className="bg-background pr-9"
         />
         {searchInput ? (
           <button
@@ -80,10 +82,10 @@ export function TurnFilters({
         ariaLabel="Filter by time range"
       />
       {active && onClear ? (
-        <SiteButton variant="ghost" size="sm" onClick={onClear}>
+        <Button variant="outline" size="sm" onClick={onClear}>
           <X className="h-3.5 w-3.5" aria-hidden />
           Clear
-        </SiteButton>
+        </Button>
       ) : null}
     </div>
   );

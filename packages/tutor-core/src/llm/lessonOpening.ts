@@ -22,6 +22,8 @@
  * hash of the question so the same three words do not open every answer of a
  * session.
  */
+import { regionalNarration } from "./indianNarration";
+import type { TutorAudioLanguage } from "../tts/voiceLanguage";
 import type { TutorSegment } from "@heytutor/drawing";
 
 export type LessonOpeningKind = "problem" | "concept" | "code";
@@ -41,7 +43,7 @@ export interface LessonOpeningInput {
    */
   hasBoardOpening: boolean;
   /** The Hinglish voice speaks a Hinglish opening; the ask stays in English. */
-  language?: "english" | "hinglish";
+  language?: TutorAudioLanguage;
 }
 
 /**
@@ -152,6 +154,8 @@ const DIAGRAM_INSTRUCTION_TAIL =
 export function lessonOpeningLine(input: LessonOpeningInput): string {
   const question = input.question.replace(/\s+/g, " ").trim();
   if (!question) return "";
+  const regional = regionalNarration(input.language);
+  if (regional) return regional.opening;
   if (input.language === "hinglish") return hinglishOpeningLine(input, question);
   const lead = LEADS[leadIndex(question)] ?? LEADS[0];
 

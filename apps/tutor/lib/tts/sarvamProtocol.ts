@@ -3,8 +3,7 @@ import { pcmToWav } from "./cartesiaProtocol";
 import type { TtsConfig } from "./providerConfig";
 
 /**
- * Sarvam bulbul speaks the Hinglish voice (hi-IN only; Cartesia owns every
- * other voice). Measured on 6 Oct 2026: linear16 arrives as headerless 24 kHz
+ * Sarvam bulbul speaks Indian language voices (Cartesia owns the English accents). Measured on 6 Oct 2026: linear16 arrives as headerless 24 kHz
  * mono PCM, first audio in about 350 ms, one `final` event per flush. Sarvam
  * returns no word timings, so the client keeps its estimated pen schedule.
  */
@@ -139,7 +138,7 @@ export function sarvamConfigMessage(config: TtsConfig, speed?: number) {
   return {
     type: "config",
     data: {
-      language_code: "hi-IN",
+      language_code: config.voiceKey,
       speaker: config.voiceId,
       pace: pace(speed),
       speech_sample_rate: SAMPLE_RATE,
@@ -249,7 +248,7 @@ export async function requestSarvamWav(
     },
     body: JSON.stringify({
       text: sarvamSpeechText(text),
-      language_code: "hi-IN",
+      language_code: config.voiceKey,
       speaker: config.voiceId,
       model: config.model,
       pace: pace(speed),

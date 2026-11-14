@@ -295,7 +295,10 @@ async function main() {
         const requests: string[] = [];
         const off: TurnPlanRequestOutcome[] = [];
         globalThis.fetch = async (_url, init) => {
-          requests.push(JSON.stringify({ headers: [...new Headers(init?.headers).entries()], body: init?.body }));
+          const headers = new Headers(init?.headers);
+          // A fresh random id per request whatever the observer; it only names the request.
+          headers.delete("x-planner-request-id");
+          requests.push(JSON.stringify({ headers: [...headers.entries()], body: init?.body }));
           return response("physics");
         };
         assert.equal(await planner.planTurnV3(question, { proxyUrl: "http://planner.test", timeoutMs: 1000,

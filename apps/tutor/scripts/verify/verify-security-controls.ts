@@ -81,9 +81,9 @@ assert(
 
 assert(read("next.config.ts").includes("securityHeaderEntries"), "next.config applies security headers");
 assert(read("middleware.ts").includes("applySecurityHeaders"), "middleware applies security headers");
-assert(read("middleware.ts").includes("consumeIpRateLimit"), "middleware rate-limits login/account/board/trace");
+assert(read("middleware.ts").includes("consumeIpRateLimit"), "middleware rate-limits account/board/trace");
 
-assert(rateLimitBucketForPath("/api/auth/callback/google") === "auth", "auth callbacks are rate-limited");
+assert(rateLimitBucketForPath("/api/auth/callback/google") === null, "auth callbacks are not rate-limited");
 assert(rateLimitBucketForPath("/api/account/me") === "account", "account routes are rate-limited");
 assert(rateLimitBucketForPath("/api/boards/abc") === "boards", "board routes are rate-limited");
 assert(rateLimitBucketForPath("/api/trace/event") === "trace", "trace routes are rate-limited");
@@ -104,11 +104,11 @@ assert(
 );
 
 resetIpRateLimitsForTests();
-for (let i = 0; i < 40; i += 1) {
-  assert(consumeIpRateLimit({ ip: "1.1.1.1", bucket: "auth" }).ok, "auth budget allows the first 40");
+for (let i = 0; i < 60; i += 1) {
+  assert(consumeIpRateLimit({ ip: "1.1.1.1", bucket: "account" }).ok, "account budget allows the first 60");
 }
-assert(!consumeIpRateLimit({ ip: "1.1.1.1", bucket: "auth" }).ok, "the 41st auth attempt is 429");
-assert(consumeIpRateLimit({ ip: "2.2.2.2", bucket: "auth" }).ok, "a second IP has its own budget");
+assert(!consumeIpRateLimit({ ip: "1.1.1.1", bucket: "account" }).ok, "the 61st account request is 429");
+assert(consumeIpRateLimit({ ip: "2.2.2.2", bucket: "account" }).ok, "a second IP has its own budget");
 
 assert(ttsWsCharsWithinCeiling(0, 48_000), "a full connection budget is allowed");
 assert(!ttsWsCharsWithinCeiling(47_000, 2_000), "the connection ceiling is hard");

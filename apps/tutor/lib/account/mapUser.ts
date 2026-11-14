@@ -32,7 +32,7 @@ export function mapAccountProfile(user: User): AccountProfile {
   };
 }
 
-/** The settings the lesson actually uses: a saved Hinglish choice reads as
+/** The settings the lesson actually uses: a saved Indian language choice reads as
  * English while the deployment has no Sarvam key, and returns with the key. */
 export function mapAccountSettings(
   row: UserSettings | null,
@@ -40,7 +40,7 @@ export function mapAccountSettings(
 ): AccountSettings {
   if (!row) return { ...DEFAULT_ACCOUNT_SETTINGS };
   const settings = parseAccountSettings(row);
-  return settings.audioLanguage === "hinglish" && !hinglishAvailable
+  return settings.audioLanguage !== "english" && !hinglishAvailable
     ? { ...settings, audioLanguage: "english" }
     : settings;
 }

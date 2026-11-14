@@ -15,6 +15,7 @@ export {
   foldWritelessFocusRuns,
   createWritelessFocusFolder,
   isDevanagariWrite,
+  isIndianScriptWrite,
   spokenFocusTarget,
   anchorToTextRect,
   resolveVerifiedDiagramFocusTarget,

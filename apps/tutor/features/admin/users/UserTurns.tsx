@@ -1,6 +1,11 @@
+import { Card } from "@/components/ui/card";
 import type { AdminUserTurn } from "@/lib/admin/types";
 import { OutcomePill } from "../shared/components/OutcomePill";
-import { formatDurationMs, formatRelativeTime, truncateText } from "../shared/lib/format";
+import {
+  formatDurationMs,
+  formatRelativeTime,
+  truncateText,
+} from "../shared/lib/format";
 import { RatingLog } from "../turns/RatingLog";
 
 function tierLabel(tier: AdminUserTurn["tier"]): string {
@@ -16,7 +21,7 @@ export function UserTurns({ turns }: { turns: AdminUserTurn[] }) {
       <h2 className="type-accent-xs text-faint">
         Questions &amp; turns · newest {turns.length}
       </h2>
-      <div className="glass rounded-xl px-3 py-2.5">
+      <Card className="gap-0 rounded-lg p-4 shadow-none">
         <ul className="divide-y divide-stroke">
           {turns.map((turn) => (
             <li key={turn.turnId} className="py-1.5">
@@ -26,23 +31,30 @@ export function UserTurns({ turns }: { turns: AdminUserTurn[] }) {
                     {truncateText(turn.question, 90)}
                   </p>
                   <p className="type-accent-xs mt-0.5 truncate text-faint">
-                    {truncateText(turn.boardTitle, 28)} · {formatRelativeTime(turn.createdAt)} ·{" "}
-                    {turn.segmentCount} segment{turn.segmentCount === 1 ? "" : "s"}
-                    {turn.narratedMs != null ? ` · ${formatDurationMs(turn.narratedMs)}` : ""}
+                    {truncateText(turn.boardTitle, 28)} ·{" "}
+                    {formatRelativeTime(turn.createdAt)} · {turn.segmentCount}{" "}
+                    segment{turn.segmentCount === 1 ? "" : "s"}
+                    {turn.narratedMs != null
+                      ? ` · ${formatDurationMs(turn.narratedMs)}`
+                      : ""}
                   </p>
                   <RatingLog ratings={turn.ratings} />
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   <OutcomePill outcome={turn.outcome} />
                   {turn.tier ? (
-                    <span className="type-accent-xs text-faint">{tierLabel(turn.tier)}</span>
+                    <span className="type-accent-xs text-faint">
+                      {tierLabel(turn.tier)}
+                    </span>
                   ) : null}
                 </div>
               </div>
               {turn.degradationReason ? (
                 <p className="type-accent-xs mt-1 text-danger">
                   {turn.degradationReason.replaceAll("_", " ")}
-                  {turn.issueCodes.length > 0 ? ` · ${turn.issueCodes.join(", ")}` : ""}
+                  {turn.issueCodes.length > 0
+                    ? ` · ${turn.issueCodes.join(", ")}`
+                    : ""}
                 </p>
               ) : null}
             </li>
@@ -51,7 +63,7 @@ export function UserTurns({ turns }: { turns: AdminUserTurn[] }) {
             <li className="type-accent-xs py-2 text-faint">No turns yet.</li>
           ) : null}
         </ul>
-      </div>
+      </Card>
     </section>
   );
 }

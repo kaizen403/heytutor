@@ -1,3 +1,4 @@
+import { regionalNarration } from "@heytutor/tutor-core";
 /**
  * A doubt that needs a new figure plans, verifies and draws one (DIAGRAM_DOUBT_FIGURES).
  *
@@ -27,6 +28,7 @@ import {
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import {
+  plannerAbort,
   tutorDebug,
   type NarrationLanguage,
   type ProblemAuthorityV1Response,
@@ -190,13 +192,13 @@ export const DOUBT_FIGURE_BUDGET_MS = 20_000;
  * Spoken once while the doubt's figure plans. It promises no figure: a miss
  * (budget, no fast family, the same figure) teaches on the old one.
  */
-export const DOUBT_FIGURE_HOLDING_LINE: Record<NarrationLanguage, string> = {
+export const DOUBT_FIGURE_HOLDING_LINE: Record<"english" | "hinglish", string> = {
   english: "Good question. Give me a moment.",
   hinglish: "अच्छा सवाल है. एक पल रुको.",
 };
 
 export function doubtFigureHoldingSegment(language: NarrationLanguage = "english"): TutorSegment {
-  return { narration: DOUBT_FIGURE_HOLDING_LINE[language], command: null, delivery: "opening" };
+  return { narration: regionalNarration(language)?.wait ?? DOUBT_FIGURE_HOLDING_LINE[language === "hinglish" ? "hinglish" : "english"], command: null, delivery: "opening" };
 }
 
 /**
@@ -546,7 +548,7 @@ export async function planDoubtFigure(input: {
     return { status: "drawn", question, turnPlan, authority, representation, presentation, elapsedMs: now() - startedAt };
   } finally {
     input.signal.removeEventListener("abort", abort);
-    controller.abort();
+    controller.abort(plannerAbort(now() >= input.deadlineAt ? "deadline" : "superseded"));
   }
 }
 
