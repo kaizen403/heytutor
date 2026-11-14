@@ -117,21 +117,30 @@ const PROBLEM_SHAPE: readonly RegExp[] = [
  * carries a concrete value/assignment. Operand names are not a closed list.
  */
 export function looksLikeCodingProblem(question: string): boolean {
+  const concreteIO = /\binput\s*:\s*(?:[a-zA-Z_]\w*\s*=|\[|["'\d-])[\s\S]*\boutput\s*:\s*\S/i.test(question);
+  // Measurements distinguish a physical string/array from program data.
+  // Quoted input values may themselves contain units; those are data rather
+  // than the setup. Explicit requests for code are handled by the caller.
+  const setup = question.split(/\b(?:constraints?|example\s*\d*|input|output)\s*:/i)[0]!
+    .replace(/"(?:\\.|[^"\\])*"|(?<!\w)'(?:\\.|[^'\\])*'(?!\w)/g, "")
+    .replace(/\btime\s+limit(?:\s+per\s+test)?\s*:?\s*\d+(?:\.\d+)?\s*(?:ms|s|milliseconds?|seconds?)\b/gi, "");
+  if (!concreteIO && /\b\d+(?:\.\d+)?[ \t]*(?:kg|mg|g|km|cm|mm|m|ms|s|Hz|Pa|N|J|W|V|A|K|meters?|metres?|seconds?|newtons?|degrees?|radians?)\b/.test(setup)) return false;
   const computation = /\breturn\s+(?:the\s+|an?\s+|all\s+|any\s+)?(?:true|false|indices|index|maximum|minimum|number|length|sum|count|result|array|string|list|root|head|value|total|smallest|largest|kth)\b/i.test(question);
-  const typedInput = /\bgiven\s+(?:(?:an?|the|two)\s+)?(?:(?:head|root)\s+of\s+(?:an?|the)\s+)?(?:arrays?|strings?|integers?|lists?|booleans?|matri(?:x|ces)|grids?|(?:(?:singly|doubly)\s+)?linked\s+lists?|(?:binary\s+)?trees?)\b/i.exec(question);
+  const typedInput = /\bgiven\s+(?:(?:an?|the|two)\s+)?(?:(?:head|root)\s+of\s+(?:an?|the)\s+)?(?:(?:positive|negative|non[- ]negative|non[- ]zero|unsigned|signed|sorted|unsorted|non[- ]empty)\s+)*(arrays?|strings?|integers?|lists?|booleans?|matri(?:x|ces)|grids?|(?:(?:singly|doubly)\s+)?linked\s+lists?|(?:binary\s+)?trees?)\b/i.exec(question);
   // Match paired inline formatting before testing the input name, so both
   // `value` and value work while an emphasized physical preposition stays one.
-  const inputName = typedInput && /^\s+(?:(`+|\*{1,2}|_{1,2}|\$)([a-zA-Z_]\w*)\1(?=\W|$)|([a-zA-Z_]\w*)\b)/.exec(question.slice(typedInput.index + typedInput[0].length));
+  const afterType = typedInput ? question.slice(typedInput.index + typedInput[0].length) : "";
+  const inputName = typedInput && /^\s+(?:(`+|\*{1,2}|_{1,2}|\$)([a-zA-Z_]\w*)\1(?=\W|$)|([a-zA-Z_]\w*)\b)/.exec(afterType);
   const binding = inputName && (inputName[2] ?? inputName[3]);
-  const namedInput = binding && !/^(?:of|under|with|in|at|on|whose|which|that|is|has)\b/i.test(binding);
-  const inputOperation = typedInput && (
-    /\b(?:return|remove|replace|reverse|sort|merge|filter)\s+\S/i.test(question) ||
-    namedInput && /\b(?:compute|calculate|find|count|determine|check)\s+\S/i.test(question)
-  );
-  // Generic calculation verbs need a named input, rather than a physical
-  // "string of length ..." or numeric givens in an arithmetic exercise.
+  const afterName = typedInput && inputName ? question.slice(typedInput.index + typedInput[0].length + inputName[0].length) : "";
+  const namedInput = binding && !/^(?:of|under|with|in|at|on|whose|which|that|is|has)\b/i.test(binding) &&
+    /^(?:\s*[,.;:=([\]{}]|\s*$|\s+(?:and|where|of|with|whose|which|that|is|has|containing|return|remove|replace|reverse|sort|merge|filter|compute|calculate|find|count|determine|check)\b)/i.test(afterName);
+  const collectionInput = typedInput && /array|list|matri|grid|tree/i.test(typedInput[1]!);
+  const declaredInput = namedInput || collectionInput || /^\s*[,;:"'[]/.test(afterType);
+  const inputOperation = typedInput && declaredInput && /\b(?:return|remove|replace|reverse|sort|merge|filter|compute|calculate|find|count|determine|check)\s+\S/i.test(question);
+  // Generic calculations need a declared name or a collection input. Bare
+  // numeric givens in an arithmetic exercise do not establish programming.
   if (inputOperation) return true;
-  const concreteIO = /\binput\s*:\s*(?:[a-zA-Z_]\w*\s*=|\[|["'\d-])[\s\S]*\boutput\s*:\s*\S/i.test(question);
   if (!computation && !concreteIO) return false;
   let hits = 0;
   for (const pattern of PROBLEM_SHAPE) {

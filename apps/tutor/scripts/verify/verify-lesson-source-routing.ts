@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import {
   classifyDsaQuestion,
   getMockCodeLessonPlan,
@@ -20,7 +20,19 @@ const lecture =
   "Sustainable development lecture. Example: A factory creates jobs but pollutes the river. Taxpayers are the target market of public projects. Explain all lectures.";
 
 async function verifyComputationalAdmissions() {
+  const corpusQuestions: string[] = [];
+  const corpusRoot = new URL("../../../../data/leetcode-probes/", import.meta.url);
+  for (const file of readdirSync(corpusRoot).filter(file => file.endsWith(".json"))) {
+    const corpus: unknown = JSON.parse(readFileSync(new URL(file, corpusRoot), "utf8"));
+    assert(corpus && typeof corpus === "object" && "questions" in corpus && Array.isArray(corpus.questions));
+    for (const item of corpus.questions) {
+      assert(item && typeof item === "object" && "question" in item && typeof item.question === "string");
+      corpusQuestions.push(item.question);
+    }
+  }
+  assert(corpusQuestions.length > 0, "the existing coding corpus must be present");
   const questions = [
+    ...corpusQuestions,
     "Given a string s, return s with all vowels removed. Constraints: 1 <= s.length <= 1000.",
     "Given an array readings, return readings after removing negative entries. Constraints: 1 <= readings.length <= 1000.",
     "Given a string text, return it without spaces. Constraints: 1 <= text.length <= 1000.",
@@ -35,6 +47,16 @@ async function verifyComputationalAdmissions() {
     "Given the head of a singly linked list, reverse the list and return the reversed list.",
     "Given the head of a doubly linked list, reverse the list and return the reversed list.",
     "Given the root of a binary tree, return its depth.",
+    "Given a positive integer n, calculate its digit count. Constraints: 1 <= n <= 1000.",
+    "Given an array of integers, find the maximum product of any two elements. Example: [1, 2, 3] gives 6.",
+    "Given a non-negative integer n, calculate its digit count.",
+    "Given a sorted array of integers, find its largest element.",
+    'Given a string measurement = "20 m/s", return measurement.',
+    "Given a string measurement = '3 kg', return measurement.",
+    "Given a string, remove all vowels.",
+    'Given a string "hello", reverse it.',
+    "Write a Python function to compute the frequency of a string of length 2 m with wave speed 20 m/s.",
+    "Given a string text, remove duplicate characters. Time limit: 1 s.",
     ...["`value`", "**value**", "*value*", "_value_", "__value__", "$value$"].map(binding =>
       `Given an integer ${binding}, calculate its digit count.`,
     ),
@@ -47,6 +69,10 @@ async function verifyComputationalAdmissions() {
     "Given a string under tension 20 N, calculate its wave speed.",
     "Given a string **of** length 2 m carrying a mass of 3 kg, find its tension.",
     "Given a string _under_ tension 20 N, calculate its wave speed.",
+    "Given a string fixed at both ends with length 2 m and wave speed 20 m/s, find its fundamental frequency.",
+    "Given a string carrying a mass of 3 kg and length 2 m, remove the mass and find its frequency.",
+    "Given a string that's fixed with length 2 m and mass 3 kg, remove the mass. What's its frequency?",
+    "Given a string stretched between two walls, remove the attached mass and describe its motion.",
   ];
   try {
     for (const question of [...questions, ...nonCoding]) {
