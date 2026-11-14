@@ -1,13 +1,14 @@
 {
   "date": "2026-11-15",
   "base": "500649965c0a2f12b98f6241959220c0ad249eb5",
-  "scope": "Independent remaining-browser and historical relay audit using local sanitized evidence only. No production-code changes, external service calls, Sentry changes, push or deployment. Recovery 503/hold and missing latest database/recordings remain owned elsewhere.",
+  "scope": "Historical browser/relay audit, followed by read-only live Sentry caller/artifact recovery and a regression of the actual current notes-history owner. No Sentry resolution or production changes.",
   "evidenceLimits": [
     "Production environment and URL are retained event tags, not fresh production verification. Local tests use synthetic identities and loopback sockets only.",
     "The issue index repeats the retained latest-event evidence; it does not supply the earlier occurrences.",
     "The retained Sentry log export covers 2026-11-13T05:41:26Z through 2026-11-14T18:21:04Z; none of the five traces matches. Four events predate this log window.",
     "Existing message-based browser ignoreErrors in the base are unchanged and are not evidence that rejection owners are fixed.",
-    "Existing f29770afd email signIn and under-13 refusal fixes are not duplicated or used to claim attribution of these groups."
+    "Existing f29770afd email signIn and under-13 refusal fixes are not duplicated or used to claim attribution of these groups.",
+    "Earlier local exports deliberately omitted request/breadcrumb entries. Live Sentry retrieval on 2026-11-14T21:24:39Z\u201321:27:39Z recovered them; claims about missing entries below refer only to that earlier export."
   ],
   "artifactSearch": {
     "roots": [
@@ -40,19 +41,26 @@
       "sourceSha256": "7edf52fbba599d7201cd8003f2586132dfecfaae00f05836ea8471603ae9ba6d",
       "stackFrameCount": 0,
       "retainedEntryTypes": [
-        "exception"
+        "exception",
+        "breadcrumbs",
+        "request"
       ],
       "exactEventRootCauseKnown": false,
       "resolved": false,
       "productionVerified": false,
       "disposition": "unresolved_unattributed",
-      "finding": "The latest Firefox rejection has no stacktrace or rawStacktrace, no breadcrumb or request entry, and no matching trace in the retained Sentry log export. The group has three occurrences; only its latest event is retained here.",
+      "finding": "Live reads recovered all three occurrences with request and breadcrumb entries, but none has stack frames. The newest follows board-to-home navigation; a failed GET /api/boards/{boardId}/notes-chat is the final breadcrumb, 1 ms before rejection, with no HTTP status. Older occurrences also contain failed notes-history reads among simultaneous failed requests. This supports investigating that caller without establishing exact historical identity.",
       "missingEvidence": [
-        "Failing request URL and initiating consumer",
-        "Frames or a captured rejection trace",
-        "The two earlier event payloads"
+        "Stack or caller chain uniquely identifying each historical rejection"
       ],
-      "nextEvidenceNeeded": "A retained event or request trace that identifies the failing caller. Generic rejection text cannot identify a feature."
+      "nextEvidenceNeeded": "Retain initiator context for any new occurrence after an approved deployment. Do not resolve this group from timing alone.",
+      "currentCodeRegression": {
+        "path": "features/tutor-session/hooks/useNotesChat.ts + lib/boards/notesChatClient.ts",
+        "red": "Actual React effects and fetch helper leak one unhandled rejection on failed history read; independent recovery harness also reproduced after cleanup.",
+        "green": "History owns errors, cancels on board change/unmount, ignores late responses, exposes explicit retry, and preserves fresh messages when an older read finishes. HTTP/body/schema failures remain visible; an empty draft history remains successful.",
+        "gate": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-notes-history-lifecycle.ts",
+        "historicalIdentityProven": false
+      }
     },
     {
       "issue": "HEYTUTOR-1X",
@@ -70,13 +78,15 @@
       "sourceSha256": "43edb6971f09efd62cecf8ac64b8fb08e83b6cecb10d0e13e31fbff33f1f8fba",
       "stackFrameCount": 49,
       "retainedEntryTypes": [
-        "exception"
+        "exception",
+        "breadcrumbs",
+        "request"
       ],
       "exactEventRootCauseKnown": false,
       "resolved": false,
       "productionVerified": false,
       "disposition": "unresolved_application_chunk_missing",
-      "finding": "Shares trace 322daabfd3bf4010bf8e06d2eba4af54 with HEYTUTOR-1Y, 2ms later. The surviving matching React vendor filename identifies passive-effect traversal and invocation of t.create; the application frames remain unsymbolicated.",
+      "finding": "Shares trace 322daabfd3bf4010bf8e06d2eba4af54 with HEYTUTOR-1Y, 2ms later. The surviving matching React vendor filename identifies passive-effect traversal and invocation of t.create; the application frames remain unsymbolicated. Live reads recovered matching trace and span IDs and eight failed GET breadcrumbs: billing entitlement, boards, home suggestions, account profile/settings, notes history, version and one filtered URL. None records an HTTP status. These identify candidate owners, not the exact application frame.",
       "applicationFrames": [
         {
           "file": "4945-980d3a8462c33471.js",
@@ -92,8 +102,7 @@
         }
       ],
       "missingEvidence": [
-        "4945-980d3a8462c33471.js and its source map for release 601083caa5548b6fd03b03465583d5c508d40193",
-        "Failing request URL"
+        "4945-980d3a8462c33471.js and its source map for release 601083caa5548b6fd03b03465583d5c508d40193"
       ],
       "nextEvidenceNeeded": "The exact release application chunk or source map; current chunks and minified function names cannot substitute for it."
     },
@@ -113,13 +122,15 @@
       "sourceSha256": "54c31f3de036e0c8c794851aa97ab9bcbe3429207a787aaa3fa13d04ec088d25",
       "stackFrameCount": 49,
       "retainedEntryTypes": [
-        "exception"
+        "exception",
+        "breadcrumbs",
+        "request"
       ],
       "exactEventRootCauseKnown": false,
       "resolved": false,
       "productionVerified": false,
       "disposition": "unresolved_application_chunk_missing",
-      "finding": "Shares trace 322daabfd3bf4010bf8e06d2eba4af54 with HEYTUTOR-1X. Matching React vendor coordinates identify effect execution, but neither application chunk survives. The timing does not establish a common request or root cause.",
+      "finding": "Shares trace 322daabfd3bf4010bf8e06d2eba4af54 with HEYTUTOR-1X. Matching React vendor coordinates identify effect execution, but neither application chunk survives. The timing does not establish a common request or root cause. Live reads recovered matching trace and span IDs and eight failed GET breadcrumbs: billing entitlement, boards, home suggestions, account profile/settings, notes history, version and one filtered URL. None records an HTTP status. These identify candidate owners, not the exact application frame.",
       "applicationFrames": [
         {
           "file": "4945-980d3a8462c33471.js",
@@ -135,8 +146,7 @@
         }
       ],
       "missingEvidence": [
-        "4945-980d3a8462c33471.js and 6624-3dc436f1c376ad36.js and their source maps for release 601083caa5548b6fd03b03465583d5c508d40193",
-        "Failing request URL"
+        "4945-980d3a8462c33471.js and 6624-3dc436f1c376ad36.js and their source maps for release 601083caa5548b6fd03b03465583d5c508d40193"
       ],
       "nextEvidenceNeeded": "Exact release application chunks or source maps, followed by an actual consumer reproduction."
     },
@@ -156,16 +166,17 @@
       "sourceSha256": "fbf2ffba48d6bf92bba0504250f2472d582118161ba60f66b3739d8bd99d761a",
       "stackFrameCount": 3,
       "retainedEntryTypes": [
-        "exception"
+        "exception",
+        "breadcrumbs",
+        "request"
       ],
       "exactEventRootCauseKnown": false,
       "resolved": false,
       "productionVerified": false,
       "disposition": "unresolved_inline_source_missing",
-      "finding": "Error Na is an unhandled rejection in Chrome Mobile iOS on /login. All three frames name app:///login at 199:338, Di at 198:221, and 517:344; Sentry reports missing_source. No matching captured HTML or inline script for this release is retained.",
+      "finding": "Error Na is an unhandled rejection in Chrome Mobile iOS on /login. All three frames name app:///login at 199:338, Di at 198:221, and 517:344; Sentry reports missing_source. No matching captured HTML or inline script for this release is retained. Live reads recovered a /login page request, four GETs and one POST with status 200; all fetch URLs are filtered. The POST is 8 ms before the error and does not identify an auth provider.",
       "missingEvidence": [
-        "The HTML/inline script actually loaded by this client at release 69aee051ba09c654f9330908c5d2fd3466e6c604",
-        "A request, browser trace, or reproducible user action"
+        "The exact release inline source and caller/initiating action; filtered successful fetches do not supply it"
       ],
       "nextEvidenceNeeded": "Recover the exact inline source or capture the responsible rejection in an isolated browser. The /login route alone does not attribute this to email signIn, Google auth, injected code, or any specific SDK."
     },
@@ -212,5 +223,16 @@
     "resources": "verify-resource-lifecycle.ts: passed; /tmp/heytutor-unattributed-resources.log",
     "baselineFailure": "Re-ran verify-strict-planner-selection.ts after switching this isolated checkout directly to detached 500649965; it failed identically at line 77 (3 !== 2). Returned to fix/sentry-unattributed-nov15 afterward. No unrelated source or validator was changed. Log /tmp/heytutor-unattributed-base-strict-planner.log.",
     "gateWiring": "The baseline-preserving gate runner --list includes verify-tts-relay-lifecycle.ts through gates.d/tts-relay-lifecycle.txt. The new gate passed directly."
+  },
+  "liveEvidenceSupplement": {
+    "retrievalUTC": [
+      "2026-11-14T21:24:39Z",
+      "2026-11-14T21:27:39Z"
+    ],
+    "privateFindingsSha256": "61fd0f8506e600cc4ef7d8abf2955ff9ad8e02c6ab2eaf526e24946611a244a6",
+    "artifactInventory": "Project and organization release-file reads for four releases succeeded with exit 0 and empty arrays. Project artifact-bundle/debug-file inventories were also empty. No application chunks/maps recovered; expiry, deletion or lack of upload cannot be distinguished.",
+    "sourceDiagnostics": "No event debug IDs, release artifacts, artifact bundles or uploaded debug-ID artifacts. Source/map lookup failed for 1X/1Y/1T; app:/// scraping reports invalid_host.",
+    "traceQueries": "Explicitly dated reads returned the six known errors in five traces, with no HTTP spans or additional caller chain.",
+    "privacy": "Only aggregate path templates and evidence dispositions are committed here; board-specific paths and sanitized event payloads remain in private recovery evidence."
   }
 }
