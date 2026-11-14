@@ -222,6 +222,8 @@ interface HttpPrefetch {
   generating: boolean;
   /** Request to first audio bytes; telemetry only. */
   firstByteMs?: number;
+  /** Only the sentence that claimed this still-downloading prefetch may wait on it. */
+  onDownloadProgress?: () => void;
 }
 
 function readAudioBase64(chunk: TimestampChunkPayload): string | undefined {
@@ -835,7 +837,7 @@ export class StreamingSpeechClient implements TTSClient {
 
     // Native media plays complete provider bytes independently of WebAudio.
     const ctx = typeof Audio === "function" ? null : await this.ensureAudioContext();
-    if (ctx?.state === "suspended") {
+    if (ctx?.state === "suspended" && !options.onPlaybackBlocked) {
       // Intentional pause leaves the context suspended — wait, don't speak.
       if (this.paused) {
         if (!(await this.waitWhileUnpaused(generation))) {
@@ -873,6 +875,7 @@ export class StreamingSpeechClient implements TTSClient {
       const prefetch = this.prefetches.get(prefetchKey(spokenText, options, voice));
       if (prefetch) {
         this.prefetches.delete(prefetchKey(spokenText, options, voice));
+        prefetch.onDownloadProgress = options.onAudioInTransit;
         try {
           await prefetch.done;
           if (!prefetch.error && (prefetch.buffers.length > 0 || prefetch.chunks.length > 0)) {
@@ -882,6 +885,8 @@ export class StreamingSpeechClient implements TTSClient {
         } catch (error) {
           prefetch.controller.abort();
           if (error instanceof NativePlaybackError) throw error;
+        } finally {
+          prefetch.onDownloadProgress = undefined;
         }
       }
     }
@@ -1681,6 +1686,7 @@ export class StreamingSpeechClient implements TTSClient {
     const ctx = await this.ensureAudioContext();
     const playable = await this.buffersForSmoothPlayback(ctx, job.capturedChunks, job.pendingAudioBuffers);
     if (playable.length === 0 || this.paused || !this.canSchedulePlayback(job)) return;
+    if (!(await this.waitForWebAudioOutput(ctx, this.speakGeneration)) || !this.canSchedulePlayback(job)) return;
     job.decodedAudio = true;
     job.pendingAudioBuffers.length = 0;
     job.playbackStarted = true;
@@ -2004,7 +2010,10 @@ export class StreamingSpeechClient implements TTSClient {
     options: SpeakSegmentOptions,
   ): Promise<void> {
     try {
-      const ingested = await this.ingestHttpAudio(entry.spokenText, options, entry.controller);
+      const ingested = await this.ingestHttpAudio(entry.spokenText, {
+        ...options,
+        onAudioInTransit: () => entry.onDownloadProgress?.(),
+      }, entry.controller);
       entry.firstByteMs = ingested.firstByteMs;
       entry.buffers = ingested.buffers;
       entry.chunks = ingested.chunks;
@@ -2053,6 +2062,7 @@ export class StreamingSpeechClient implements TTSClient {
       const playable = await this.buffersForSmoothPlayback(ctx, entry.chunks, entry.buffers);
       if (!(await this.waitWhileUnpaused(generation))) return;
       if (playable.length === 0) throw new Error("TTS prefetch returned no playable audio");
+      if (!(await this.waitForWebAudioOutput(ctx, generation))) return;
       this.scheduledEnd = Math.max(this.scheduledEnd, ctx.currentTime);
       this.playing = true;
       for (const audioBuffer of playable) {
@@ -2178,7 +2188,9 @@ export class StreamingSpeechClient implements TTSClient {
 
       while (true) {
         const { value, done } = await reader.read();
+        if (controller.signal.aborted) throw new DOMException("tts stopped", "AbortError");
         if (done) break;
+        if (value.length > 0) options.onAudioInTransit?.();
         sseBuffer += decoder.decode(value, { stream: true });
         const lines = sseBuffer.split(/\r?\n/);
         sseBuffer = lines.pop() ?? "";
@@ -2276,6 +2288,8 @@ export class StreamingSpeechClient implements TTSClient {
         if (!(await this.waitWhileUnpaused(generation))) { throwIfStopped(); return; }
         throwIfStopped();
         if (playable.length === 0) return;
+        if (!(await this.waitForWebAudioOutput(ctx, generation))) { throwIfStopped(); return; }
+        throwIfStopped();
         started = true;
         this.playing = true;
         this.lastSuccessfulTransport = "http";
@@ -2312,6 +2326,11 @@ export class StreamingSpeechClient implements TTSClient {
         const { value, done } = await reader.read();
         throwIfStopped();
         if (done) break;
+        // A complete JSON audio packet may span many network reads. Keep the
+        // claimed voice while its body is arriving; progress is not a start,
+        // captured clip, or permission to play an incomplete sentence.
+        if (value.length > 0) options.onAudioInTransit?.();
+        throwIfStopped();
         sseBuffer += decoder.decode(value, { stream: true });
         const lines = sseBuffer.split(/\r?\n/);
         sseBuffer = lines.pop() ?? "";
@@ -2595,6 +2614,25 @@ export class StreamingSpeechClient implements TTSClient {
       this.outputGain.connect(ctx.destination);
     }
     return this.outputGain;
+  }
+
+  /** Complete bytes stay owned while the browser waits for an audio gesture. */
+  private async waitForWebAudioOutput(ctx: AudioContext, generation: number): Promise<boolean> {
+    let reported = false;
+    while (this.speakGeneration === generation && !this.halted) {
+      if (!(await this.waitWhileUnpaused(generation))) return false;
+      const state = ctx.state as AudioContextState | "interrupted";
+      if (state === "running") return true;
+      if (state === "closed" || !this.playbackBlockedCallback) {
+        throw new NativePlaybackError("AudioContext could not start playback");
+      }
+      if (!reported) {
+        reported = true;
+        this.reportPlaybackBlocked(state === "suspended" ? "context-suspended" : "context-interrupted");
+      }
+      await new Promise<void>(resolve => window.setTimeout(resolve, 80));
+    }
+    return false;
   }
 
   private async ensureAudioContext(resume = true): Promise<AudioContext> {

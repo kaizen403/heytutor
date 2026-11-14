@@ -136,9 +136,10 @@ export async function speakWithStartupRecovery(input: {
       }
     },
     () => {
+      // Each positive download read renews the inactivity allowance.
       // Only before the cutoff: a notice that lands after the browser voice
       // took over cannot reopen the provider.
-      if (ownsPrimary && inTransitAtMs === null && clock.elapsedMs() < activeDeadlineMs()) {
+      if (ownsPrimary && clock.elapsedMs() < activeDeadlineMs()) {
         inTransitAtMs = clock.elapsedMs();
       }
     },
