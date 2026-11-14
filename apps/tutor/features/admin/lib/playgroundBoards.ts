@@ -1,3 +1,4 @@
+import { figureCount } from "@/lib/admin/playgroundLecture";
 import type { BoardEntry } from "@/lib/boards/types";
 import { isLectureWatchable, lectureJobTitle, type LectureJob } from "./lectureJobs";
 import { isProbeDifficulty, type ProbeDifficulty } from "./probes";
@@ -49,7 +50,7 @@ function parseLectureBoardIndex(raw: unknown): Map<string, LectureBoardMeta> {
   return index;
 }
 
-function readLectureBoardIndex(): Map<string, LectureBoardMeta> {
+export function readLectureBoardIndex(): Map<string, LectureBoardMeta> {
   if (typeof window === "undefined") {
     return new Map();
   }
@@ -72,7 +73,11 @@ function writeLectureBoardIndex(index: Map<string, LectureBoardMeta>): void {
   for (const [boardId, meta] of index) {
     record[boardId] = meta;
   }
-  window.localStorage.setItem(LECTURE_BOARD_INDEX_KEY, JSON.stringify(record));
+  try {
+    window.localStorage.setItem(LECTURE_BOARD_INDEX_KEY, JSON.stringify(record));
+  } catch {
+    // New recordings keep their identity on the server, even with storage disabled.
+  }
 }
 
 export function rememberLectureBoard(boardId: string, meta: LectureBoardMeta): void {
@@ -91,8 +96,7 @@ export function forgetLectureBoard(boardId: string): void {
 
 /**
  * Index playground lecture boards. Watch uses the newest board per
- * topic+difficulty (by `createdAt`). Boards with an empty preview have not
- * persisted a turn yet.
+ * topic+difficulty (by `createdAt`). Only server-checked complete recordings qualify.
  *
  * Human-titled lecture boards (dashboard-style names) are keyed via
  * `remembered`. Legacy `[Playground] topicId · difficulty` titles still parse.
@@ -105,8 +109,8 @@ export function indexPlaygroundRecordings(
   const newestFirst = [...boards].sort((left, right) => right.createdAt - left.createdAt);
   for (const board of newestFirst) {
     const parsed = parsePlaygroundBoardTitle(board.title);
-    const meta = parsed ?? remembered.get(board.id) ?? null;
-    if (!meta || !board.preview.trim()) {
+    const meta = board.playground ?? parsed ?? remembered.get(board.id) ?? null;
+    if (!meta || board.playground?.state !== "complete") {
       continue;
     }
     const key = recordingKey(meta.topicId, meta.difficulty);
@@ -122,8 +126,8 @@ type RecordingJob = Pick<LectureJob, "status" | "boardId" | "topicId" | "difficu
 };
 
 /**
- * Topic-row Watch chips use persisted previews. Completed jobs in this session
- * also surface Watch immediately via `job.boardId`, even if preview is still empty.
+ * Merge current jobs with server-checked recordings. A callback or question
+ * preview alone never creates a completed recording.
  */
 export function mergePlaygroundRecordings(
   boards: BoardEntry[],
@@ -131,14 +135,17 @@ export function mergePlaygroundRecordings(
   recordingBoardIds: ReadonlySet<string>,
   remembered: ReadonlyMap<string, LectureBoardMeta> = readLectureBoardIndex(),
 ): Map<string, BoardEntry> {
-  const index = indexPlaygroundRecordings(boards, remembered);
-  const previewById = new Map(boards.map((board) => [board.id, board.preview]));
+  const unavailable = new Set(jobs.filter(job => job.status === "running").map(job => job.boardId));
+  const index = indexPlaygroundRecordings(boards.filter(board => !recordingBoardIds.has(board.id) && !unavailable.has(board.id)), remembered);
+  const byId = new Map(boards.map(board => [board.id, board]));
 
   for (const job of jobs) {
     if (!job.boardId) {
       continue;
     }
-    const preview = previewById.get(job.boardId);
+    const board = byId.get(job.boardId);
+    if (board?.playground?.state !== "complete") continue;
+    const preview = board.preview;
     if (
       !isLectureWatchable(job, {
         isRecording: recordingBoardIds.has(job.boardId),
@@ -150,12 +157,11 @@ export function mergePlaygroundRecordings(
 
     const key = recordingKey(job.topicId, job.difficulty);
     const entry: BoardEntry = {
-      id: job.boardId,
+      ...board,
       title: lectureJobTitle(job),
-      createdAt: Date.now(),
       preview: preview?.trim() || job.question,
     };
-    if (job.status === "complete" || !index.has(key)) {
+    if (!index.has(key) || board.createdAt >= index.get(key)!.createdAt) {
       index.set(key, entry);
     }
   }
@@ -179,4 +185,12 @@ export function recordingBoardIdsForQuestions(
     ids.push(board.id);
   }
   return ids;
+}
+
+/** Saved coverage stays visible while a replacement lecture is running. */
+export function countRecordedFigures(
+  questions: readonly { topicId: string; difficulty: ProbeDifficulty }[],
+  recordings: ReadonlyMap<string, BoardEntry>,
+): number {
+  return figureCount(questions.map(question => recordings.get(recordingKey(question.topicId, question.difficulty))?.playground));
 }
