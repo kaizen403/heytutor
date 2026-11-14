@@ -82,3 +82,34 @@ test("nearby directions and downstream angle arms do not acquire free-arrow lane
   separateSharedOriginVectors(document, primitives, viewport);
   assert.deepEqual(primitives, constrained, "rounding tolerance cannot move a constrained angle arm");
 });
+
+test("equality ticks follow separated free-vector shafts without changing proof or reveal ownership", () => {
+  for (const dy of [0, 100 / 3, -100 * Math.sqrt(2)]) {
+    const document = arrows(false, dy);
+    const second = document.constructions.find(construction => construction.outputs.includes("v"))!;
+    second.inputs.length = Math.hypot(100, dy);
+    // Distinct physical paths with exactly equal lengths can project onto the
+    // same rounded shaft. Exact duplicate geometry remains refused separately.
+    second.inputs.direction = { x: 100, y: dy + 0.001 };
+    document.assertions.push({ id: "equal_vectors", predicate: "equal_length", entities: ["u", "v"], expected: true, severity: "fatal" });
+    const compiled = compileSceneDocument(document, {
+      figureConsistency: true, viewport: { x: 410, y: 55, width: 740.01, height: 555, padding: 24 },
+    });
+    assert(compiled.ok && compiled.renderScene, JSON.stringify(compiled.report.issues));
+    for (const id of ["u", "v"]) {
+      const vector = compiled.renderScene.primitives.find(primitive => primitive.entityId === id && primitive.kind === "vector")!;
+      const ticks = compiled.renderScene.primitives.filter(primitive => primitive.entityId === id && primitive.provenance?.correspondingFamily);
+      assert.equal(ticks.length, 1, "every equal vector retains its certified equality mark");
+      const tick = ticks[0]!;
+      const center = { x: (tick.points[0]!.x + tick.points[1]!.x) / 2, y: (tick.points[0]!.y + tick.points[1]!.y) / 2 };
+      const midpoint = { x: (vector.points[0]!.x + vector.points[1]!.x) / 2, y: (vector.points[0]!.y + vector.points[1]!.y) / 2 };
+      assert(Math.hypot(center.x - midpoint.x, center.y - midpoint.y) < 0.01, `${id}: equality mark must be centered on its displayed shaft`);
+      assert.equal(tick.groupId, vector.groupId);
+      assert(compiled.renderScene.revealGroups.find(group => group.id === vector.groupId)!.entityIds.includes(id));
+    }
+    assert.equal(compiled.renderScene.primitives.find(primitive => primitive.entityId === "v" && primitive.kind === "vector")!.provenance?.vectorLane, true);
+    const reopened = compileSceneDocument(JSON.parse(JSON.stringify(document)), { figureConsistency: true, viewport: { x: 410, y: 55, width: 740.01, height: 555, padding: 24 } });
+    assert(reopened.ok && reopened.renderScene);
+    assert.deepEqual(reopened.renderScene.primitives, compiled.renderScene.primitives, "JSON reopen keeps the same shafts, equality marks and witnesses");
+  }
+});
