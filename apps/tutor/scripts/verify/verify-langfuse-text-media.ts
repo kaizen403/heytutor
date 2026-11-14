@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { Langfuse } from "langfuse";
+import type { Langfuse } from "langfuse";
 
 const load = createRequire(import.meta.url);
 const CommonJsLangfuse = (load("langfuse") as typeof import("langfuse")).Langfuse;
@@ -50,7 +50,12 @@ async function verify(Client: typeof Langfuse, format: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  try { await verify(Langfuse, "esm"); await verify(CommonJsLangfuse, "cjs"); }
+  try {
+    const EsmLangfuse = (await import("langfuse")).Langfuse;
+    assert.notEqual(EsmLangfuse, CommonJsLangfuse, "exercise both published module entry points");
+    await verify(EsmLangfuse, "esm");
+    await verify(CommonJsLangfuse, "cjs");
+  }
   finally { globalThis.fetch = realFetch; console.error = realError; }
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });
