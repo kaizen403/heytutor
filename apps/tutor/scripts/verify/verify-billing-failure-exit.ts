@@ -56,6 +56,7 @@ type Snapshot = {
   releaseGenerations: Array<number | undefined>;
   spotlight: unknown;
   ttsStops: number;
+  voiceDegraded: boolean;
   usageDepleted: boolean;
   rememberBillingFailureCalls: number;
   entitlementRemainingPct: number | null;
@@ -250,6 +251,7 @@ function loadHarness(
       };
       const whiteboardRef = { current: whiteboard };
       let ttsStops = 0;
+      let voiceDegraded = true;
       const ttsClientRef = { current: { stop() { ttsStops += 1; } } };
       const phaseSets = [];
       const errors = [];
@@ -263,11 +265,10 @@ function loadHarness(
       let abortController = new AbortController();
       const clearSpotlight = deps.clearSpotlight;
       function setPhase(next) { phaseSets.push(next); }
-      // Optional render callback read by the real finishLectureUi closure.
-      const onVoiceDegraded = undefined;
       function setIsPaused() {}
       function setCurrentSegmentText() {}
       function setInputInteracted() {}
+      function onVoiceDegraded(state) { voiceDegraded = state; }
       function beginTurn() {
         beginTurnCalls += 1;
         if (beginMode === "reject") return Promise.reject(new TypeError("Failed to fetch"));
@@ -324,6 +325,7 @@ function loadHarness(
         beginTurnCalls = 0;
         releaseCalls = 0;
         ttsStops = 0;
+        voiceDegraded = true;
         usageDepleted = false;
         rememberBillingFailureCalls = 0;
         continuedPastBilling = false;
@@ -349,6 +351,7 @@ function loadHarness(
           releaseGenerations: releaseGenerations.slice(),
           spotlight: whiteboard.spotlight,
           ttsStops,
+          voiceDegraded,
           usageDepleted,
           rememberBillingFailureCalls,
           entitlementRemainingPct: (deps.getEntitlementSnapshot() || {}).remainingPct ?? null,
@@ -608,6 +611,7 @@ async function main(): Promise<void> {
   );
   check(failed.spotlight === null, "failure path must run finishLectureUi's spotlight clear");
   check(failed.ttsStops === 1, "failure path must run finishLectureUi's speech stop");
+  check(failed.voiceDegraded === false, "failure path must clear the stale voice-recovery state");
   const submitted = harness.laterSubmit();
   const afterSubmit = harness.snapshot();
   check(submitted === "accepted", "a later submit must get past the active-turn gate");
@@ -674,6 +678,7 @@ async function main(): Promise<void> {
   );
   check(superseded.spotlight === "dimmed", "a superseded refusal must not clear the newer turn's spotlight");
   check(superseded.ttsStops === 0, "a superseded refusal must not stop the newer turn's speech");
+  check(superseded.voiceDegraded === true, "a superseded refusal must preserve the newer voice-recovery state");
   check(harness.laterSubmit() !== "accepted", "a newer turn must still hold the submit gate");
 
   assert.equal(parseBillingFailureFromUnknown(new TypeError("Failed to fetch")), null);
@@ -795,6 +800,7 @@ async function main(): Promise<void> {
     );
     check(snap.spotlight === null, `${label}: must clear the spotlight`);
     check(snap.ttsStops === 1, `${label}: must stop speech`);
+    check(snap.voiceDegraded === false, `${label}: must clear voice recovery before accepting another question`);
     check(harness.laterSubmit() === "accepted", `${label}: a later submit must be accepted`);
     const after = harness.snapshot();
     check(after.pendingQuestion === QUESTION, `${label}: the submit gate must not discard the next question`);
