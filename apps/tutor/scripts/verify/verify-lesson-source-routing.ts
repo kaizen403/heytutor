@@ -61,6 +61,8 @@ async function verifyComputationalAdmissions() {
     "Given a lowercase alphanumeric string text, calculate its character count.",
     "Given an integer array readings, find its maximum product.",
     "Given a rectangular two-dimensional integer matrix values, find its largest element.",
+    "Given an array readings, return readings with negative entries removed. Your solution must run within 2 seconds.",
+    "Given a string text, return it unchanged. The runtime budget is 500 ms.",
     ...["`value`", "**value**", "*value*", "_value_", "__value__", "$value$"].map(binding =>
       `Given an integer ${binding}, calculate its digit count.`,
     ),

@@ -122,9 +122,10 @@ export function looksLikeCodingProblem(question: string): boolean {
   // Quoted input values may themselves contain units; those are data rather
   // than the setup. Explicit requests for code are handled by the caller.
   const setup = question.split(/\b(?:constraints?|example\s*\d*|input|output)\s*:/i)[0]!
-    .replace(/"(?:\\.|[^"\\])*"|(?<!\w)'(?:\\.|[^'\\])*'(?!\w)/g, "")
-    .replace(/\btime\s+limit(?:\s+per\s+test)?\s*:?\s*\d+(?:\.\d+)?\s*(?:ms|s|milliseconds?|seconds?)\b/gi, "");
-  if (!concreteIO && /\b\d+(?:\.\d+)?[ \t]*(?:kg|mg|g|km|cm|mm|m|ms|s|Hz|Pa|N|J|W|V|A|K|meters?|metres?|seconds?|newtons?|degrees?|radians?)\b/.test(setup)) return false;
+    .replace(/"(?:\\.|[^"\\])*"|(?<!\w)'(?:\\.|[^'\\])*'(?!\w)/g, "");
+  // Execution limits also use time units. Other physical dimensions provide
+  // the disambiguation for an inferred programming input.
+  if (!concreteIO && /\b\d+(?:\.\d+)?[ \t]*(?:kg|mg|g|km|cm|mm|m|Hz|Pa|N|J|W|V|A|K|meters?|metres?|newtons?|degrees?|radians?)\b/.test(setup)) return false;
   const computation = /\breturn\s+(?:the\s+|an?\s+|all\s+|any\s+)?(?:true|false|indices|index|maximum|minimum|number|length|sum|count|result|array|string|list|root|head|value|total|smallest|largest|kth)\b/i.test(question);
   // Bounded modifiers allow qualified type declarations. Connectors and
   // operations end the declaration before later lecture prose.
