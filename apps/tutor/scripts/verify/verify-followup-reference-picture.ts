@@ -9,7 +9,8 @@ import {
   requestReferencePicture,
 } from "../../features/tutor-session/lib/scene/referencePictureClient";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
-import { readReferencePictureOutcome } from "../../features/tutor-session/lib/scene/referencePicturePresentation";
+import { readReferencePictureOutcome, readStoredReferencePicture } from "../../features/tutor-session/lib/scene/referencePicturePresentation";
+import { boardContinuationOf } from "../../lib/boards/boardContinuation";
 import { createFallbackTurnPlanV3 } from "@heytutor/tutor-core";
 import {
   isStoredCommandTrustedGeometry,
@@ -24,6 +25,8 @@ import { restoreReferencePictureFromTurn } from "../../features/tutor-session/li
 import { restoreVerifiedDiagramFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import { scenario } from "./verify-startup-turn";
 import pictureFixtures from "./fixtures/reference-picture-part-focus-off.json";
+import { liveTurnScene } from "../../features/tutor-session/lib/turn/liveTurnSave";
+import { partialTurnScene } from "../../features/tutor-session/lib/turn/doubtTurn";
 
 async function main() {
   const emptyDoubt = {
@@ -221,14 +224,14 @@ async function main() {
         response: { status: "declined", reason: control.serverTimeout ? "server_timeout" : "no_candidate_accepted" },
       },
     });
-    assert("pictureScene" in live && live.pictureScene && live.pictureRows);
+    assert("pictureScene" in live && live.pictureScene && live.pictureRows && live.picturePage);
     const status = control.stopAtMs || control.supersedeAtMs ? "stopped" : "complete";
     // Doubts have no turn plan of their own. Continuation/optional inherited
     // plans must never excuse this turn's independently required picture.
     const artifacts = live.pictureScene.sceneArtifacts;
     if (!control.asLesson) assert.equal(typeof artifacts === "object" && artifacts !== null && "turnPlan" in artifacts ? artifacts.turnPlan : null, null);
     const saved = await canonicalizeTurnSceneMetadata({
-      ...live.pictureScene, question: "Doubt: show me the organs",
+      ...liveTurnScene({ page: live.picturePage, kind: control.asLesson ? "lesson" : "doubt", preview: "Doubt: show me the organs", opensPage: Boolean(control.asLesson), status, textOnly: false }), question: "Doubt: show me the organs",
       segments: live.pictureRows.map((row, orderIndex) => ({ ...row, orderIndex, durationMs: row.durationMs ?? undefined })),
     }, { kind: control.asLesson ? "lesson" : "doubt" });
     assert(saved.ok, saved.ok ? "" : saved.error);
@@ -275,7 +278,7 @@ async function main() {
       "pictureEvents" in live &&
         live.pictureEvents &&
         live.pictureScene &&
-        live.pictureRows,
+        live.pictureRows && live.picturePage,
     );
     assert.equal(
       live.pictureEvents.filter(
@@ -286,7 +289,7 @@ async function main() {
     );
     const saved = await canonicalizeTurnSceneMetadata(
       {
-        ...live.pictureScene,
+        ...liveTurnScene({ page: live.picturePage, kind: "doubt", preview: "Doubt: show me the organs", opensPage: false, status: "complete", textOnly: false }),
         question: "Doubt: Can you show me what the uterus and ovary look like?",
         segments: live.pictureRows.map((row, orderIndex) => ({
           ...row,
@@ -307,6 +310,24 @@ async function main() {
         .classification,
       ready ? "picture_shown" : "failed",
     );
+    for (const status of ["live", "stopped"] as const) {
+      const checkpoint = liveTurnScene({ page: live.picturePage, kind: "doubt", preview: "Doubt: show me the organs", opensPage: false, status, textOnly: false });
+      assert.deepEqual(checkpoint.sceneArtifacts, liveTurnScene({ page: live.picturePage, kind: "doubt", preview: "Doubt: show me the organs", opensPage: false, status: "complete", textOnly: false }).sceneArtifacts,
+        "checkpoints and Stop retain the same committed picture evidence");
+    }
+    const interrupted = partialTurnScene(live.picturePage).sceneArtifacts;
+    const stopped = liveTurnScene({ page: live.picturePage, kind: "doubt", preview: "Doubt: show me the organs", opensPage: false, status: "stopped", textOnly: false }).sceneArtifacts;
+    assert.deepEqual([readStoredReferencePicture(interrupted), readReferencePictureOutcome(interrupted), boardContinuationOf(interrupted)],
+      [readStoredReferencePicture(stopped), readReferencePictureOutcome(stopped), boardContinuationOf(stopped)],
+      "direct interruption snapshots use the same doubt picture serialization");
+    if (ready) {
+      const undrawn = liveTurnScene({ page: { ...live.picturePage, figureDrawn: false }, kind: "doubt", preview: "Doubt: show me the organs", opensPage: false, status: "stopped", textOnly: false });
+      assert.equal(readStoredReferencePicture(undrawn.sceneArtifacts), null, "uncommitted picture cannot become saved ink");
+      assert.equal(readReferencePictureOutcome(undrawn.sceneArtifacts)?.status, "skipped");
+      const textOnly = liveTurnScene({ page: live.picturePage, kind: "doubt", preview: "Doubt: show me the organs", opensPage: false, status: "complete", textOnly: true });
+      assert.equal(readStoredReferencePicture(textOnly.sceneArtifacts), null, "forced text save cannot claim a retained picture");
+      assert.equal(readReferencePictureOutcome(textOnly.sceneArtifacts)?.status, "unavailable");
+    }
     const pictureCommands = saved.value.segments
       .flatMap((row) => parseStoredSegmentCommands(row.command))
       .filter((command) => command.type === "DRAW_PICTURE");

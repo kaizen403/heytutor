@@ -848,7 +848,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
         await advance(60_000);
         assert.equal(JSON.stringify(ownedPage?.turn.scene), stoppedScene, "late progress cannot mutate stopped/replaced page");
         assert(events.some(event => event.name === "reference-picture-reader-cancelled"), "Stop/replacement cancels response reader");
-        return { mode, pictureEvents: events, pictureScene: stopScene, pictureRows: lifecycle.recordedSegmentsRef.current, pictureTeaching: teachingRequestBodies };
+        return { mode, pictureEvents: events, pictureScene: stopScene, picturePage: ownedPage ? { ...ownedPage, turn: { ...ownedPage.turn, scene: stopScene ?? null } } : null, pictureRows: lifecycle.recordedSegmentsRef.current, pictureTeaching: teachingRequestBodies };
       }
       await pump(() => streams.length === 1 || done);
       assert(!done, "picture follow-up reaches teaching");
@@ -864,7 +864,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       assert.equal(JSON.stringify(lifecycle.boardPageRef.current?.turn.scene), completedScene, "late picture cannot mutate a completed turn");
       assert.equal(timers.size, 0);
       return { mode, pictureEvents: events, pictureScene: lifecycle.boardPageRef.current?.turn.scene,
-        pictureRows: lifecycle.recordedSegmentsRef.current, pictureTeaching: teachingRequestBodies };
+        picturePage: lifecycle.boardPageRef.current, pictureRows: lifecycle.recordedSegmentsRef.current, pictureTeaching: teachingRequestBodies };
     }
     if (fixture?.recordedCodeLesson) {
       await pump(() => streams.length === 1);

@@ -55,6 +55,7 @@ import {
   isReferencePictureRow,
   pointsAtReferencePicture,
   readStoredReferencePicture,
+  readReferencePictureOutcome,
   referencePictureIdOf,
   referencePicturePointables,
 } from "../scene/referencePicturePresentation";
@@ -179,6 +180,30 @@ export function doubtTurnScene(
           ...(diagramStrategy ? { diagramStrategy } : {}),
         }
       : diagramStrategy ? { diagramStrategy } : null,
+  };
+}
+
+/** Keep only this doubt's picture evidence beside its continuation marker. */
+export function doubtSaveScene(
+  record: BoardPageRecord | null,
+  options: { lessonQuestion: string; continuesBoard: boolean; textOnly?: boolean },
+): PersistedTurnScene {
+  const artifacts = record?.turn.kind === "doubt" ? record.turn.scene?.sceneArtifacts : null;
+  const base = doubtTurnScene(options.lessonQuestion, options.continuesBoard, undefined, doubtFigureRefOf(artifacts));
+  const picture = !options.textOnly && record?.figureDrawn ? readStoredReferencePicture(artifacts) : null;
+  const outcome = readReferencePictureOutcome(artifacts);
+  if (!picture && !outcome) return base;
+  const savedOutcome = outcome?.status === "shown" && !picture
+    ? { ...outcome, status: record?.figureDrawn ? "unavailable" as const : "skipped" as const,
+        reason: record?.figureDrawn ? "save_text_only" : "not_drawn" }
+    : outcome;
+  return {
+    ...base,
+    sceneArtifacts: {
+      ...(isRecord(base.sceneArtifacts) ? base.sceneArtifacts : {}),
+      ...(picture ? { referencePicture: picture } : {}),
+      ...(savedOutcome ? { referencePictureOutcome: savedOutcome } : {}),
+    },
   };
 }
 
@@ -674,12 +699,7 @@ export function partialTurnScene(record: BoardPageRecord): PersistedTurnScene {
   const doubtFigure = doubtFigureSaveScene(record);
   if (doubtFigure) return doubtFigure;
   if (record.turn.kind === "doubt") {
-    return doubtTurnScene(
-      record.lessonQuestion,
-      record.turn.continuesBoard,
-      undefined,
-      doubtFigureRefOf(record.turn.scene?.sceneArtifacts),
-    );
+    return doubtSaveScene(record, { lessonQuestion: record.lessonQuestion, continuesBoard: record.turn.continuesBoard });
   }
   const scene = record.turn.scene;
   if (!scene) return textOnlyTurnScene();
