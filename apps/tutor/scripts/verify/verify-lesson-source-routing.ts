@@ -35,8 +35,13 @@ async function verifyComputationalAdmissions() {
   ];
   const fetchBefore = globalThis.fetch;
   const results = [];
+  const nonCoding = [lecture,
+    "Given a string of length 2 m carrying a mass of 3 kg, find its tension.",
+    "Given two integers 2 and 3, find their sum.",
+    "Given a string under tension 20 N, calculate its wave speed.",
+  ];
   try {
-    for (const question of [...questions, lecture]) {
+    for (const question of [...questions, ...nonCoding]) {
       const fixture = getMockCodeLessonPlan(question);
       let calls = 0;
       globalThis.fetch = async () => {
@@ -62,7 +67,7 @@ async function verifyComputationalAdmissions() {
   }
   assert.deepEqual(results, [
     ...questions.map(() => ({ classified: true, calls: 1, planned: true, restored: "valid" })),
-    { classified: false, calls: 0, planned: false, restored: "invalid" },
+    ...nonCoding.map(() => ({ classified: false, calls: 0, planned: false, restored: "invalid" })),
   ], "computational instructions must reach classification, real planning and restore; lecture prose must not");
 }
 

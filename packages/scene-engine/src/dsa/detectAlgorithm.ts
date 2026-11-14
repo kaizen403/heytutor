@@ -118,10 +118,15 @@ const PROBLEM_SHAPE: readonly RegExp[] = [
  */
 export function looksLikeCodingProblem(question: string): boolean {
   const computation = /\breturn\s+(?:the\s+|an?\s+|all\s+|any\s+)?(?:true|false|indices|index|maximum|minimum|number|length|sum|count|result|array|string|list|root|head|value|total|smallest|largest|kth)\b/i.test(question);
-  const typedInput = /\bgiven\s+(?:(?:an?|the|two)\s+)?(?:arrays?|strings?|integers?|lists?|booleans?|matri(?:x|ces)|grids?|linked\s+lists?)\b/i.test(question);
-  const inputOperation = typedInput && /\b(?:return|compute|calculate|find|count|remove|replace|reverse|sort|merge|filter|determine|check)\s+\S/i.test(question);
-  // A typed input plus an instruction are two independent structural cues;
-  // punctuation and the spelling of an operand carry no additional authority.
+  const typedInput = /\bgiven\s+(?:(?:an?|the|two)\s+)?(?:arrays?|strings?|integers?|lists?|booleans?|matri(?:x|ces)|grids?|linked\s+lists?)\b/i.exec(question);
+  const binding = typedInput && /^\s+([a-zA-Z_]\w*)\b/.exec(question.slice(typedInput.index + typedInput[0].length))?.[1];
+  const namedInput = binding && !/^(?:of|under|with|in|at|on|whose|which|that|is|has)\b/i.test(binding);
+  const inputOperation = typedInput && (
+    /\b(?:return|remove|replace|reverse|sort|merge|filter)\s+\S/i.test(question) ||
+    namedInput && /\b(?:compute|calculate|find|count|determine|check)\s+\S/i.test(question)
+  );
+  // Generic calculation verbs need a named input, rather than a physical
+  // "string of length ..." or numeric givens in an arithmetic exercise.
   if (inputOperation) return true;
   const concreteIO = /\binput\s*:\s*(?:[a-zA-Z_]\w*\s*=|\[|["'\d-])[\s\S]*\boutput\s*:\s*\S/i.test(question);
   if (!computation && !concreteIO) return false;
