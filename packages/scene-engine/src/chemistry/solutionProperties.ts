@@ -6,6 +6,7 @@
  * solutionsGraphs.ts. A missing density, pressure, or constant is not
  * replaced with a textbook value.
  */
+import { buildMassMolarityScene, readMassMolaritySource } from "./massMolarity";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
@@ -644,6 +645,7 @@ export function buildSolutionLessonScene(
   _schematic: boolean,
 ): SceneDocument | null {
   if (!chemistryPlanBindingsValid(question, planQuantities)) return null;
+  if (readMassMolaritySource(question)) return buildMassMolarityScene(question, planQuantities);
   const stem = chemStem(question);
   const concentration = claimsConcentration(stem)
     && !claimsHenry(stem)
