@@ -62,6 +62,9 @@ const sentSegments: SentSegment[] = [];
 const openedUrls: string[] = [];
 let closedContexts = 0;
 let clientNamedContexts = 0;
+const controlledFirstGeneration: Array<{ partial: () => void; complete: () => void }> = [];
+let markFirstDispatch = () => {};
+const firstDispatch = new Promise<void>(resolve => { markFirstDispatch = resolve; });
 
 class RelayWebSocket {
   static readonly CONNECTING = 0;
@@ -144,7 +147,7 @@ class RelayWebSocket {
     // generation the client holds a partial one: real starts for the first
     // words and nothing for the rest. Only the final says it is whole.
     const half = Math.ceil(charStartTimesMs.length / 2);
-    setTimeout(() => {
+    const partial = () => {
       this.emit({
         contextId,
         audio: "AQIDBA==",
@@ -153,8 +156,8 @@ class RelayWebSocket {
           charDurationsMs: charDurationsMs.slice(0, half),
         },
       });
-    }, generationMs / 2);
-    setTimeout(() => {
+    };
+    const complete = () => {
       this.emit({
         contextId,
         audio: "AQIDBA==",
@@ -164,7 +167,14 @@ class RelayWebSocket {
         },
       });
       this.emit({ contextId, isFinal: true });
-    }, generationMs);
+    };
+    if (sentSegments.length === 1) {
+      controlledFirstGeneration.push({ partial, complete });
+      markFirstDispatch();
+    } else {
+      setTimeout(partial, generationMs / 2);
+      setTimeout(complete, generationMs);
+    }
   }
 
   close(): void {
@@ -237,6 +247,11 @@ class FakeAudioContext {
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
+// The relay mutates this collection across async callbacks; do not narrow its
+// outer length to a literal that TypeScript retains after later client calls.
+function assertSentCount(expected: number, message: string): void {
+  assert(sentSegments.length === expected, message);
+}
 
 Object.defineProperty(globalThis, "window", { configurable: true, value: globalThis });
 // resolveWebSocketUrl reads window.location; without one the socket never
@@ -270,10 +285,15 @@ await client.prewarm();
 // This is the live shape: a segment is prefetched when it is queued, and the
 // segment runner asks for the next one as it starts speaking the current one.
 client.prefetchSegment(FIRST_TEXT);
-await new Promise((resolve) => setTimeout(resolve, 20));
+let dispatchTimeout: ReturnType<typeof setTimeout> | undefined;
+try {
+  await Promise.race([firstDispatch, new Promise<never>((_resolve, reject) => {
+    dispatchTimeout = setTimeout(() => reject(new Error("first prefetch was not dispatched")), 5000);
+  })]);
+} finally { clearTimeout(dispatchTimeout); }
 
-assert(
-  sentSegments.length === 1,
+assertSentCount(
+  1,
   `prefetch did not open a context for the first sentence (sent ${sentSegments.length})`,
 );
 
@@ -286,15 +306,18 @@ assert(
   "peek handed over an alignment for a sentence that has not generated anything",
 );
 
-// Half the alignment is in and the context is still open.
-await new Promise((resolve) => setTimeout(resolve, GENERATION_MS / 2 + 15));
+// Hold the final explicitly: a loaded event loop must not turn this partial
+// checkpoint into a race between two already-due provider timers.
+controlledFirstGeneration[0]!.partial();
+await new Promise<void>(resolve => setImmediate(resolve));
 assert(
   client.peekSegmentTimings(FIRST_TEXT) === null,
   "peek handed over a partial alignment: the context was still open, so a row " +
     "scheduled on it would end mid-sentence",
 );
 
-await new Promise((resolve) => setTimeout(resolve, GENERATION_MS / 2 + 30));
+controlledFirstGeneration[0]!.complete();
+await new Promise<void>(resolve => setImmediate(resolve));
 const peekedFirst = client.peekSegmentTimings(FIRST_TEXT);
 assert(peekedFirst !== null, "a generated, unclaimed sentence had no alignment to peek at");
 assert(
@@ -315,8 +338,8 @@ assert(
   client.peekSegmentTimings("A sentence the lesson never sent.") === null,
   "peek found an alignment for a sentence that was never generated",
 );
-assert(
-  sentSegments.length === 1,
+assertSentCount(
+  1,
   "peeking at a sentence's alignment sent its text upstream again",
 );
 
