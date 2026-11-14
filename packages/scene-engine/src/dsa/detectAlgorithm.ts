@@ -112,11 +112,17 @@ const PROBLEM_SHAPE: readonly RegExp[] = [
  * Two structural markers also need a programming operation or concrete I/O.
  * Lecture prose can contain both "Example:" and "target market", and a
  * maths exercise can contain both "given a" and "Example:". Neither asks
- * for a program. A return instruction names its computational operand, or
- * paired Input/Output carries a concrete value/assignment.
+ * for a program. A return instruction names its computational operand, an
+ * instruction operates on a typed programming input, or paired Input/Output
+ * carries a concrete value/assignment. Operand names are not a closed list.
  */
 export function looksLikeCodingProblem(question: string): boolean {
   const computation = /\breturn\s+(?:the\s+|an?\s+|all\s+|any\s+)?(?:true|false|indices|index|maximum|minimum|number|length|sum|count|result|array|string|list|root|head|value|total|smallest|largest|kth)\b/i.test(question);
+  const typedInput = /\bgiven\s+(?:(?:an?|the|two)\s+)?(?:arrays?|strings?|integers?|lists?|booleans?|matri(?:x|ces)|grids?|linked\s+lists?)\b/i.test(question);
+  const inputOperation = typedInput && /\b(?:return|compute|calculate|find|count|remove|replace|reverse|sort|merge|filter|determine|check)\s+\S/i.test(question);
+  // A typed input plus an instruction are two independent structural cues;
+  // punctuation and the spelling of an operand carry no additional authority.
+  if (inputOperation) return true;
   const concreteIO = /\binput\s*:\s*(?:[a-zA-Z_]\w*\s*=|\[|["'\d-])[\s\S]*\boutput\s*:\s*\S/i.test(question);
   if (!computation && !concreteIO) return false;
   let hits = 0;

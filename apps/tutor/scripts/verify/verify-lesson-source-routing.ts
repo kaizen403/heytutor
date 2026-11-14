@@ -18,7 +18,56 @@ import {
 // tokens were "Example:" and "target", neither of which asks for programming.
 const lecture =
   "Sustainable development lecture. Example: A factory creates jobs but pollutes the river. Taxpayers are the target market of public projects. Explain all lectures.";
+
+async function verifyComputationalAdmissions() {
+  const questions = [
+    "Given a string s, return s with all vowels removed. Constraints: 1 <= s.length <= 1000.",
+    "Given an array readings, return readings after removing negative entries. Constraints: 1 <= readings.length <= 1000.",
+    "Given a string text, return it without spaces. Constraints: 1 <= text.length <= 1000.",
+    "Given two strings left and right, return their combined characters. Constraints: 1 <= left.length <= 1000.",
+    "Given an integer n, compute its digit count. Constraints: 1 <= n <= 1000.",
+    "Given a list values, remove duplicate entries. Constraints: 1 <= values.length <= 1000.",
+    "Given a string payload, return payload.",
+    "Given a string message, return it unchanged.",
+    "Given an integer value, calculate its digit count.",
+    "Given a string word return word in uppercase",
+    "Given string text return it unchanged",
+  ];
+  const fetchBefore = globalThis.fetch;
+  const results = [];
+  try {
+    for (const question of [...questions, lecture]) {
+      const fixture = getMockCodeLessonPlan(question);
+      let calls = 0;
+      globalThis.fetch = async () => {
+        calls++;
+        return Response.json({ choices: [{ message: { content: JSON.stringify(fixture) } }] });
+      };
+      const planned = await planCodeLessonV1(question, {
+        proxyUrl: "https://synthetic.invalid",
+        timeoutMs: 1000,
+      });
+      const restored = parseStoredCodeLesson(
+        JSON.parse(JSON.stringify({ codeLesson: fixture })), question,
+      );
+      results.push({
+        classified: classifyDsaQuestion(question).isDsa,
+        calls,
+        planned: planned !== null,
+        restored: restored.status,
+      });
+    }
+  } finally {
+    globalThis.fetch = fetchBefore;
+  }
+  assert.deepEqual(results, [
+    ...questions.map(() => ({ classified: true, calls: 1, planned: true, restored: "valid" })),
+    { classified: false, calls: 0, planned: false, restored: "invalid" },
+  ], "computational instructions must reach classification, real planning and restore; lecture prose must not");
+}
+
 async function main() {
+  await verifyComputationalAdmissions();
   assert.equal(
     classifyDsaQuestion(lecture).isDsa,
     false,
