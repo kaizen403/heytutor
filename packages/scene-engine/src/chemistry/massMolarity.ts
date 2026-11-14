@@ -115,11 +115,11 @@ export function buildMassMolarityScene(question: string, quantities: readonly Ch
   rows.forEach((texts,i) => texts.forEach((text,j) => c.text(`row_${i}_${j}`,{x:j*3.5,y:4-i*1.4},text,texts[0],{preserveText:true})));
   const document = c.build({caption:"Formula-unit molar mass uses the existing NCERT / IUPAC 2021 element table. The volume belongs to the whole solution. This is a nonmetric calculation diagram."});
   const values = [
-    {id:"solute_mass",symbol:"mass",value:source.mass.value,unit:"g"},
-    {id:"molar_mass",symbol:"M_s",value:source.molarMass,unit:"g/mol"},
-    {id:"solute_amount",symbol:"n",value:source.moles,unit:"mol"},
-    {id:"solution_volume",symbol:"V",value:source.volume.value,unit:"L"},
-    {id:"molarity",symbol:"c",value:source.concentration,unit:"mol/L"},
+    {id:"solute_mass",symbol:"mass",value:source.mass.value,unit:"g",provenance:"given"},
+    {id:"molar_mass",symbol:"M_s",value:source.molarMass,unit:"g/mol",provenance:"derived"},
+    {id:"solute_amount",symbol:"n",value:source.moles,unit:"mol",provenance:"derived"},
+    {id:"solution_volume",symbol:"V",value:source.volume.value,unit:"L",provenance:"given"},
+    {id:"molarity",symbol:"c",value:source.concentration,unit:"mol/L",provenance:"derived"},
   ];
   document.quantities = values;
   document.source.slotSources = Object.fromEntries(values.map(q=>[q.id,"stem"]));

@@ -109,13 +109,14 @@ export function buildEffusionScene(question: string, quantities: ChemPlanQuantit
   }
   rows.forEach((row,i)=>row.forEach((text,j)=>c.text(`comparison_${i}_${j}`,{x:j*5,y:4-i*1.2},text,"source effusion comparison",{preserveText:true})));
   const document=c.build({caption:source.mode==="time"?"Equal source gas volumes make the time ratio inverse to the effusion rate ratio. M_unknown = M_known (r_known/r_unknown)^2. Nonmetric law diagram.":source.mode==="samples"?"Each source rate is volume divided by duration in common units. M_unknown = M_known (r_known/r_unknown)^2. Nonmetric law diagram.":"M_unknown = M_known (r_known/r_unknown)^2 under the explicitly equal source conditions. Nonmetric law diagram."});
-  const values=[{id:"known_mass",symbol:`M_${source.knownGas}`,value:source.molarMass.value,unit:"g/mol"},
-    {id:"unknown_mass",symbol:`M_${source.unknownGas}`,value:source.unknownMass,unit:"g/mol"},
-    {id:"rate_ratio",symbol:"rate_ratio",value:source.rateRatio,unit:"1"}];
+  const values=[{id:"known_mass",symbol:`M_${source.knownGas}`,value:source.molarMass.value,unit:"g/mol",provenance:"given"},
+    {id:"unknown_mass",symbol:`M_${source.unknownGas}`,value:source.unknownMass,unit:"g/mol",provenance:"derived"},
+    // The canonical quotient may invert a source ratio or compose volume/time readings.
+    {id:"rate_ratio",symbol:"rate_ratio",value:source.rateRatio,unit:"1",provenance:"derived"}];
   source.bindings.slice(1).forEach((reading,index)=>values.push({
     id:["known_volume","known_time","unknown_volume","unknown_time"][index]!,
     symbol:[`V_${source.knownGas}`,`t_${source.knownGas}`,`V_${source.unknownGas}`,`t_${source.unknownGas}`][index]!,
-    value:reading.value,unit:reading.canonicalUnit,
+    value:reading.value,unit:reading.canonicalUnit,provenance:"given",
   }));
   document.quantities=values;
   document.source.slotSources=Object.fromEntries(values.map(q=>[q.id,"stem"]));
