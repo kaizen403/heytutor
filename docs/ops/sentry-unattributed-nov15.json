@@ -1,0 +1,216 @@
+{
+  "date": "2026-11-15",
+  "base": "500649965c0a2f12b98f6241959220c0ad249eb5",
+  "scope": "Independent remaining-browser and historical relay audit using local sanitized evidence only. No production-code changes, external service calls, Sentry changes, push or deployment. Recovery 503/hold and missing latest database/recordings remain owned elsewhere.",
+  "evidenceLimits": [
+    "Production environment and URL are retained event tags, not fresh production verification. Local tests use synthetic identities and loopback sockets only.",
+    "The issue index repeats the retained latest-event evidence; it does not supply the earlier occurrences.",
+    "The retained Sentry log export covers 2026-11-13T05:41:26Z through 2026-11-14T18:21:04Z; none of the five traces matches. Four events predate this log window.",
+    "Existing message-based browser ignoreErrors in the base are unchanged and are not evidence that rejection owners are fixed.",
+    "Existing f29770afd email signIn and under-13 refusal fixes are not duplicated or used to claim attribution of these groups."
+  ],
+  "artifactSearch": {
+    "roots": [
+      "/tmp/heytutor-recovery-nov15",
+      "/tmp/heytutor-audit-2026-11-14",
+      "/Users/kaizen/heytutor-wt",
+      "/Users/kaizen/.t3/worktrees/heytutor",
+      "/Users/kaizen/conductor/workspaces/heytutor",
+      "/Users/kaizen/heytutor"
+    ],
+    "method": "Read-only recursive filename inventory including .next, pruning node_modules, .git, venv, .venv and .turbo. No exact application chunk filenames found; no captured release-bound login inline source found. Historical raw journal and issue-index also inspected without dumping student content.",
+    "matchingVendorFile": "/Users/kaizen/.t3/worktrees/heytutor/t3-a2ca17b7-a2ddbe088cd7fe61/apps/tutor/.next/static/chunks/20e7ace9-3e678f4100ffd2fc.js",
+    "matchingVendorSha256": "146112a1f4e4899190f97dab9c28845841607af4dc8e4f076e6aac5da1a3ba79",
+    "matchingVendorInterpretation": "Matching vendor filename and code at retained coordinates: ux/uE traverse passive-effect flags; o1 at column 88957 invokes t.create. This provides framework-level attribution only; it does not map either application caller."
+  },
+  "issues": [
+    {
+      "issue": "HEYTUTOR-1P",
+      "eventId": "0c1f998e1c0d43f08fd24a8ea2f5d52f",
+      "sentryUrl": "https://personal-9bo.sentry.io/issues/157325060/",
+      "count": 3,
+      "lastSeen": "2026-11-13T09:12:38.010000Z",
+      "release": "665c652f705210aaab551787fd953d5874072456",
+      "environmentTag": "production",
+      "browserTag": "Firefox 160.0",
+      "platform": "javascript",
+      "handled": false,
+      "traceId": "2391185458da4933b39b9f395acf4292",
+      "sourceEvidence": "/tmp/heytutor-recovery-nov15/issues/HEYTUTOR-1P.json",
+      "sourceSha256": "7edf52fbba599d7201cd8003f2586132dfecfaae00f05836ea8471603ae9ba6d",
+      "stackFrameCount": 0,
+      "retainedEntryTypes": [
+        "exception"
+      ],
+      "exactEventRootCauseKnown": false,
+      "resolved": false,
+      "productionVerified": false,
+      "disposition": "unresolved_unattributed",
+      "finding": "The latest Firefox rejection has no stacktrace or rawStacktrace, no breadcrumb or request entry, and no matching trace in the retained Sentry log export. The group has three occurrences; only its latest event is retained here.",
+      "missingEvidence": [
+        "Failing request URL and initiating consumer",
+        "Frames or a captured rejection trace",
+        "The two earlier event payloads"
+      ],
+      "nextEvidenceNeeded": "A retained event or request trace that identifies the failing caller. Generic rejection text cannot identify a feature."
+    },
+    {
+      "issue": "HEYTUTOR-1X",
+      "eventId": "ffc72858c0c34a26aad2b5cf9d688d8e",
+      "sentryUrl": "https://personal-9bo.sentry.io/issues/159342028/",
+      "count": 1,
+      "lastSeen": "2026-11-07T14:34:38.827000Z",
+      "release": "601083caa5548b6fd03b03465583d5c508d40193",
+      "environmentTag": "production",
+      "browserTag": "Mobile Safari 27.2",
+      "platform": "javascript",
+      "handled": false,
+      "traceId": "322daabfd3bf4010bf8e06d2eba4af54",
+      "sourceEvidence": "/tmp/heytutor-recovery-nov15/issues/HEYTUTOR-1X.json",
+      "sourceSha256": "43edb6971f09efd62cecf8ac64b8fb08e83b6cecb10d0e13e31fbff33f1f8fba",
+      "stackFrameCount": 49,
+      "retainedEntryTypes": [
+        "exception"
+      ],
+      "exactEventRootCauseKnown": false,
+      "resolved": false,
+      "productionVerified": false,
+      "disposition": "unresolved_application_chunk_missing",
+      "finding": "Shares trace 322daabfd3bf4010bf8e06d2eba4af54 with HEYTUTOR-1Y, 2ms later. The surviving matching React vendor filename identifies passive-effect traversal and invocation of t.create; the application frames remain unsymbolicated.",
+      "applicationFrames": [
+        {
+          "file": "4945-980d3a8462c33471.js",
+          "line": 1,
+          "column": 743364,
+          "function": null
+        },
+        {
+          "file": "4945-980d3a8462c33471.js",
+          "line": 1,
+          "column": 545528,
+          "function": "hE"
+        }
+      ],
+      "missingEvidence": [
+        "4945-980d3a8462c33471.js and its source map for release 601083caa5548b6fd03b03465583d5c508d40193",
+        "Failing request URL"
+      ],
+      "nextEvidenceNeeded": "The exact release application chunk or source map; current chunks and minified function names cannot substitute for it."
+    },
+    {
+      "issue": "HEYTUTOR-1Y",
+      "eventId": "f78403ce732e4639a393892edd2596b8",
+      "sentryUrl": "https://personal-9bo.sentry.io/issues/159342029/",
+      "count": 1,
+      "lastSeen": "2026-11-07T14:34:38.825000Z",
+      "release": "601083caa5548b6fd03b03465583d5c508d40193",
+      "environmentTag": "production",
+      "browserTag": "Mobile Safari 27.2",
+      "platform": "javascript",
+      "handled": false,
+      "traceId": "322daabfd3bf4010bf8e06d2eba4af54",
+      "sourceEvidence": "/tmp/heytutor-recovery-nov15/issues/HEYTUTOR-1Y.json",
+      "sourceSha256": "54c31f3de036e0c8c794851aa97ab9bcbe3429207a787aaa3fa13d04ec088d25",
+      "stackFrameCount": 49,
+      "retainedEntryTypes": [
+        "exception"
+      ],
+      "exactEventRootCauseKnown": false,
+      "resolved": false,
+      "productionVerified": false,
+      "disposition": "unresolved_application_chunk_missing",
+      "finding": "Shares trace 322daabfd3bf4010bf8e06d2eba4af54 with HEYTUTOR-1X. Matching React vendor coordinates identify effect execution, but neither application chunk survives. The timing does not establish a common request or root cause.",
+      "applicationFrames": [
+        {
+          "file": "4945-980d3a8462c33471.js",
+          "line": 1,
+          "column": 565560,
+          "function": null
+        },
+        {
+          "file": "6624-3dc436f1c376ad36.js",
+          "line": 1,
+          "column": 5162,
+          "function": "l"
+        }
+      ],
+      "missingEvidence": [
+        "4945-980d3a8462c33471.js and 6624-3dc436f1c376ad36.js and their source maps for release 601083caa5548b6fd03b03465583d5c508d40193",
+        "Failing request URL"
+      ],
+      "nextEvidenceNeeded": "Exact release application chunks or source maps, followed by an actual consumer reproduction."
+    },
+    {
+      "issue": "HEYTUTOR-1T",
+      "eventId": "404189a965634bf0adbc89d2c8193c4b",
+      "sentryUrl": "https://personal-9bo.sentry.io/issues/158384450/",
+      "count": 1,
+      "lastSeen": "2026-11-03T18:15:46.345000Z",
+      "release": "69aee051ba09c654f9330908c5d2fd3466e6c604",
+      "environmentTag": "production",
+      "browserTag": "Chrome Mobile iOS 155.0.8059",
+      "platform": "javascript",
+      "handled": false,
+      "traceId": "9bfbd5886f7d4d9a910029c428f1e02e",
+      "sourceEvidence": "/tmp/heytutor-recovery-nov15/issues/HEYTUTOR-1T.json",
+      "sourceSha256": "fbf2ffba48d6bf92bba0504250f2472d582118161ba60f66b3739d8bd99d761a",
+      "stackFrameCount": 3,
+      "retainedEntryTypes": [
+        "exception"
+      ],
+      "exactEventRootCauseKnown": false,
+      "resolved": false,
+      "productionVerified": false,
+      "disposition": "unresolved_inline_source_missing",
+      "finding": "Error Na is an unhandled rejection in Chrome Mobile iOS on /login. All three frames name app:///login at 199:338, Di at 198:221, and 517:344; Sentry reports missing_source. No matching captured HTML or inline script for this release is retained.",
+      "missingEvidence": [
+        "The HTML/inline script actually loaded by this client at release 69aee051ba09c654f9330908c5d2fd3466e6c604",
+        "A request, browser trace, or reproducible user action"
+      ],
+      "nextEvidenceNeeded": "Recover the exact inline source or capture the responsible rejection in an isolated browser. The /login route alone does not attribute this to email signIn, Google auth, injected code, or any specific SDK."
+    },
+    {
+      "issue": "HEYTUTOR-6",
+      "eventId": "8db23a2a5d8b4480acc95f53d6f9cd9c",
+      "sentryUrl": "https://personal-9bo.sentry.io/issues/151542949/",
+      "count": 22,
+      "lastSeen": "2026-10-21T17:20:02.918000Z",
+      "release": "6d5747456c892010939427c2df69f169a48ee1d3",
+      "environmentTag": "production",
+      "browserTag": null,
+      "platform": "node",
+      "handled": true,
+      "traceId": "08e13c83893f4d588a149d5ef9d60ebb",
+      "sourceEvidence": "/tmp/heytutor-recovery-nov15/issues/HEYTUTOR-6.json",
+      "sourceSha256": "0d6499498b9d6af814249dfba571ffe6d8b6db6bc1de65faeca23633563dcfda",
+      "stackFrameCount": 5,
+      "retainedEntryTypes": [
+        "exception"
+      ],
+      "exactEventRootCauseKnown": false,
+      "resolved": false,
+      "productionVerified": false,
+      "disposition": "unresolved_exact_trigger_unknown_existing_guard_verified",
+      "finding": "This is a handled Node relay error, not an unattributed browser crash. Its stack reaches ws emitErrorAndClose, the vendor error listener in lib/tts/wsRelay.ts, and captureTtsRelayFailure. The saved event does not record why CONNECTING was closed.",
+      "historicalSource": "At retained release 6d5747456c892010939427c2df69f169a48ee1d3, teardown terminates CONNECTING and the vendor error listener reports unconditionally. Commit 33bb388e7625e68bf1c05444b6ca38888e3fd636, already in base 500649965, adds the stopped guard.",
+      "localReproduction": "The real ws 8.21.0 relay consumer is exercised over loopback with client cancellation and account revocation during a held upstream handshake. Removing only the existing stopped guard produces the exact error text at WebSocket.terminate; the unchanged base passes. Genuine socket hang-up and HTTP 503 failures still report once, a fresh retry sends a segment, and receipt settlement failures still report after teardown.",
+      "missingEvidence": [
+        "The exact client/revocation/provider lifecycle that produced the retained event"
+      ],
+      "nextEvidenceNeeded": "Retain lifecycle context if a new occurrence appears after deployment. Local tests establish the guarded cancellation path, not the exact cause or resolution of all 22 historical occurrences."
+    }
+  ],
+  "verification": {
+    "packages": "pnpm exec turbo run build --filter=./packages/*: 5 packages built/restored before app tests; log /tmp/heytutor-unattributed-packages.log",
+    "lifecycle": "Real loopback regression passed; /tmp/heytutor-unattributed-lifecycle-green.log",
+    "mutation": "Removed only existing vendor stopped guard; failed with exact CONNECTING termination error; /tmp/heytutor-unattributed-lifecycle-red.log. Temporary source copy deleted.",
+    "typecheck": "pnpm --filter @heytutor/tutor typecheck: passed; /tmp/heytutor-unattributed-types.log",
+    "lint": "Focused eslint on new regression: passed; /tmp/heytutor-unattributed-lint.log",
+    "fullTutorVerify": "Failed during preverify gate 3/15, verify:diagram-experiments -> verify-strict-planner-selection.ts:77: expected two real DSA classification policy calls, observed three (3 !== 2). The main gate list, including the new extension, was not reached. Log /tmp/heytutor-unattributed-tutor-verify.log.",
+    "sentry": "pnpm --filter @heytutor/tutor verify:sentry: passed; /tmp/heytutor-unattributed-sentry.log",
+    "wsBilling": "verify-ws-paid-usage.ts: 5 checks passed; /tmp/heytutor-unattributed-ws-paid.log",
+    "resources": "verify-resource-lifecycle.ts: passed; /tmp/heytutor-unattributed-resources.log",
+    "baselineFailure": "Re-ran verify-strict-planner-selection.ts after switching this isolated checkout directly to detached 500649965; it failed identically at line 77 (3 !== 2). Returned to fix/sentry-unattributed-nov15 afterward. No unrelated source or validator was changed. Log /tmp/heytutor-unattributed-base-strict-planner.log.",
+    "gateWiring": "The baseline-preserving gate runner --list includes verify-tts-relay-lifecycle.ts through gates.d/tts-relay-lifecycle.txt. The new gate passed directly."
+  }
+}
