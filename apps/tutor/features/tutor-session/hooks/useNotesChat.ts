@@ -8,15 +8,12 @@ import {
 } from "@/lib/boards/notesChatClient";
 import type { NotesChatTag } from "@/features/tutor-session/lib/notes/notesChatTag";
 
-const STREAMING_ID = "notes-chat-streaming";
-
 export function useNotesChat(boardId: string, enabled = true) {
   const [messages, setMessages] = useState<NotesChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyAttempt, setHistoryAttempt] = useState(0);
-  const messagesVersion = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const boardIdRef = useRef(boardId);
 
@@ -47,14 +44,20 @@ export function useNotesChat(boardId: string, enabled = true) {
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
-    const version = messagesVersion.current;
     let cancelled = false;
     void fetchNotesChatMessages(boardId, controller.signal)
       .then((loaded) => {
         if (cancelled || boardIdRef.current !== boardId) return;
-        // A history read started before a new message must not replace that
-        // message or its streamed reply when the older request finishes.
-        if (messagesVersion.current === version) setMessages(loaded);
+        // Optimistic and persisted messages share identities. Merge an older
+        // history read with new messages, including replies still streaming.
+        setMessages((current) => {
+          const byId = new Map(current.map((message) => [message.id, message]));
+          const loadedIds = new Set(loaded.map((message) => message.id));
+          return [
+            ...loaded.map((message) => byId.get(message.id) ?? message),
+            ...current.filter((message) => !loadedIds.has(message.id)),
+          ];
+        });
       })
       .catch(() => {
         if (cancelled || controller.signal.aborted || boardIdRef.current !== boardId) return;
@@ -87,18 +90,19 @@ export function useNotesChat(boardId: string, enabled = true) {
       abortRef.current = controller;
       setSending(true);
       setError(null);
-      messagesVersion.current += 1;
       let rawBuffer = "";
+      const messageIds = { user: crypto.randomUUID(), assistant: crypto.randomUUID() };
+      const isCurrent = () => abortRef.current === controller && boardIdRef.current === boardId;
 
       const userMessage: NotesChatMessage = {
-        id: `local-user-${Date.now()}`,
+        id: messageIds.user,
         role: "user",
         content: message,
         createdAt: Date.now(),
         tag,
       };
       const assistantMessage: NotesChatMessage = {
-        id: STREAMING_ID,
+        id: messageIds.assistant,
         role: "assistant",
         content: "",
         createdAt: Date.now(),
@@ -110,41 +114,46 @@ export function useNotesChat(boardId: string, enabled = true) {
         const rawReply = await streamNotesChatMessage({
           boardId,
           message,
+          messageIds,
           tag,
           liveNotes,
           lectureInProgress,
           signal: controller.signal,
           onDelta: (chunk) => {
+            if (!isCurrent() || controller.signal.aborted) return;
             rawBuffer += chunk;
             const visible = visibleNotesChatText(rawBuffer);
             setMessages((prev) =>
               prev.map((item) =>
-                item.id === STREAMING_ID ? { ...item, content: visible } : item,
+                item.id === messageIds.assistant ? { ...item, content: visible } : item,
               ),
             );
           },
         });
+        if (!isCurrent()) return;
+        controller.signal.throwIfAborted();
         const content = visibleNotesChatText(rawReply);
         setMessages((prev) =>
           prev.map((item) =>
-            item.id === STREAMING_ID
-              ? { ...item, id: `local-assistant-${Date.now()}`, content }
+            item.id === messageIds.assistant
+              ? { ...item, content }
               : item,
           ),
         );
       } catch (caught: unknown) {
+        if (!isCurrent()) return;
         if (controller.signal.aborted) {
-          setMessages((prev) => prev.filter((item) => item.id !== STREAMING_ID));
+          setMessages((prev) => prev.filter((item) => item.id !== messageIds.assistant));
           return;
         }
         const messageText = caught instanceof Error ? caught.message : "could not answer";
         setError(messageText);
-        setMessages((prev) => prev.filter((item) => item.id !== STREAMING_ID));
+        setMessages((prev) => prev.filter((item) => item.id !== messageIds.assistant));
       } finally {
         if (abortRef.current === controller) {
           abortRef.current = null;
+          setSending(false);
         }
-        setSending(false);
       }
     },
     [boardId, enabled, sending],
@@ -153,7 +162,6 @@ export function useNotesChat(boardId: string, enabled = true) {
   /** Abort a streaming reply and drop the partial bubble. */
   const stop = useCallback(() => {
     abortRef.current?.abort();
-    abortRef.current = null;
   }, []);
 
   return { messages, sending, error, historyError, reloadHistory, send, stop };

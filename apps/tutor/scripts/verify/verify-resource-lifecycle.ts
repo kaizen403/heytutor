@@ -145,10 +145,11 @@ const db = {
       ? chatRows.filter(row => row.storageBytes === 0n && row.content !== "").length : chatRows.length,
     findMany: async ({ take }: { take?: number }) => take === undefined ? [...chatRows] : chatRows.slice(-take).reverse(),
     aggregate: async () => ({ _sum: { storageBytes: storedChatBytes() } }),
-    create: async ({ data }: { data: Omit<ChatRow, "id" | "createdAt"> }) => {
+    create: async ({ data }: { data: Omit<ChatRow, "id" | "createdAt"> & { id?: string } }) => {
       if (data.role === "assistant") { assistantStarted?.release(); await assistantWait?.promise; }
       assert(boardExists && userExists, "a persisted notes row must retain both FK owners");
-      const row = { ...data, id: crypto.randomUUID(), createdAt: new Date() };
+      if (data.id && chatRows.some(row => row.id === data.id)) throw new Error("unique message id");
+      const row = { ...data, id: data.id ?? crypto.randomUUID(), createdAt: new Date() };
       chatRows.push(row); return row;
     },
   },
@@ -358,6 +359,23 @@ async function main() {
     const before = charged; answer(); await response.text(); await tick();
     assert.equal(charged, before); assert.equal(receiptAmounts.size, 0); assert.equal(reservedBytes, storedChatBytes()); assert.equal(chatRows.length, 2);
     assert.equal(notesAllowanceRefunds, 0, "a delivered answer consumes its notes-message allowance");
+  });
+  await check("notes preserve optimistic identities through actual persistence and history", async () => {
+    const messageIds = { user: crypto.randomUUID(), assistant: crypto.randomUUID() };
+    const response = await notes.POST(request({ message: "Explain this step.", messageIds }), context());
+    answer(); await response.text(); await tick();
+    assert.deepEqual(chatRows.map(row => row.id), [messageIds.user, messageIds.assistant]);
+    assert(chatRows.every(row => row.userId === actor.userId && row.boardId === "lifecycle-board"));
+    assert.equal(reservedBytes, storedChatBytes());
+  });
+  await check("invalid message identities refuse before storage or paid dispatch", async () => {
+    const id = crypto.randomUUID();
+    for (const messageIds of [null, [], {}, { user: id }, { user: id, assistant: id }, { user: id, assistant: "invalid" }]) {
+      const response = await notes.POST(request({ message: "Explain this step.", messageIds }), context());
+      if (response.ok) { answer(); await response.text(); }
+      assert.equal(response.status, 400);
+      assert.equal(providerCalls, 0); assert.equal(reservedBytes, 0n); assert.equal(charged, 0);
+    }
   });
   await check("notes upstream read errors release only unused reply storage and settle paid usage", async () => {
     const response = await notes.POST(request(), context());

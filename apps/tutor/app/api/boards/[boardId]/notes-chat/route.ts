@@ -191,6 +191,21 @@ async function postNotesChat(request: Request, context: RouteContext, actor: Spe
   if (message.length > NOTES_CHAT_MAX_MESSAGE_CHARS) {
     return NextResponse.json({ error: "message too long" }, { status: 400 });
   }
+  // Stable optimistic identities let a concurrent history read merge saved
+  // messages without dropping or duplicating a reply. Older clients may omit
+  // these; ownership, content, storage and billing remain server controlled.
+  const ids = body.messageIds;
+  const isMessageId = (value: unknown): value is string => typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  let userMessageId: string = crypto.randomUUID();
+  let assistantMessageId: string = crypto.randomUUID();
+  if (ids !== undefined) {
+    if (!isRecord(ids) || !isMessageId(ids.user) || !isMessageId(ids.assistant) || ids.user === ids.assistant) {
+      return NextResponse.json({ error: "invalid message identities" }, { status: 400 });
+    }
+    userMessageId = ids.user;
+    assistantMessageId = ids.assistant;
+  }
   if (request.signal.aborted) {
     return NextResponse.json({ error: "request canceled" }, { status: 499 });
   }
@@ -239,7 +254,7 @@ async function postNotesChat(request: Request, context: RouteContext, actor: Spe
       if (await tx.boardChatMessage.count({ where: { boardId, userId } }) >= 2000) throw new StorageQuotaError("notes history is full", 429);
       if (!await tx.board.findFirst({ where: { id: boardId, userId } })) throw new StorageQuotaError("board not found", 404);
       await tx.boardChatMessage.create({ data: {
-        boardId, userId, role: "user", content: message, storageBytes: BigInt(messageBytes),
+        id: userMessageId, boardId, userId, role: "user", content: message, storageBytes: BigInt(messageBytes),
         tag: tag ? { kind: tag.kind, text: tag.text, turnIndex: tag.turnIndex } : undefined,
       } });
     });
@@ -267,7 +282,7 @@ async function postNotesChat(request: Request, context: RouteContext, actor: Spe
     savingReply = withUserStorageLock(userId, async tx => {
       if (!await tx.board.findFirst({ where: { id: boardId, userId } })) throw new StorageQuotaError("board not found", 404);
       if (await tx.boardChatMessage.count({ where: { boardId, userId } }) >= 2000) throw new StorageQuotaError("notes history is full", 429);
-      await tx.boardChatMessage.create({ data: { boardId, userId, role: "assistant", content: reply, storageBytes: BigInt(bytes) } });
+      await tx.boardChatMessage.create({ data: { id: assistantMessageId, boardId, userId, role: "assistant", content: reply, storageBytes: BigInt(bytes) } });
     }).then(() => { replyBytes = bytes; });
     await savingReply;
   };

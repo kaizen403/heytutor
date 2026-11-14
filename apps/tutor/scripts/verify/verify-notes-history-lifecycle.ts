@@ -43,9 +43,17 @@ const root = createRoot(dom.window.document.getElementById("root")!, { onUncaugh
 let mounted = true;
 const requests: { path: string; signal: AbortSignal | null | undefined; resolve: (response: Response) => void; reject: (error: unknown) => void }[] = [];
 const realFetch = globalThis.fetch;
+let postedIds: { user: string; assistant: string } | undefined;
+let deferPosts = false;
+const posts: Array<{ resolve: (response: Response) => void }> = [];
+const answer = () => new Response('data: {"delta":"A fresh answer."}\n\ndata: {"done":true}\n\n');
 globalThis.fetch = async (url, init) => {
   const path = new URL(String(url), "https://synthetic.invalid").pathname;
-  if (init?.method === "POST") return new Response('data: {"delta":"A fresh answer."}\n\ndata: {"done":true}\n\n');
+  if (init?.method === "POST") {
+    postedIds = JSON.parse(String(init.body)).messageIds;
+    if (deferPosts) return new Promise((resolve) => posts.push({ resolve }));
+    return answer();
+  }
   return new Promise<Response>((resolve, reject) => requests.push({ path, signal: init?.signal, resolve, reject }));
 };
 const drain = async () => { await new Promise<void>(resolve => setImmediate(resolve)); await new Promise<void>(resolve => setImmediate(resolve)); };
@@ -100,6 +108,35 @@ async function main() {
     await reply(pendingHistory, Response.json({ messages: [message("Older response")] }));
     assert(current!.messages.some(message => message.content === "A new question"), "late history cannot erase a newly sent message");
     assert(current!.messages.some(message => message.content === "A fresh answer."));
+    assert(current!.messages.some(message => message.content === "Older response"), "saved history must survive the concurrent send too");
+
+    await render("persisted-chat");
+    const persistedRead = requests.length - 1;
+    await act(async () => { await current!.send("A repeated question", null, false); await drain(); });
+    assert(postedIds, "optimistic messages carry stable persistence identities");
+    await reply(persistedRead, Response.json({ messages: [
+      message("A fresh answer."), // Equal text in an older, distinct message must be retained.
+      { ...message("A repeated question"), id: postedIds.user, role: "user" },
+      { ...message("A fresh answer."), id: postedIds.assistant },
+    ] }));
+    assert.equal(current!.messages.length, 3, "matching persisted identities merge once, without dropping repeated older text");
+    assert.equal(current!.messages.filter(message => message.content === "A fresh answer.").length, 2);
+
+    deferPosts = true;
+    await render("stream-a");
+    let oldSend: Promise<void> = Promise.resolve();
+    await act(async () => { oldSend = current!.send("Old board question", null, false); await drain(); });
+    await render("stream-b");
+    let newSend: Promise<void> = Promise.resolve();
+    await act(async () => { newSend = current!.send("Current board question", null, false); await drain(); });
+    await act(async () => { posts[0]!.resolve(answer()); await oldSend; await drain(); });
+    assert.equal(current!.sending, true, "an obsolete reply cannot end the new board's send");
+    assert(!current!.messages.some(message => message.content === "A fresh answer."));
+    await act(async () => { current!.stop(); posts[1]!.resolve(answer()); await newSend; await drain(); });
+    assert.equal(current!.sending, false);
+    assert.equal(current!.messages.length, 1, "Stop keeps the user's message and discards an ignored-abort reply");
+    assert.equal(current!.messages[0]?.content, "Current board question");
+    deferPosts = false;
 
     const beforeDisabled = requests.length;
     await render("disabled", false);

@@ -57,6 +57,7 @@ export async function fetchNotesChatMessages(boardId: string, signal?: AbortSign
 export async function streamNotesChatMessage(input: {
   boardId: string;
   message: string;
+  messageIds?: { user: string; assistant: string };
   tag?: NotesChatTag | null;
   liveNotes: NotesChatLivePayload | null;
   lectureInProgress: boolean;
@@ -69,6 +70,7 @@ export async function streamNotesChatMessage(input: {
     signal: input.signal,
     body: JSON.stringify({
       message: input.message,
+      messageIds: input.messageIds,
       tag: input.tag ?? null,
       liveNotes: input.liveNotes,
       lectureInProgress: input.lectureInProgress,
