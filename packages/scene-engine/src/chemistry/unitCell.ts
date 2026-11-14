@@ -21,6 +21,7 @@ import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText } from "./formula";
 import { elementByName, elementBySymbol } from "./elements";
+import { isChemistryStem } from "./classify";
 
 export const SOLID_FAMILY = "chem_unit_cell" as const;
 const AVOGADRO = 6.022e23;
@@ -76,14 +77,22 @@ export function unitCellDensity(input: { z: number; molarMass: number; edgeLengt
 /* ------------------------------------------------------------------ cues */
 
 const LATTICE_WORD = /\b(?:fcc|ccp|bcc|hcp)\b|simple cubic|primitive cubic|body[ -]?cent(?:re|er)(?:e?d)?|face[ -]?cent(?:re|er)(?:e?d)?|cubic close[ -]?pack|hexagonal close[ -]?pack|rock[ -]?salt|nacl[ -]?(?:type|structure|like)|\bcscl\b|zinc blende|sphalerite|antifluorite|anti-fluorite|\bfluorite\b/;
-const SOLID_CUE = /unit cells?|packing (?:efficiency|fraction)|octahedral (?:voids?|holes?|sites?)|tetrahedral (?:voids?|holes?|sites?)|edge length|cubic (?:lattice|unit|crystal|close)|lattice[^.]{0,20}cubic|close[ -]?pack/;
+const SOLID_CUE = /unit cells?|packing (?:efficiency|fraction)|octahedral (?:voids?|holes?|sites?)|tetrahedral (?:voids?|holes?|sites?)|cubic (?:lattice|unit|crystal|close)|lattice[^.]{0,20}cubic|close[ -]?pack/;
+/**
+ * Solid geometry and physics share this word: a pyramid's lateral edge, a
+ * square loop of edge length a. Alone it is a unit cell cue only in a stem
+ * the subject test already reads as chemistry, since the router counts a
+ * family cue as subject evidence and a claimed stem skips the exact planner.
+ */
+const SHARED_SOLID_CUE = /edge length/;
 const VETO = /schottky|frenkel|vacancy|interstitial defect|\bf[ -]cent(?:re|er)s?\b|metal (?:deficiency|excess)|non[ -]?stoichiometr|point defects?|amorphous|cubical|cube of side|lattice (?:energy|enthalpy)|hydration energ|crystal field|tetragonal|orthorhombic|monoclinic|triclinic|rhombohedral|shown (?:below|above|in the figure)|given figure|following figure|structure (?:shown|given)|figure (?:shown|given|below)/;
 
 /** True when the stem names a lattice or a unit cell question and vetoes nothing. */
 export function isUnitCellStem(question: string): boolean {
   const stem = chemStem(question);
   if (VETO.test(stem)) return false;
-  return LATTICE_WORD.test(stem) || SOLID_CUE.test(stem);
+  return LATTICE_WORD.test(stem) || SOLID_CUE.test(stem) ||
+    (SHARED_SOLID_CUE.test(stem) && isChemistryStem(question));
 }
 
 /* ------------------------------------------------------------ geometry */

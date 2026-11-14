@@ -630,6 +630,8 @@ interface PlannerRequestArgs {
   problemIRModelOverride?: string;
   deadlineMs: number;
   signal: AbortSignal;
+  /** The student's request alone, so an abort can name who cut it off. */
+  clientSignal: AbortSignal;
   actor: SpendActor;
   grant: TurnGrant;
 }
@@ -657,6 +659,7 @@ async function handlePlannerRequest({
   problemIRModelOverride,
   deadlineMs,
   signal,
+  clientSignal,
   actor,
   grant,
 }: PlannerRequestArgs): Promise<Response> {
@@ -924,10 +927,23 @@ async function handlePlannerRequest({
     // Every attempt failed to connect or timed out. A client that left or a
     // planner deadline is not the relay failing.
     if (!signal.aborted && !deadlineController.signal.aborted) noteProviderOutcome(llm, { ok: false });
-    tutorDebug("planner", "proxy error", { message, elapsed_ms: Date.now() - requestStartedAt });
+    // A client close is its own deadline, a peer lane that won, or the turn
+    // ending; the client reports which into this generation's `abort_reason`
+    // (/api/trace/event). Only the server's own limits are named here.
+    const abortSource = deadlineController.signal.aborted ? "server_deadline"
+      : clientSignal.aborted ? "client_closed"
+        : signal.aborted ? "request_timeout"
+          : aborted ? "attempt_timeout" : undefined;
+    tutorDebug("planner", "proxy error", { message, abort_source: abortSource, elapsed_ms: Date.now() - requestStartedAt });
     endLlmGeneration(turnTrace, {
       output: message,
-      metadata: { error: true, planner: true, aborted, usage_status: "unknown" },
+      metadata: {
+        error: true, planner: true, aborted, usage_status: "unknown",
+        ...(abortSource ? { abort_source: abortSource } : {}),
+        ...(abortSource && abortSource !== "client_closed" ? { abort_reason: "deadline" } : {}),
+        planner_lane: plannerLane, planner_phase: plannerPhase, planner_deadline_ms: deadlineMs,
+        elapsed_ms: Date.now() - requestStartedAt, llm_provider: llm.provider,
+      },
       updateTrace: false,
       level: aborted ? "WARNING" : "ERROR",
     });
@@ -991,7 +1007,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   const sessionId = request.headers.get("x-session-id") ?? undefined;
   const userInput = readPromptFromBody(rawBody);
-  const { traceId: incomingTraceId, question } = readChatTraceHeaders(request.headers);
+  const { traceId: incomingTraceId, question, plannerRequestId } = readChatTraceHeaders(request.headers);
   const traceId = incomingTraceId ?? genTraceId();
   const attach = Boolean(incomingTraceId);
   const kind = resolveChatGenerationKind(request.headers);
@@ -1028,6 +1044,7 @@ export async function POST(request: Request): Promise<Response> {
     mock,
     model: serverModel,
     generationName: chatGenerationName(kind),
+    plannerRequestId: request.headers.get("x-planner") === "1" ? plannerRequestId : undefined,
     tags: [`diagram-strategy-assigned:${diagramStrategyAssignment}`],
   });
 
@@ -1111,6 +1128,7 @@ export async function POST(request: Request): Promise<Response> {
         ),
       ),
       signal: requestSignal,
+      clientSignal: request.signal,
       actor,
       grant,
     });

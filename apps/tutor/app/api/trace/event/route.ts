@@ -1,7 +1,10 @@
+import { readPlannerRequestId } from "@/lib/obs/chatTrace";
 import {
   flushSafely,
+  recordPlannerAbortReason,
   recordTurnEvents,
   updateTurnTrace,
+  type PlannerAbortReport,
   type TurnTelemetryEvent,
 } from "@/lib/obs/langfuse";
 import { MAX_TURN_TELEMETRY_EVENTS } from "@/lib/obs/turnTelemetry";
@@ -30,6 +33,10 @@ function isValidEvent(value: unknown): value is TurnTelemetryEvent {
     typeof value.startTime === "string" && value.startTime.length <= 40 && Number.isFinite(Date.parse(value.startTime)) &&
     typeof value.endTime === "string" && value.endTime.length <= 40 && Number.isFinite(Date.parse(value.endTime))
   );
+}
+
+function isPlannerAbortReport(value: unknown): value is PlannerAbortReport {
+  return value === "superseded" || value === "deadline" || value === "turn_cancelled";
 }
 
 function boundedMetadata(value: unknown): Record<string, unknown> | undefined {
@@ -111,6 +118,13 @@ export async function POST(request: Request): Promise<Response> {
       sessionId: body.sessionId,
       events,
     });
+    for (const event of events) {
+      if (event.name !== "planner-request-aborted") continue;
+      const plannerRequestId = readPlannerRequestId(event.metadata?.planner_request_id);
+      const abortReason = event.metadata?.abort_reason;
+      if (!plannerRequestId || !isPlannerAbortReport(abortReason)) continue;
+      recordPlannerAbortReason({ userId, traceId: body.traceId, plannerRequestId, abortReason });
+    }
   }
 
   if (body.traceMetadata) {

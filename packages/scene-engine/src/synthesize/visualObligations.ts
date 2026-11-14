@@ -7,7 +7,8 @@
  * stale scalar can still pair with correct geometry. These obligations close
  * that gap from source evidence and structural ProblemIR alone:
  *
- * - named bodies: every entity a representation intent draws must appear,
+ * - named bodies: every entity a representation intent draws must appear
+ *   (an unlabelled `state` is no body and is reported as unsupported),
  * - connections: every `connected` constraint must hold in the scene topology,
  * - given dimensions: every constant given-grounded expression value must be
  *   carried by the scene (stale planner scalars reject),
@@ -170,13 +171,18 @@ export function deriveVisualObligations(problem: ProblemIR): VisualObligationSet
       const entity = entities.get(entityId);
       if (!entity) continue;
       obligatedEntities.add(entityId);
+      // A state (a reaction's progress, a gas's condition) is not a body, and
+      // with no source label its only identity is the planner's own id, which
+      // no engine figure is built from. It is a declared limit, not a miss.
+      const abstractState = entity.kind === "state" && !entity.label?.trim();
       obligations.push({
         id: `body:${entityId}`,
         kind: "named_body",
         problemEntityIds: [entityId],
         factIds: [...entity.evidenceFactIds],
         label: entity.label ?? entityId,
-        supported: true,
+        supported: !abstractState,
+        supportReason: abstractState ? "an unlabelled state names no drawable body" : undefined,
         problemEntityId: entityId,
         problemKind: entity.kind,
         problemLabel: entity.label ?? null,

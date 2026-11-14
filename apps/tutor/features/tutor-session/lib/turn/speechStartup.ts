@@ -11,6 +11,13 @@ export async function requireSpeechStart(
 
 /** Stop waiting on a transport that has neither spoken nor settled. */
 export const SPEECH_STARTUP_DEADLINE_MS = 6_500;
+/**
+ * Browser speech that failed to start once in a turn is not tried again in
+ * it. The provider keeps the time that handoff used to cost (the deadline
+ * plus the browser voice's 2.5 s start give-up), so the board waits no longer
+ * than before; a late provider start speaks instead of a silent sentence.
+ */
+export const PROVIDER_ONLY_STARTUP_DEADLINE_MS = SPEECH_STARTUP_DEADLINE_MS + 2_500;
 /** Complete bytes may still be waiting for native media to start. */
 export const SPEECH_MEDIA_READY_GRACE_MS = 2_500;
 /**
