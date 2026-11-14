@@ -111,6 +111,7 @@ export async function verifyAdminLivePlayback(): Promise<void> {
 
     const topicRow = renderToStaticMarkup(
       React.createElement(TopicRow, {
+    figures: 0,
         item: { id: question.topicId, text: "Motion" } as SyllabusItem,
         probes: [question],
         states: { easy: "idle", medium: "missing", hard: "missing" },

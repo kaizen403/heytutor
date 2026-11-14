@@ -1,3 +1,4 @@
+import { figureCount } from "@/lib/admin/playgroundLecture";
 import type { BoardEntry } from "@/lib/boards/types";
 import { isLectureWatchable, lectureJobTitle, type LectureJob } from "./lectureJobs";
 import { isProbeDifficulty, type ProbeDifficulty } from "./probes";
@@ -184,4 +185,12 @@ export function recordingBoardIdsForQuestions(
     ids.push(board.id);
   }
   return ids;
+}
+
+/** Saved coverage stays visible while a replacement lecture is running. */
+export function countRecordedFigures(
+  questions: readonly { topicId: string; difficulty: ProbeDifficulty }[],
+  recordings: ReadonlyMap<string, BoardEntry>,
+): number {
+  return figureCount(questions.map(question => recordings.get(recordingKey(question.topicId, question.difficulty))?.playground));
 }

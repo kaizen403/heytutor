@@ -16,9 +16,11 @@ import { Checkbox } from "./Checkbox";
 import { CostChip } from "./CostChip";
 import { DifficultyCell } from "./DifficultyCell";
 import { QuestionTags } from "./QuestionTags";
-import { figureCount, type PlaygroundLecture } from "@/lib/admin/playgroundLecture";
+import type { PlaygroundLecture } from "@/lib/admin/playgroundLecture";
 
 export interface TopicRowProps {
+  /** Coverage of the newest complete recordings, independent of live actions. */
+  figures: number;
   item: SyllabusItem;
   probes: readonly ProbeQuestion[];
   states: Record<ProbeDifficulty, DifficultyState>;
@@ -43,6 +45,7 @@ export interface TopicRowProps {
 }
 
 export function TopicRow({
+  figures,
   item,
   probes,
   states,
@@ -61,7 +64,6 @@ export function TopicRow({
   onNotes,
   onDelete,
 }: TopicRowProps) {
-  const figures = figureCount(PROBE_DIFFICULTIES.map(difficulty => lecturesByBoardId?.get(boardIds[difficulty] ?? "")));
   const probeIds = probes.map((probe) => probe.id);
   const selectedCount = probeIds.filter((id) => selectedIds.has(id)).length;
   const allSelected = probeIds.length > 0 && selectedCount === probeIds.length;

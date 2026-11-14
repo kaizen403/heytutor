@@ -46,6 +46,7 @@ import {
 } from "./lib/parseSyllabus";
 import {
   mergePlaygroundRecordings,
+  countRecordedFigures,
   recordingKey,
 } from "./lib/playgroundBoards";
 import { buildProbeIndex, probesForTopic, visibleSelectedProbes } from "./lib/probeIndex";
@@ -71,6 +72,7 @@ interface AdminPlaygroundProps {
 }
 
 interface VisibleTopic {
+  figures: number;
   item: SyllabusItem;
   probes: ProbeQuestion[];
   probeIds: string[];
@@ -213,6 +215,8 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
 
       for (const item of unit.items) {
         const topicProbes = probesForTopic(probeIndex, item.id);
+        const topicFigures = countRecordedFigures(topicProbes, recordings);
+        figures += topicFigures;
         const entry = progress[item.id] ?? DEFAULT_PROGRESS_ENTRY;
         const states = {} as Record<ProbeDifficulty, DifficultyState>;
         const boardIds: Partial<Record<ProbeDifficulty, string>> = {};
@@ -236,7 +240,6 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
           }
           if (cell.state === "recorded") {
             recorded += 1;
-            figures += figureCount([lecturesByBoardId.get(cell.boardId ?? "")]);
             const board = cell.boardId;
             if (
               board &&
@@ -275,6 +278,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
         }
 
         topics.push({
+          figures: topicFigures,
           item,
           probes: topicProbes,
           probeIds: topicProbes.map((probe) => probe.id),
@@ -307,7 +311,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
     }
 
     return built;
-  }, [units, probeIndex, progress, lectureStates, recordingBoardIds, filters, lecturesByBoardId]);
+  }, [units, probeIndex, progress, lectureStates, recordingBoardIds, filters, recordings]);
 
   const lectureCostSessions = useMemo(() => {
     const sessions: Array<{ sessionId: string; hot: boolean }> = [];
@@ -782,6 +786,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                   >
                     {unit.topics.map((topic) => (
                       <TopicRow
+                        figures={topic.figures}
                         key={topic.item.id}
                         item={topic.item}
                         probes={topic.probes}
