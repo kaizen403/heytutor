@@ -22,6 +22,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import ts from "typescript";
 
 import {
   MarkerStuntPreview,
@@ -254,17 +255,25 @@ const ALL_PHASES: readonly TutorPhase[] = ["idle", "planning", "thinking", "draw
     resolve(tutorRoot, "features/tutor-session/components/SessionBoardCanvas.tsx"),
     "utf8",
   );
-  // `\s` keeps `RefObject<WhiteboardHandle>` out of the count.
-  const boards = (canvas.match(/<Whiteboard\s/g) ?? []).length;
-  const wired = (canvas.match(/markerStunts=\{settings\.markerStunts\}/g) ?? []).length;
-  // The live board, the rewind overlay and the off-screen export board. Only
-  // the first two are ever looked at, and the export board deliberately runs
-  // with no idle motion at all, so it is the one that stays unwired.
-  assert(boards === 3, `expected the live, rewind and export boards, found ${boards}`);
-  assert(
-    wired === 2,
-    `${wired} of the 2 student-facing boards were given the stunt setting`,
-  );
+  const tree = ts.createSourceFile("SessionBoardCanvas.tsx", canvas, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const refs = new Set<string>();
+  const visit = (node: ts.Node): void => {
+    if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(tree) === "Whiteboard") {
+      const attr = (name: string) => node.attributes.properties.find((property): property is ts.JsxAttribute => ts.isJsxAttribute(property) && property.name.getText(tree) === name)?.initializer?.getText(tree);
+      const owner = attr("ref");
+      assert(owner, "every board must declare its owner"); refs.add(owner);
+      if (owner === "{exportBoardRef}") {
+        assert(attr("thinkingMotion") === '"none"' && attr("markerStunts") === undefined, "off-screen export never performs idle stunts");
+      } else {
+        assert(attr("markerStunts") === "{settings.markerStunts}", `${owner}: every student-facing board must receive the selected stunts`);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(tree);
+  for (const owner of ["whiteboardRef", "rewindBoardRef", "playerBoardRef", "exportBoardRef"]) {
+    assert(refs.has(`{${owner}}`), `the ${owner} board must be covered by the marker wiring check`);
+  }
 }
 
 // --- the settings let a student pick tricks, and show them what they picked --

@@ -10,6 +10,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import ts from "typescript";
 import { attemptArchetypeScene, compileSceneDocument, validateSceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { selectProductionScene, validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
@@ -104,12 +105,28 @@ async function main() {
     assert.equal(drawn(OPPOSED, opposed(false)), null);
   });
 
-  // Rule 3: the save path and the family path do not run these rules, so saved boards and family figures are as dev.
-  await check("the save path never runs figure consistency", () => {
+  // Default stored compilation preserves the historical policy. The existing
+  // opt-in yielded-parts recompile separately retains its stronger truth guard.
+  await check("stored consistency is confined to the opted-in yielded-parts recompile", () => {
     const source = (path: string) => readFileSync(join(__dirname, "../..", path), "utf8");
-    for (const path of ["lib/scene/turnScenePersistence.ts", "lib/scene/sceneSaveAdmission.ts", "lib/scene/sceneAdmission.ts"]) {
+    for (const path of ["lib/scene/turnScenePersistence.ts", "lib/scene/sceneSaveAdmission.ts"]) {
       assert.ok(!source(path).includes("figureConsistency"), path);
     }
+    const admission = source("lib/scene/sceneAdmission.ts");
+    const tree = ts.createSourceFile("sceneAdmission.ts", admission, ts.ScriptTarget.Latest, true);
+    let optInChecks = 0;
+    const visit = (node: ts.Node): void => {
+      if (ts.isPropertyAssignment(node) && node.name.getText(tree) === "figureConsistency") {
+        let owner: ts.Node | undefined = node.parent;
+        while (owner && !ts.isFunctionDeclaration(owner)) owner = owner.parent;
+        assert(owner && ts.isFunctionDeclaration(owner) && owner.name?.text === "asDevPrepared");
+        assert.equal(node.initializer.kind, ts.SyntaxKind.TrueKeyword, "yielded parts still use the truth guard");
+        assert(owner.getText(tree).includes('source.diagramYieldPolicy !== "verified_parts"'), "ordinary stored scenes do not enter the opted-in recompile");
+        optInChecks++;
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(tree); assert.equal(optInChecks, 1);
   });
   for (const [name, question, candidate] of [["a true pair of cells in opposition", OPPOSED, opposed(true)], ["one with its + at a short plate, saved before this rule", OPPOSED, opposed(false)]] as const) {
     await check(`a saved board holding ${name} passes its resume save`, async () => {

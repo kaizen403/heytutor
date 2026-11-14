@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { withTurnTraceHeaders } from "@heytutor/tutor-core";
-import { validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { TURN_PLAN_TEXT_LIMITS, validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
 import {
   buildLiveDiagramPickerBody,
   filterLiveDiagramExamples,
@@ -53,9 +53,15 @@ const catalogueBounds = liveDiagramPromptInputBounds(catalogue);
 covered(rawPicker(plan), buildLiveDiagramPickerBody(rawPicker(plan), question, catalogue), catalogueBounds.picker);
 assert.deepEqual(liveDiagramPromptInputBounds([...catalogue].reverse()), catalogueBounds, "the advertised bound is independent of catalogue order");
 
-const verbosePlan = { ...plan,
+const oversizedPlan = { ...plan,
   lawIds: ["अक्षर\\\"".repeat(2000)],
   qualitativeClaims: [{ id: "scope", claim: "दिशा\\\"".repeat(2000), expected: "उत्तर\\\"".repeat(2000), relatedEntityHints: ["बिन्दु".repeat(2000)] }],
+};
+assert(validateTurnPlanV3(oversizedPlan, question).issues.some(issue => issue.code === "plan_text_over_limit"), "the original oversized payload remains refused before prompt preparation");
+const boundedText = (text: string) => text.repeat(TURN_PLAN_TEXT_LIMITS.textChars).slice(0, TURN_PLAN_TEXT_LIMITS.textChars);
+const verbosePlan = { ...plan,
+  lawIds: [boundedText("अक्षर\\\"")],
+  qualitativeClaims: [{ id: "scope", claim: boundedText("दिशा\\\""), expected: boundedText("उत्तर\\\""), relatedEntityHints: [boundedText("बिन्दु")] }],
 };
 assert(validateTurnPlanV3(verbosePlan, question).plan, "the long summary must come from a genuinely accepted plan");
 covered(rawPicker(verbosePlan), buildLiveDiagramPickerBody(rawPicker(verbosePlan), question, catalogue), catalogueBounds.picker);
