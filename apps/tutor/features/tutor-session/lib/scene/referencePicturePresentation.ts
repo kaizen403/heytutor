@@ -528,6 +528,8 @@ export function pointsAtReferencePicture(
  * dropped because a verified figure was drawn instead.
  */
 export interface ReferencePictureOutcome {
+  /** The query judged this an explicit picture request; never geometry authority. */
+  required?: boolean;
   attempted: boolean;
   status: "shown" | "declined" | "unavailable" | "skipped";
   reason: string | null;
@@ -553,6 +555,7 @@ export function readReferencePictureOutcome(artifacts: unknown): ReferencePictur
     reason: value.reason as string | null,
     ms: value.ms,
     speculative: value.speculative,
+    ...(value.required === true ? { required: true } : {}),
     ...(value.cached === true ? { cached: true } : {}),
   };
 }

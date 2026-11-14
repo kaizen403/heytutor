@@ -13,6 +13,8 @@ export function resolvePictureQueryModel(env: NodeJS.ProcessEnv = process.env): 
 }
 
 export interface PictureQuery {
+  /** An explicit request to see a picture, distinct from one that may help. */
+  required?: boolean;
   /** Set when a deterministic guard, not the model, turned the picture down. */
   declineReason?: "question_specific_figure";
   /** False when no single real picture would help (a calculation, an essay ask). */
@@ -25,7 +27,9 @@ export interface PictureQuery {
 
 const QUERY_RULES = `A tutor wants one real textbook-style picture (a labelled diagram, an anatomy drawing, a life cycle, a piece of lab apparatus) to show beside a lesson.
 Given the student's question, reply with only compact JSON:
-{"wantsPicture":boolean,"mustShow":"the topic of the picture with the aspect the question asks about, in plain English, at most 10 words, e.g. 'structure of the human heart', 'stages of mitosis', 'apparatus for simple distillation', 'process of photosynthesis'; never a checklist of parts","queries":["2 to 4 short English search phrases for Wikimedia Commons, best first, each 2 to 5 words, ending with diagram when a diagram fits"]}
+{"wantsPicture":boolean,"required":boolean,"mustShow":"the topic of the picture with the aspect the question asks about, in plain English, at most 10 words, e.g. 'structure of the human heart', 'stages of mitosis', 'apparatus for simple distillation', 'process of photosynthesis'; never a checklist of parts","queries":["2 to 4 short English search phrases for Wikimedia Commons, best first, each 2 to 5 words, ending with diagram when a diagram fits"]}
+Set required true only when the student explicitly asks to see a picture, diagram, parts, or what something looks like. An explanation alone does not require a picture.
+For a lesson asking for both a process and its parts, choose one anatomical or structural view that answers the parts request; do not require one image to also contain every phase, hormone, graph and explanation. Keep all explicitly requested visible parts in the topic. A picture of one part alone cannot answer a request to see two parts.
 When the question compares two things, the topic is the first one alone (the tutor draws one picture).
 Set wantsPicture false when the question is a numeric calculation, a proof, code, an essay or opinion, or when no single real picture would help.
 Set wantsPicture false when the figure would have to carry the question's own numbers or data (a graph of given values, a circuit with given resistances, a ray diagram with given distances, a free body diagram with given forces): a stock picture would show different numbers.
@@ -94,7 +98,7 @@ export function parsePictureQuery(text: string): PictureQuery | null {
       ? raw.queries.filter((q): q is string => typeof q === "string").map((q) => q.replace(/[^\p{L}\p{N}\s'-]/gu, " ").replace(/\s+/g, " ").trim()).filter((q) => q.length >= 3 && q.length <= 60).slice(0, 4)
       : [];
     const wantsPicture = raw.wantsPicture === true && mustShow.length > 0 && queries.length > 0;
-    return { wantsPicture, mustShow, queries };
+    return { wantsPicture, mustShow, queries, ...(raw.required === true ? { required: true } : {}) };
   } catch {
     return null;
   }

@@ -118,6 +118,10 @@ export function classifyTurnFailure(input: TurnFailureInput): TurnFailureClassif
     if (effective) return verdict("failed", effective);
   }
   if (input.visualStatus === "retry_required") return verdict("failed", "required_visual_unavailable");
+  const picture = record(artifacts.referencePictureOutcome);
+  if (picture.required === true && picture.attempted === true &&
+      (picture.status === "declined" || picture.status === "unavailable") && picture.reason !== "aborted" &&
+      !(input.status === "stopped" && taught === false)) return verdict("failed", "required_visual_unavailable");
   if (input.status === "complete" && taught === false) return verdict("unverified");
   if (continuation || plan.visualRequirement === "none" || artifacts.diagramResultStatus === "not_required") return verdict("healthy");
   if (input.status === "live") return verdict("pending");

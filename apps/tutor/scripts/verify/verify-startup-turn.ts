@@ -121,6 +121,8 @@ export interface FrozenStartupFixture {
   };
   /** Replay recorded teaching through the real DSA planner/handler/queue. */
   recordedCodeLesson?: { plan: CodeLessonPlan; response: string; continuationResponses?: string[]; revealCommittedCode?: boolean };
+  /** Only picture transports/assets are fake; the live doubt/reveal path runs. */
+  referencePictureTurn?: { response: unknown; doubtTitle: string; granted?: boolean };
   /** A language selected since the previous turn, applied by the real handler. */
   voiceKey?: TutorVoiceKey;
   /** Require the real Given-row request and committed WRITE path, not a no-givens prompt. */
@@ -233,7 +235,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
   const boardId = `startup-${mode}`;
   const parentId = `${boardId}-stopped-parent`;
   const parentTraceId = `${boardId}-parent-trace`;
-  const timeoutSeed: StoredTurn[] = mode === "startup-timeout" ? [{
+  const timeoutSeed: StoredTurn[] = mode === "startup-timeout" || fixture?.referencePictureTurn ? [{
     id: parentId, orderIndex: 0, question, rawResponse: "", speedMultiplier: 1, traceId: parentTraceId,
     kind: "lesson", status: "stopped", persistedStatus: "stopped", sceneDocument: null, sceneEngineVersion: null,
     validationReport: null, visualStatus: "text_only", sceneArtifacts: null, resumeState: null,
@@ -265,6 +267,10 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
   const completion = (value: unknown) => Response.json({ choices: [{ message: { content: JSON.stringify(value) } }] });
   replace("fetch", async (url: string, init?: RequestInit) => {
     const headers = new Headers(init?.headers);
+    if (fixture?.referencePictureTurn && url.endsWith("/api/reference-picture")) {
+      record("reference-picture-request", JSON.parse(String(init?.body)));
+      return Response.json(fixture.referencePictureTurn.response);
+    }
     if (fixture?.openingPrefetchEnabled !== undefined && (url.endsWith("/api/chat") || url.endsWith("/api/visual-need"))) {
       const kind = url.endsWith("/api/visual-need") ? "visual-need"
         : headers.has("x-turn-planner-version") ? "turn-plan"
@@ -528,7 +534,8 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       };
       if (specifier === "@/lib/billing/billingClient") return {
         ...requireApp(path.join(app, "lib/billing/billingClient.ts")),
-        beginTurn: async () => { record("turn-admission"); return { ok: true }; },
+        beginTurn: async () => { record("turn-admission"); return { ok: true,
+          ...(fixture?.referencePictureTurn ? { referencePicture: fixture.referencePictureTurn.granted !== false } : {}) }; },
       };
       if (specifier === "@/lib/boards/boardsClient") return {
         ...requireApp(path.join(app, "lib/boards/boardsClient.ts")),
@@ -541,6 +548,9 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       }
       const target = specifier.startsWith("@/") ? path.join(app, specifier.slice(2))
         : specifier.startsWith(".") ? path.resolve(path.dirname(file), specifier) : specifier;
+      if (fixture?.referencePictureTurn && target.endsWith("/referencePicturePreload")) return {
+        ...requireApp(target), preloadReferencePictureWithin: async () => true,
+      };
       if (target.endsWith("/earlyLessonOpening")) return loadHook(`${target}.ts`);
       if (target.endsWith("/lessonOpeningPreparation")) {
         const actual = loadHook(`${target}.ts`);
@@ -627,7 +637,11 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       dispatchedQuestion = action.text;
       record("teach-again-dispatch", action);
     }
-    const turn = handler.handleQuestion(dispatchedQuestion, resume ? { resume } : undefined)
+    const pictureDoubt = fixture?.referencePictureTurn ? {
+      title: fixture.referencePictureTurn.doubtTitle, prompt: fixture.referencePictureTurn.doubtTitle,
+      lessonQuestion: question, afterReplay: false,
+    } : undefined;
+    const turn = handler.handleQuestion(pictureDoubt?.title ?? dispatchedQuestion, pictureDoubt ? { doubt: pictureDoubt } : resume ? { resume } : undefined)
       .catch((error: unknown) => {
         if ((!recoveryMode && !mode.startsWith("opening-prefetch-stop")) || !isBenignTurnAbort(error)) throw error;
         record("stopped-planning-abort");
@@ -796,6 +810,20 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       assert.equal(lifecycle.pendingSegmentCountRef.current, 0);
       assert.equal(timers.size, 0);
       return { mode, startup: startupProjection() };
+    }
+    if (fixture?.referencePictureTurn) {
+      await pump(() => streams.length === 1 || done);
+      assert(!done, "picture follow-up reaches teaching");
+      content(0, "[STEP]The uterus has a muscular wall.[WRITE:The uterus has a muscular wall.][/STEP]");
+      finishStream(0);
+      await pump(() => done);
+      await turn;
+      await pump(() => lifecycle.pendingSegmentCountRef.current === 0);
+      assert(!events.some(event => event.name === "turn-error"));
+      assert.equal(lifecycle.turnActiveRef.current, false);
+      assert.equal(timers.size, 0);
+      return { mode, pictureEvents: events, pictureScene: lifecycle.boardPageRef.current?.turn.scene,
+        pictureRows: lifecycle.recordedSegmentsRef.current, pictureTeaching: teachingRequestBodies };
     }
     if (fixture?.recordedCodeLesson) {
       await pump(() => streams.length === 1);

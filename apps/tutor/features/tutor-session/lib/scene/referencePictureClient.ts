@@ -18,8 +18,8 @@ import { isReferencePictureId, parseReferencePictureLegend, type ReferencePictur
 export const REFERENCE_PICTURE_CLIENT_TIMEOUT_MS = 45_000;
 
 export type ReferencePictureResult =
-  | { status: "ready"; picture: ReferencePictureRecord; cached?: boolean }
-  | { status: "declined" | "unavailable"; reason: string };
+  | { status: "ready"; picture: ReferencePictureRecord; cached?: boolean; required?: boolean }
+  | { status: "declined" | "unavailable"; reason: string; required?: boolean };
 
 export interface ReferencePictureRequest {
   question: string;
@@ -94,13 +94,14 @@ export function parseReferencePictureRecord(value: unknown): ReferencePictureRec
 /** The typed boundary for a response body, shared with the verify script. */
 export function referencePictureResultFromResponse(body: unknown): ReferencePictureResult {
   if (!record(body)) return { status: "unavailable", reason: "invalid_response" };
+  const requirement = body.required === true ? { required: true } : {};
   if (body.status === "ready") {
     const picture = parseReferencePictureRecord(body.picture);
-    return picture ? { status: "ready", picture, ...(body.cached === true ? { cached: true } : {}) } : { status: "unavailable", reason: "invalid_picture" };
+    return picture ? { status: "ready", picture, ...(body.cached === true ? { cached: true } : {}), ...requirement } : { status: "unavailable", reason: "invalid_picture", ...requirement };
   }
   if (body.status === "declined") {
     const reason = typeof body.reason === "string" && /^[a-z0-9_:-]{1,64}$/i.test(body.reason) ? body.reason : "declined_unspecified";
-    return { status: "declined", reason };
+    return { status: "declined", reason, ...requirement };
   }
   return { status: "unavailable", reason: "invalid_response" };
 }

@@ -105,8 +105,9 @@ export async function POST(request: Request): Promise<Response> {
     // `steps` is the search and judge trail (Commons titles and the judge's
     // reasons, no student text), kept for the lab and the analytics.
     const steps = outcome.steps.slice(0, 40).map((step) => step.slice(0, 400));
-    if (outcome.status === "ready") return Response.json({ status: "ready", picture: outcome.picture, cached: outcome.cached, steps });
-    return Response.json({ status: "declined", reason: outcome.reason, steps });
+    const requirement = outcome.required === true ? { required: true } : {};
+    if (outcome.status === "ready") return Response.json({ status: "ready", picture: outcome.picture, cached: outcome.cached, steps, ...requirement });
+    return Response.json({ status: "declined", reason: outcome.reason, steps, ...requirement });
   } catch (error) {
     if (request.signal.aborted) return Response.json({ status: "declined", reason: "aborted" });
     if (error instanceof Error && error.name === "TimeoutError") return Response.json({ status: "declined", reason: "server_timeout" });
