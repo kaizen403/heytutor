@@ -93,13 +93,25 @@ assert.equal(
   "normalization is idempotent",
 );
 
+// Ordinary validation also accepts partial declarations of the operator's SI
+// convention (operatorInputAliases). Yield normalization stays conservative,
+// but this declaration is no longer a rejection case in the production path.
+const partialSi = projectile({ units: { speed: "m/s", gravity: "m/s²" } });
+assert.equal(normalizeVerifiedPartsInputs(partialSi, true).candidate, partialSi);
+assert.deepEqual(compile(partialSi), compile(canonical), "partial SI restatement changes no ink");
+for (const unit of ["km/h", "m", "m/ms"]) {
+  const conflict = structuredClone(partialSi);
+  conflict.quantities[0]!.unit = unit;
+  assert.equal(validateSceneDocument(conflict).document, null,
+    "partial declaration cannot erase a contradictory source quantity unit");
+}
+
 // Mutation controls: no dropping a contradictory, ambiguous or non-SI declaration.
 for (const units of [
   { speed: "km/h", gravity: "m/s²", length: "m" },
   { speed: "m/s", gravity: "m/s", length: "m" },
   { speed: "m/s", gravity: "m/s²", length: "cm" },
   { speed: "m/s", gravity: "m/s²", length: "m", time: "s" },
-  { speed: "m/s", gravity: "m/s²" },
 ]) {
   const candidate = projectile({ units });
   assert.equal(
