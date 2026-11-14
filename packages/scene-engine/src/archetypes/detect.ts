@@ -1297,7 +1297,8 @@ const CUE_SETS: readonly CueSet[] = [
   },
   {
     id: "standing_wave",
-    cues: [[/\b(?:standing|stationary) waves?\b/i, 5], [/\b(?:node|antinode|harmonic|overtone|organ pipes?|fundamental|resonance tube|closed pipe|open pipe)\b/i, 2], [/\b(?:string|pipe|tube)\b[^.]{0,30}\b(?:fixed|closed|open)\b/i, 2]],
+    // "Fundamental" alone supplies neither a wave nor a physical apparatus.
+    cues: [[/\b(?:standing|stationary) waves?\b/i, 5], [/\b(?:node|antinode|harmonic|overtone|organ pipes?|resonance tube|closed pipe|open pipe)\b/i, 2], [/\b(?:string|pipe|tube)\b[^.]{0,30}\b(?:fixed|closed|open)\b/i, 2]],
     vetoes: [/\bsimple harmonic\b|\bSHM\b/i],
     extract: (stem, _plan, bag) => {
       const closed = /\b(?:closed (?:organ )?pipes?|closed at one end|one end (?:is )?closed|closed end)\b/i.test(stem);

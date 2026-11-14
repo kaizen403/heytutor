@@ -42,7 +42,7 @@ const namedByAnnotation = structuredClone(loopDocument);
 delete namedByAnnotation.entities.find(e => e.id === "normal")!.label;
 namedByAnnotation.annotations.push({ id: "normal_name", kind: "label", targetIds: ["normal"], text: "N" });
 assert(compileSceneDocument(validateSceneDocument(namedByAnnotation).document!, { figureConsistency: true }).ok, "annotation-owned names receive the same layout as entity labels");
-console.log("recovery physics/maths: ownership, refusal, idempotence and origin-witness regressions passed");
+console.log("recovery physics/maths: contact proof, names and origin-witness regressions passed");
 
 // A free arrow has a direction even after a display translation. Check the
 // same invariant under rotation; witnesses and downstream angle arms matter.
