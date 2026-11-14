@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { PlainButton, SiteButton } from "@/components/ui/site-button";
+import { FigureTag } from "./QuestionTags";
 import { cn } from "@/lib/utils";
 import type { BoardEntry } from "@/lib/boards/types";
 import {
@@ -41,6 +42,7 @@ interface RunBarProps {
   onWatchLive: (boardId: string) => void;
   onWatch: (boardId: string) => void;
   onNotes: (boardId: string) => void;
+  onReview?: (boardId: string) => void;
   onDelete: (boardId: string) => void;
   onDeleteCompleted?: () => void;
   completedDeleteCount: number;
@@ -52,7 +54,7 @@ function statusLabel(job: LectureJob): string {
     if (job.phase === "planning" || job.phase === "thinking") return "Preparing";
     return "Starting";
   }
-  if (job.status === "failed") return "Failed";
+  if (job.status === "failed") return "Not completed";
   if (job.status === "complete") return "Complete";
   return "Waiting";
 }
@@ -73,6 +75,7 @@ export function RunBar({
   onWatchLive,
   onWatch,
   onNotes,
+  onReview,
   onDelete,
   onDeleteCompleted,
   completedDeleteCount,
@@ -212,11 +215,11 @@ export function RunBar({
               boardId && recordingBoardIds.has(boardId),
             );
             const live = isLectureLiveWatchable(job, { isRecording });
-            const watchable = isLectureWatchable(job, {
+            const watchable = boards.some(board => board.id === boardId && board.playground?.state === "complete") && isLectureWatchable(job, {
               isRecording,
               boardPreview: boardId ? previewById.get(boardId) : undefined,
             });
-            const deletable = isLectureDeletable(job, { isRecording });
+            const deletable = job.status === "complete" && isLectureDeletable(job, { isRecording });
             const watching = Boolean(boardId && watchingBoardId === boardId);
 
             return (
@@ -248,6 +251,7 @@ export function RunBar({
                   </span>
                 </div>
 
+                {watchable ? <div className="mt-2"><FigureTag lecture={boards.find(board => board.id === boardId)?.playground} /></div> : null}
                 {job.status === "failed" && job.error ? (
                   <p className="mt-1 break-words text-xs text-danger">{job.error}</p>
                 ) : null}
@@ -281,6 +285,7 @@ export function RunBar({
                           <Eye className="h-3 w-3" aria-hidden />
                           Watch
                         </PlainButton>
+                        {onReview ? <PlainButton onClick={() => onReview(boardId)}>Review</PlainButton> : null}
                         <PlainButton onClick={() => onNotes(boardId)}>
                           <ScrollText className="h-3 w-3" aria-hidden />
                           Notes

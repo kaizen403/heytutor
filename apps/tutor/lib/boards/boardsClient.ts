@@ -1,3 +1,4 @@
+import type { PlaygroundLecture } from "@/lib/admin/playgroundLecture";
 import { sourceCheckedStoredTurn } from "@/lib/scene/storedSceneSource";
 import { speechAudioMimeType } from "@heytutor/tutor-core";
 import { resolveApiUrl, type AudioTimings } from "@heytutor/tutor-core";
@@ -104,11 +105,11 @@ export async function createBoard(id?: string): Promise<BoardEntry | null> {
   return data.board ?? null;
 }
 
-export async function createBoardWithTitle(title: string): Promise<BoardEntry | null> {
+export async function createBoardWithTitle(title: string, playground?: PlaygroundLecture): Promise<BoardEntry | null> {
   const res = await fetch(resolveApiUrl("/api/boards"), {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, playground }),
   });
 
   if (!res.ok) {

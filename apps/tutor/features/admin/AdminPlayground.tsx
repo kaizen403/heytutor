@@ -8,6 +8,8 @@ import { AdminToolbar } from "./components/AdminToolbar";
 import { MessageDialog } from "./components/MessageDialog";
 import { RunBar } from "./components/RunBar";
 import { RunCostBox } from "./components/RunCostBox";
+import { QuestionReviewDialog } from "./components/QuestionReviewDialog";
+import { figureCount, type PlaygroundLecture } from "@/lib/admin/playgroundLecture";
 import { TopicRow } from "./components/TopicRow";
 import { TopicSheet } from "./components/TopicSheet";
 import { UnitSection, type UnitSummary } from "./components/UnitSection";
@@ -17,7 +19,6 @@ import { useLectureCosts } from "./hooks/useLectureCosts";
 import { useLectureQueue } from "./hooks/useLectureQueue";
 import { useLiveWatchSlot } from "./hooks/useLiveWatchSlot";
 import { useRunCost } from "./hooks/useRunCost";
-import { useSyllabusProgress } from "./hooks/useSyllabusProgress";
 import {
   headlessLectureBoardStyle,
   headlessLectureOffscreenStyle,
@@ -39,13 +40,13 @@ import {
 } from "./lib/lectureState";
 import {
   SYLLABUS_SUBJECT_LABEL,
-  countItems,
   type SyllabusItem,
   type SyllabusSubject,
   type SyllabusTree,
 } from "./lib/parseSyllabus";
 import {
   mergePlaygroundRecordings,
+  countRecordedFigures,
   recordingKey,
 } from "./lib/playgroundBoards";
 import { buildProbeIndex, probesForTopic, visibleSelectedProbes } from "./lib/probeIndex";
@@ -55,7 +56,7 @@ import {
   type ProbeDifficulty,
   type ProbeQuestion,
 } from "./lib/probes";
-import { DEFAULT_PROGRESS_ENTRY, type ItemStatus } from "./lib/progressStorage";
+import { DEFAULT_PROGRESS_ENTRY, type ItemStatus, type ProgressMap } from "./lib/progressStorage";
 import {
   collapseLectureState,
   DEFAULT_TOPIC_FILTERS,
@@ -71,6 +72,7 @@ interface AdminPlaygroundProps {
 }
 
 interface VisibleTopic {
+  figures: number;
   item: SyllabusItem;
   probes: ProbeQuestion[];
   probeIds: string[];
@@ -97,17 +99,9 @@ function unitKey(subject: SyllabusSubject, number: number): string {
 }
 
 export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
-  const {
-    progress,
-    get,
-    setChecked,
-    setStatus,
-    setNotes,
-    setBoardId,
-    resetAll,
-    exportJson,
-  } = useSyllabusProgress();
   const queue = useLectureQueue();
+  const [reviewBoard, setReviewBoard] = useState<{ boardId: string; title: string; lecture: PlaygroundLecture } | null>(null);
+  const lecturesByBoardId = useMemo(() => new Map(queue.boards.flatMap(board => board.playground ? [[board.id, board.playground] as const] : [])), [queue.boards]);
 
   const [subject, setSubject] = useState<SyllabusSubject>("physics");
   const [filters, setFilters] = useState<TopicFilters>(DEFAULT_TOPIC_FILTERS);
@@ -142,14 +136,30 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
   const probeIndex = useMemo(() => buildProbeIndex(probes), [probes]);
 
   const recordingBoardIds = useMemo(
-    () => new Set(queue.runtimes.map((runtime) => runtime.boardId)),
-    [queue.runtimes],
+    () => new Set(queue.runtimes.filter(runtime => queue.jobs.some(job => job.id === runtime.jobId && job.status === "running")).map((runtime) => runtime.boardId)),
+    [queue.runtimes, queue.jobs],
   );
   const recordings = useMemo(
     () =>
       mergePlaygroundRecordings(queue.boards, queue.jobs, recordingBoardIds),
     [queue.boards, queue.jobs, recordingBoardIds],
   );
+  const progress = useMemo<ProgressMap>(() => {
+    const byTopic = new Map<string, PlaygroundLecture[]>();
+    for (const board of recordings.values()) {
+      if (!board.playground) continue;
+      const entries = byTopic.get(board.playground.topicId) ?? [];
+      entries.push(board.playground);
+      byTopic.set(board.playground.topicId, entries);
+    }
+    return Object.fromEntries([...byTopic].map(([topicId, entries]) => {
+      const reviews = entries.flatMap(entry => entry.review ? [entry.review] : []);
+      const checked = reviews.some(review => !review.skipped);
+      const needsWork = reviews.some(review => (review.stars !== null && review.stars <= 2) || review.figure === "incorrect" || review.tags.includes("Incorrect answer"));
+      const status: ItemStatus = needsWork ? "needs-improvement" : checked ? "accepted" : reviews.some(review => review.skipped) ? "rejected" : "pending";
+      return [topicId, { ...DEFAULT_PROGRESS_ENTRY, checked, status }];
+    }));
+  }, [recordings]);
   const lectureStates = useMemo(
     () => buildLectureStates(queue.jobs, recordings, recordingBoardIds),
     [queue.jobs, recordings, recordingBoardIds],
@@ -200,10 +210,13 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
       let recorded = 0;
       let running = 0;
       let accepted = 0;
+      let figures = 0;
       let possible = 0;
 
       for (const item of unit.items) {
         const topicProbes = probesForTopic(probeIndex, item.id);
+        const topicFigures = countRecordedFigures(topicProbes, recordings);
+        figures += topicFigures;
         const entry = progress[item.id] ?? DEFAULT_PROGRESS_ENTRY;
         const states = {} as Record<ProbeDifficulty, DifficultyState>;
         const boardIds: Partial<Record<ProbeDifficulty, string>> = {};
@@ -265,6 +278,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
         }
 
         topics.push({
+          figures: topicFigures,
           item,
           probes: topicProbes,
           probeIds: topicProbes.map((probe) => probe.id),
@@ -289,6 +303,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
           recorded,
           running,
           accepted,
+          figures,
         },
         selectableIds,
         deletableBoardIds,
@@ -296,7 +311,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
     }
 
     return built;
-  }, [units, probeIndex, progress, lectureStates, recordingBoardIds, filters]);
+  }, [units, probeIndex, progress, lectureStates, recordingBoardIds, filters, recordings]);
 
   const lectureCostSessions = useMemo(() => {
     const sessions: Array<{ sessionId: string; hot: boolean }> = [];
@@ -354,24 +369,15 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
       shownUnits.every((unit) => expandedUnits.has(unit.key)));
 
   const stats = useMemo(() => {
-    let checked = 0;
-    let accepted = 0;
-    let rejected = 0;
-    let needsImprovement = 0;
-    for (const entry of Object.values(progress)) {
-      if (entry.checked) checked += 1;
-      if (entry.status === "accepted") accepted += 1;
-      else if (entry.status === "rejected") rejected += 1;
-      else if (entry.status === "needs-improvement") needsImprovement += 1;
-    }
+    const lectures = [...recordings.values()].flatMap(board => board.playground ? [board.playground] : []);
     return {
-      total: countItems(tree),
-      checked,
-      accepted,
-      rejected,
-      needsImprovement,
+      total: probes.length,
+      reviewed: lectures.filter(lecture => lecture.review && !lecture.review.skipped).length,
+      withFigure: figureCount(lectures),
+      withoutFigure: lectures.filter(lecture => lecture.figure === "without-figure").length,
+      skipped: lectures.filter(lecture => lecture.review?.skipped).length,
     };
-  }, [progress, tree]);
+  }, [recordings, probes]);
 
   const unitCounts = useMemo(
     () => ({
@@ -415,6 +421,12 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
     setHeldBoardId(null);
   }, [setHeldBoardId]);
 
+  // A discarded live board must never be restored by the replay shell.
+  if (watchBoardId && queue.jobs.some(job => job.boardId === watchBoardId && job.status === "failed")) {
+    setWatchBoardId(null);
+    setWatchIntent("replay");
+  }
+
   const closeNotes = useCallback(() => {
     setNotesBoard(null);
   }, []);
@@ -431,6 +443,12 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
   const notice = useCallback((title: string, description: string) => {
     setDialog({ mode: "notice", title, description });
   }, []);
+
+  const openReview = useCallback((boardId: string, title?: string) => {
+    const lecture = lecturesByBoardId.get(boardId);
+    if (lecture?.state !== "complete") return;
+    setReviewBoard({ boardId, lecture, title: title ?? queue.jobs.find(job => job.boardId === boardId)?.question ?? "Lecture review" });
+  }, [lecturesByBoardId, queue.jobs]);
 
   const openNotes = useCallback(
     (boardId: string, title?: string) => {
@@ -582,7 +600,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
   };
 
   const handleExport = () => {
-    const blob = new Blob([exportJson()], { type: "application/json" });
+    const blob = new Blob([JSON.stringify([...recordings.values()].map(board => ({ boardId: board.id, ...board.playground })), null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -634,11 +652,10 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
     return ids;
   }, [visibleSelected, recordings, recordingBoardIds]);
   const completedJobRecordingIds = useMemo(
-    () => deletableJobBoardIds(queue.jobs, recordingBoardIds),
+    () => deletableJobBoardIds(queue.jobs.filter(job => job.status === "complete"), recordingBoardIds),
     [queue.jobs, recordingBoardIds],
   );
 
-  const selectedEntry = selectedItem ? get(selectedItem.id) : null;
 
   return (
     <div className="site-theme fx-aurora-soft relative min-h-screen">
@@ -680,16 +697,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
           }
           onCollapseAll={() => setExpandedUnits(new Set())}
           onExport={handleExport}
-          onReset={() =>
-            setDialog({
-              mode: "confirm",
-              title: "Reset progress?",
-              description:
-                "This clears all checklist progress. It cannot be undone.",
-              confirmLabel: "Reset",
-              onConfirm: resetAll,
-            })
-          }
+
         />
 
         <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -778,11 +786,18 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                   >
                     {unit.topics.map((topic) => (
                       <TopicRow
+                        figures={topic.figures}
                         key={topic.item.id}
                         item={topic.item}
                         probes={topic.probes}
                         states={topic.states}
                         boardIds={topic.boardIds}
+                        lecturesByBoardId={lecturesByBoardId}
+                        onReview={difficulty => {
+                          const boardId = topic.boardIds[difficulty];
+                          const lecture = boardId ? lecturesByBoardId.get(boardId) : null;
+                          if (boardId && lecture?.state === "complete") setReviewBoard({ boardId, lecture, title: topic.probes.find(probe => probe.difficulty === difficulty)?.question ?? topic.item.text });
+                        }}
                         costsByBoardId={costsByBoardId}
                         checked={topic.checked}
                         status={topic.status}
@@ -884,6 +899,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                     question: job?.question,
                   });
                 }}
+                onReview={boardId => openReview(boardId)}
                 onNotes={(boardId) => {
                   const job = queue.jobs.find(
                     (entry) => entry.boardId === boardId,
@@ -958,52 +974,21 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
       ) : null}
 
       <TopicSheet
+        costsByBoardId={costsByBoardId}
         item={selectedItem}
         probes={selectedItem ? probesForTopic(probeIndex, selectedItem.id) : []}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        checked={selectedEntry?.checked ?? false}
-        status={selectedEntry?.status ?? "pending"}
-        notes={selectedEntry?.notes ?? ""}
-        boardId={selectedEntry?.boardId}
-        recording={
-          selectedItem
-            ? Object.fromEntries(
-                PROBE_DIFFICULTIES.map((difficulty) => {
-                  const cell = cellStateFor(
-                    lectureStates,
-                    selectedItem.id,
-                    difficulty,
-                    true,
-                  );
-                  return [
-                    difficulty,
-                    cell.state === "running" ? cell.boardId : undefined,
-                  ];
-                }).filter(([, boardId]) => Boolean(boardId)),
-              )
-            : {}
-        }
-        onWatchLive={(boardId) => {
-          const job = queue.jobs.find((entry) => entry.boardId === boardId);
-          openLiveLecture(boardId, {
-            title: selectedItem?.text,
-            question: job?.question,
-          });
-        }}
-        onCheckedChange={(checked) =>
-          selectedItem && setChecked(selectedItem.id, checked)
-        }
-        onStatusChange={(status) =>
-          selectedItem && setStatus(selectedItem.id, status)
-        }
-        onNotesChange={(notes) =>
-          selectedItem && setNotes(selectedItem.id, notes)
-        }
-        onBoardIdChange={(boardId) =>
-          selectedItem && setBoardId(selectedItem.id, boardId)
-        }
+        lectures={Object.fromEntries(PROBE_DIFFICULTIES.flatMap(difficulty => {
+          const board = selectedItem ? recordings.get(recordingKey(selectedItem.id, difficulty)) : undefined;
+          return board?.playground ? [[difficulty, { boardId: board.id, lecture: board.playground }]] : [];
+        }))}
+        onWatch={(boardId, question) => { setSheetOpen(false); openLecture(boardId, { title: selectedItem?.text, question }); }}
+        onNotes={boardId => { setSheetOpen(false); openNotes(boardId, selectedItem?.text); }}
+        onReview={(boardId, question) => { setSheetOpen(false); openReview(boardId, question); }}
       />
+
+      {reviewBoard ? <QuestionReviewDialog key={reviewBoard.boardId} {...reviewBoard} onClose={() => setReviewBoard(null)} onSaved={() => { void queue.refreshBoards(); }} /> : null}
 
       <MessageDialog
         open={dialog !== null}
@@ -1047,6 +1032,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
           if (next === "replay") unlockTutorAudio();
           setWatchIntent(next);
         }}
+        onReview={() => { if (watchBoardId) openReview(watchBoardId, watchQuestion); }}
         onOpenNotes={() => {
           if (!watchBoardId) return;
           openNotes(watchBoardId, watchTitle);

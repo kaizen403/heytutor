@@ -1,8 +1,12 @@
+import type { PlaygroundLecture } from "@/lib/admin/playgroundLecture";
+
 export interface BoardEntry {
   id: string;
   title: string;
   createdAt: number;
+  updatedAt?: number;
   preview: string;
+  playground?: PlaygroundLecture | null;
   /**
    * When the student pinned it; pinned boards sort above the rest. Optional so
    * an existing fixture or an older cached row is still a valid BoardEntry:

@@ -177,6 +177,7 @@ export function useBoardSession({
    * reset re-enters the work column and pushes every replayed row down.
    */
   const restoreInkRef = useRef<{ cancelled: boolean; done: Promise<void> } | null>(null);
+  const restoreFailedRef = useRef(false);
   const activeSessionIdRef = useRef(sessionId);
   const isDraftRef = useRef(isDraft);
   // Commit the active board before paint and before asynchronous continuations.
@@ -592,6 +593,8 @@ export function useBoardSession({
       let finishInk: () => void = () => {};
       const ink = { cancelled: false, done: new Promise<void>((resolve) => { finishInk = resolve; }) };
       restoreInkRef.current = ink;
+      restoreFailedRef.current = false;
+      let restored = false;
       const isStale = () =>
         ink.cancelled ||
         generation !== restoreGenerationRef.current ||
@@ -685,6 +688,7 @@ export function useBoardSession({
         if (!isStale() && !read) setBoardLoaded(true);
 
         if (turns.length === 0 || skipInkRestoreRef?.current) {
+          restored = true;
           if (read && turns.length === 0) read.completed = true;
           return;
         }
@@ -860,10 +864,14 @@ export function useBoardSession({
         }
         if (isStale()) return;
         if (read) read.completed = true;
+        restored = true;
       } catch {
         // Network-level fetch failures must still clear the loading overlay.
       } finally {
-        if (restoreInkRef.current === ink) restoreInkRef.current = null;
+        if (restoreInkRef.current === ink) {
+          restoreFailedRef.current = !restored && !ink.cancelled;
+          restoreInkRef.current = null;
+        }
         finishInk();
         if (!isStale() || (read && generation === restoreGenerationRef.current && boardId === activeSessionIdRef.current)) {
           setBoardLoaded(true);
@@ -906,6 +914,14 @@ export function useBoardSession({
     ink.cancelled = true;
     await ink.done;
     if (generation === restoreGenerationRef.current) setBoardLoaded(true);
+  }, []);
+
+  /** Notes must wait for every saved stroke, even after the loading overlay leaves. */
+  const waitForBoardRestore = useCallback(async (): Promise<void> => {
+    const ink = restoreInkRef.current;
+    if (ink) await ink.done;
+    if (restoreFailedRef.current) throw new Error("Could not restore all lecture notes");
+    if (ink?.cancelled) throw new Error("Board restoration was interrupted");
   }, []);
 
   /** Replay one authenticated read through the same hydration path before Continue. */
@@ -985,6 +1001,7 @@ export function useBoardSession({
     revokeUnreferencedReplayBlobUrls,
     persistTurnForReplay,
     settleBoardRestore,
+    waitForBoardRestore,
     refreshBoardFromTurns,
     saveStatus,
     retrySave,

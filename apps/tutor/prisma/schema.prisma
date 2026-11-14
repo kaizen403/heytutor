@@ -150,6 +150,8 @@ model Board {
   userId       String             @map("user_id")
   title        String             @default("new board")
   preview      String             @default("")
+  /// Admin playground recording identity, completion evidence and manual review.
+  playground   Json?
   /// Pinned boards sort above the rest, newest pin first.
   pinnedAt     DateTime?          @map("pinned_at") @db.Timestamptz(6)
   /// Archived boards leave the list without being deleted.
