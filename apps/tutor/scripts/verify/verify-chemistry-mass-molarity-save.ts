@@ -9,8 +9,16 @@ const questions = [
   "Find the molarity of a solution containing 5.85 g of NaCl in 500 mL of solution.",
   "Find the molarity of a solution containing 0.00585 kg of NaCl in 0.5 L of solution.",
   "A solution contains 7.4092 g of Ca(OH)2 in 100 cm^3 of solution. Find its molarity.",
+  "Find the molarity of a solution containing 3.6458 g of HCl in 1 L of solution.",
 ];
 async function main() {
+  for (const species of ["HCI", "CIF", "HCIO"]) {
+    const question = `Find the molarity of a solution containing 5.85 g of ${species} in 500 mL of solution.`;
+    const turnPlan: TurnPlanV3 = {schemaVersion:"turn-plan/v3",question,givens:[],unknowns:[],derived:[],qualitativeClaims:[],lawIds:[],assumptions:[],visualRequirement:"required"};
+    const selection = selectProductionScene({question,turnPlan,problemIR:null,requiredRetryEnabled:true});
+    assert.notEqual(selection.visualStatus, "validated", "ambiguous OCR cannot acquire verified molarity: " + species);
+    assert.equal(selection.representation, null);
+  }
   for (const question of questions) {
     const turnPlan: TurnPlanV3 = {schemaVersion:"turn-plan/v3",question,givens:[],unknowns:[],derived:[],qualitativeClaims:[],lawIds:[],assumptions:[],visualRequirement:"required"};
     const selection = selectProductionScene({question,turnPlan,problemIR:null,requiredRetryEnabled:true});
@@ -54,6 +62,6 @@ async function main() {
       assert(sceneSaveAdmissionFailure({document:reopened,question,turnPlan:stale,tier:attempted.tier}));
     }
   }
-  console.log("mass-molarity: 9 production/save cases (empty, exact and rounded plans), 3 saved-document JSON reopens and 18 rejection controls passed");
+  console.log(`mass-molarity: ${questions.length * 3} production/save cases, ${questions.length} JSON reopens, ${questions.length * 6} rejection controls and 3 OCR refusals passed`);
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

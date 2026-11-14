@@ -1,7 +1,7 @@
 /** A bounded source program: formula-unit mass -> moles -> solution concentration.
  * No solvent volume, mixtures, hydration assumption, or supplied answer is inferred. */
 import { equivalentRoundedMeasuredQuantity } from "../contracts/contractsV3";
-import { parseFormula } from "./formula";
+import { ocrSuspectToken, parseFormula } from "./formula";
 import { ChemScene, type ChemPlanQuantity } from "./sceneKit";
 import { CHEMISTRY_SCALAR_PATTERN, readChemistryLiteral, convertChemistryValue, chemistryUnitSymbol, chemistryCanonicalValuesAgree, chemistryPlanBindingsValid, type ChemistryDimension, type ChemistryUnit, type ChemistryReading } from "./quantityReader";
 import { parseMathExpression } from "../math/expression";
@@ -32,6 +32,7 @@ export function readMassMolaritySource(question: string): MassMolaritySource | n
   if (!match?.indices?.groups || !match.groups) return null;
   const span = (name: string) => { const pair = match.indices!.groups![name]!; return { start: pair[0], end: pair[1] }; };
   const formula = match.groups.species!;
+  if (ocrSuspectToken(formula, question, span("species").start)) return null;
   // parseFormula preserves symbol case; case-insensitive prose cannot turn nacl into NaCl.
   const parsed = parseFormula(formula);
   if (!parsed || parsed.charge !== 0 || parsed.totalAtoms > 1000 || parsed.atoms.some(atom => !Number.isInteger(atom.count) || atom.count <= 0)) return null;

@@ -10,6 +10,8 @@ const examples = [
   ["A solution contains 18.015 g of H2O in 2 L of solution. Find its molarity.", 0.5],
   ["A solution contains 7.4092 g of Ca(OH)2 in 100 cm^3 of solution. Find its molarity.", 1],
   ["Find the molarity of a solution containing 0.180156 g of C₆H₁₂O₆ in 1 dm^3 of solution.", 0.001],
+  ["Find the molarity of a solution containing 3.6458 g of HCl in 1 L of solution.", 0.1],
+  ["Find the molarity of a solution containing 5.2457 g of HClO in 1 L of solution.", 0.1],
 ] as const;
 async function main() {
   for (const [question,expected] of examples) {
@@ -41,6 +43,7 @@ async function main() {
     base.replace("5.85 g", "unknown g"), base.replace("5.85 g", "-5.85 g"), base.replace("5.85 g", "0 g"),
     base.replace("5.85 g", "5.85 kg/m^3"), base.replace("NaCl", "solute"), base.replace("NaCl", "nacl"),
     base.replace("NaCl", "NaCl and KCl"), base.replace("NaCl", "NaCl·2H2O"),
+    ...["HCI", "CIF", "HCIO"].map(species => base.replace("NaCl", species)),
     base.replace("500 mL", "0 mL"), base.replace("500 mL", "500 ML"), base.replace("500 mL", "500 mL/s"),
     base.replace("of solution.", "of solvent."), base.replace("of solution.", "of water."),
     base.replace("5.85 g of NaCl", "5.85 g of NaCl and 2 g of KCl"),
@@ -52,6 +55,6 @@ async function main() {
     const result = synthesizeFamilyScene({question});
     assert.equal(result,null,"invalid concentration source must not borrow an unrelated figure: "+question);
   }
-  console.log(`mass-molarity: ${examples.length} source/compile/solver cases, 20 stale-role/unit checks and ${negatives.length} source negatives passed`);
+  console.log(`mass-molarity: ${examples.length} source/compile/solver cases, ${examples.length * 4} stale-role/unit checks and ${negatives.length} source negatives passed`);
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});
