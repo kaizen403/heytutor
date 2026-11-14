@@ -126,7 +126,9 @@ export function looksLikeCodingProblem(question: string): boolean {
     .replace(/\btime\s+limit(?:\s+per\s+test)?\s*:?\s*\d+(?:\.\d+)?\s*(?:ms|s|milliseconds?|seconds?)\b/gi, "");
   if (!concreteIO && /\b\d+(?:\.\d+)?[ \t]*(?:kg|mg|g|km|cm|mm|m|ms|s|Hz|Pa|N|J|W|V|A|K|meters?|metres?|seconds?|newtons?|degrees?|radians?)\b/.test(setup)) return false;
   const computation = /\breturn\s+(?:the\s+|an?\s+|all\s+|any\s+)?(?:true|false|indices|index|maximum|minimum|number|length|sum|count|result|array|string|list|root|head|value|total|smallest|largest|kth)\b/i.test(question);
-  const typedInput = /\bgiven\s+(?:(?:an?|the|two)\s+)?(?:(?:head|root)\s+of\s+(?:an?|the)\s+)?(?:(?:positive|negative|non[- ]negative|non[- ]zero|unsigned|signed|sorted|unsorted|non[- ]empty)\s+)*(arrays?|strings?|integers?|lists?|booleans?|matri(?:x|ces)|grids?|(?:(?:singly|doubly)\s+)?linked\s+lists?|(?:binary\s+)?trees?)\b/i.exec(question);
+  // Bounded modifiers allow qualified type declarations. Connectors and
+  // operations end the declaration before later lecture prose.
+  const typedInput = /\bgiven\s+(?:(?:an?|the|two)\s+)?(?:(?:head|root)\s+of\s+(?:an?|the)\s+)?(?:(?!(?:of|under|with|in|at|on|whose|which|that|is|has|and|or|about|for|to|from|return|remove|replace|reverse|sort|merge|filter|compute|calculate|find|count|determine|check)\b)[a-z0-9_-]+\s+){0,6}(arrays?|strings?|integers?|lists?|booleans?|matri(?:x|ces)|grids?|(?:(?:singly|doubly)\s+)?linked\s+lists?|(?:binary\s+)?trees?)\b/i.exec(question);
   // Match paired inline formatting before testing the input name, so both
   // `value` and value work while an emphasized physical preposition stays one.
   const afterType = typedInput ? question.slice(typedInput.index + typedInput[0].length) : "";

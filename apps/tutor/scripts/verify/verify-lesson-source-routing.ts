@@ -57,6 +57,10 @@ async function verifyComputationalAdmissions() {
     'Given a string "hello", reverse it.',
     "Write a Python function to compute the frequency of a string of length 2 m with wave speed 20 m/s.",
     "Given a string text, remove duplicate characters. Time limit: 1 s.",
+    "Given two binary strings a and b, return their sum as a binary string. Example: a = 11, b = 1 gives 100. Constraints: 1 <= a.length <= 1000.",
+    "Given a lowercase alphanumeric string text, calculate its character count.",
+    "Given an integer array readings, find its maximum product.",
+    "Given a rectangular two-dimensional integer matrix values, find its largest element.",
     ...["`value`", "**value**", "*value*", "_value_", "__value__", "$value$"].map(binding =>
       `Given an integer ${binding}, calculate its digit count.`,
     ),
@@ -73,6 +77,7 @@ async function verifyComputationalAdmissions() {
     "Given a string carrying a mass of 3 kg and length 2 m, remove the mass and find its frequency.",
     "Given a string that's fixed with length 2 m and mass 3 kg, remove the mass. What's its frequency?",
     "Given a string stretched between two walls, remove the attached mass and describe its motion.",
+    "Given a lecture about strings, remove the misconception and explain the topic. Example: target audience.",
   ];
   try {
     for (const question of [...questions, ...nonCoding]) {
