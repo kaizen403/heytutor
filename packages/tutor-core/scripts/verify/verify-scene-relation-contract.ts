@@ -39,6 +39,29 @@ try {
   assert.equal(planned.validation.value!.relations.length, 1, "retain the relation");
   assert.deepEqual(planned.validation.value!.relations[0]!.entities, ["P", "line"]);
 } finally { globalThis.fetch = nativeFetch; }
+// Compact the static instructions, never the user's source or conversation.
+// Exercise both initial and repair transport with input longer than the budget
+// used by the small fixed-fixture tests; no tail may be silently discarded.
+const longQuestion = `${question} ${"Preserve this source clause. ".repeat(1_100)}SOURCE_END`;
+const conversationContext = "SOURCE_CONTEXT_START\nKeep every original given.\nSOURCE_CONTEXT_END";
+try {
+  let calls = 0;
+  globalThis.fetch = async (_url, init) => {
+    calls++;
+    const prompt = JSON.parse(String(init?.body)).messages.at(-1).content as string;
+    assert.ok(prompt.includes(`QUESTION\n${longQuestion}\n`), "transport preserves the entire source question");
+    assert.ok(prompt.includes(conversationContext), "transport preserves conversation evidence");
+    assert.ok(prompt.includes("Relation:{id,predicate,entities,value?}"), "initial and repair retain complete Relation schema");
+    return Response.json({ choices: [{ message: { content: JSON.stringify({ ready: calls > 2 }) } }] });
+  };
+  const planned = await planSceneDocumentWithRepair(longQuestion, document => document.ready === true
+    ? { valid: true, errors: [] }
+    : { valid: false, errors: [{ code: "assertion_failed", message: "repair the source proof", severity: "fatal" }] },
+  { proxyUrl: "https://synthetic.invalid/chat", timeoutMs: 1000, conversationContext });
+  assert.ok(planned?.validation.valid);
+  assert.equal(calls, 4, "both initial lanes and a complete repair round preserve source input");
+} finally { globalThis.fetch = nativeFetch; }
+
 const normalize = (relations: unknown[]) => normalizeSceneDocumentModelOutput({ ...candidate, relations }, question);
 const once = normalize(candidate.relations);
 assert.deepEqual(normalizeSceneDocumentModelOutput(once, question), once, "idempotent");
