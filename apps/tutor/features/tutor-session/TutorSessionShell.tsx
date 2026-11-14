@@ -906,6 +906,8 @@ export function TutorSessionShell({
 
   const {
     boards,
+    boardsError,
+    retryBoards,
     setBoards,
     boardLoaded,
     storedTurnsRef,
@@ -2733,6 +2735,8 @@ export function TutorSessionShell({
     <AppShell
       variant="session"
       boards={boards}
+      boardsError={boardsError}
+      onRetryBoards={retryBoards}
       activeBoardId={sessionId}
       busyBoardId={
         phase !== "idle" || isReplaying || lecturePlayer.playing
