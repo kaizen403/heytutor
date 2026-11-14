@@ -26,6 +26,19 @@ export function failedTurnWhere(since?: Date): Prisma.TurnWhereInput {
   const failed: Prisma.TurnWhereInput = {
     OR: [
       { sceneArtifacts: { path: ["failureTelemetry", "failed"], equals: true } },
+      { AND: [
+        noVerifiedFigure, noShownPicture,
+        { sceneArtifacts: { path: ["referencePictureOutcome", "required"], equals: true } },
+        { sceneArtifacts: { path: ["referencePictureOutcome", "attempted"], equals: true } },
+        { OR: ["declined", "unavailable"].map(status => ({ sceneArtifacts: { path: ["referencePictureOutcome", "status"], equals: status } })) },
+        // Missing reasons are not aborted attempts. A JSON `not` alone would
+        // lose those rows to SQL NULL, so keep the explicit AnyNull branch.
+        { OR: [
+          { sceneArtifacts: { path: ["referencePictureOutcome", "reason"], equals: Prisma.AnyNull } },
+          { sceneArtifacts: { path: ["referencePictureOutcome", "reason"], not: "aborted" } },
+        ] },
+        { OR: [{ status: { in: ["complete", "live"] } }, { segments: { some: {} } }] },
+      ] },
       { AND: [{ visualStatus: "retry_required" }, noShownPicture] },
       { AND: [noVerifiedFigure, { OR: [
         ...codeEvidence(CONFIRMED_TURN_FAILURE_CODES.filter(code => !answered.includes(code) && !requestCodes.includes(code))),

@@ -243,7 +243,21 @@ async function main(): Promise<void> {
 
     // A row with no picture has no JSON path to read. The real database must keep
     // it in the failed feed: only a stored picture takes a figure refusal out.
+    const requiredPicture = {
+      boardContinuation: { schemaVersion: "board-continuation/v1" },
+      turnPlan: { visualRequirement: "optional" },
+      referencePictureOutcome: { required: true, attempted: true, status: "declined", reason: "no_candidate_accepted" },
+    };
+    const optionalPicture = { ...requiredPicture, referencePictureOutcome: { ...requiredPicture.referencePictureOutcome, required: false } };
     const pictureRows: Array<[string, boolean, string, Prisma.InputJsonValue | typeof Prisma.DbNull]> = [
+      ["empty-zone doubt, required picture declined", true, "text_only", requiredPicture],
+      ["empty-zone doubt, optional picture declined", false, "text_only", optionalPicture],
+      ["required picture unavailable, missing reason", true, "text_only", { referencePictureOutcome: { required: true, attempted: true, status: "unavailable" } }],
+      ["required picture unavailable, null reason", true, "text_only", { referencePictureOutcome: { required: true, attempted: true, status: "unavailable", reason: null } }],
+      ["required picture aborted", false, "text_only", { referencePictureOutcome: { required: true, attempted: true, status: "unavailable", reason: "aborted" } }],
+      ["required picture not attempted", false, "text_only", { referencePictureOutcome: { required: true, attempted: false, status: "declined" } }],
+      ["accepted stored picture answers requirement", false, "text_only", { ...requiredPicture, referencePicture: { id: "rp_fixture" } }],
+      ["verified figure answers requirement", false, "validated", requiredPicture],
       ["text only, refused, no picture", true, "text_only", { degradation: { reason: "candidate_invalid" } }],
       ["retry required, no artifacts", true, "retry_required", Prisma.DbNull],
       ["retry required, a browser claim only", true, "retry_required", { referencePictureOutcome: { status: "shown" } }],
@@ -272,6 +286,8 @@ async function main(): Promise<void> {
       { referencePicture: { id: "rp_fixture" }, degradation: { reason: "candidate_invalid" } },
       { degradation: { reason: "candidate_invalid" } },
       { referencePicture: { id: "rp_fixture" }, failureTelemetry: teachingFailure },
+      { ...requiredPicture, degradation: { reason: "missing_capability" } },
+      optionalPicture,
     ].map(async (sceneArtifacts, index) => {
       const row = await db.turn.create({ data: { boardId: board.id, userId: user.id, orderIndex: orderIndex + index, question: "Synthetic abandoned lesson",
         rawResponse: "Synthetic", status: "live", visualStatus: "text_only", sceneArtifacts,
@@ -281,10 +297,14 @@ async function main(): Promise<void> {
     }));
     orderIndex += abandoned.length;
     await reporter.queueAbandonedFailedTurns(abandonedAt, { env: fixtureEnvironment, startedAt: new Date(abandonedAt.getTime() - 60 * 60_000) });
-    const [abandonedPicture, abandonedFailure, abandonedPictureFailed] = await Promise.all(abandoned.map(id => db.turn.findUniqueOrThrow({ where: { id } })));
+    const [abandonedPicture, abandonedFailure, abandonedPictureFailed, abandonedRequired, abandonedOptional] = await Promise.all(abandoned.map(id => db.turn.findUniqueOrThrow({ where: { id } })));
     assert.equal(abandonedPicture!.sentryEventId, null, "an idle picture lesson keeps its one event free");
     assert.equal((abandonedFailure!.sentryFailureEvent as unknown as FailedTurnSentryEvent | null)?.message, "Tutor turn failed", "an abandoned lesson with no picture is still a failure");
     assert.equal((abandonedPictureFailed!.sentryFailureEvent as unknown as FailedTurnSentryEvent | null)?.message, "Tutor turn failed", "a stale picture lesson that failed is still a failure");
+    const requiredReceipt = abandonedRequired!.sentryFailureEvent as unknown as FailedTurnSentryEvent | null;
+    assert.equal(requiredReceipt?.tags.code, "required_visual_unavailable", "the real abandoned-turn query must find and persist the required-picture failure despite an optional engine plan");
+    assert.equal(abandonedOptional!.sentryEventId, null, "a healthy optional decline never reserves a failure receipt");
+    assert(!JSON.stringify(requiredReceipt).includes("Synthetic"), "persisted receipt excludes source content");
     // The tab returns and teaching fails: the failure takes the event the idle lesson left free.
     await db.turn.update({ where: { id: abandonedPicture!.id }, data: { status: "stopped", sceneArtifacts: { referencePicture: { id: "rp_fixture" }, degradation: { reason: "candidate_invalid" }, failureTelemetry: teachingFailure } } });
     const returnedTurn = await db.turn.findUniqueOrThrow({ where: { id: abandonedPicture!.id }, include: { segments: true } });
@@ -293,7 +313,7 @@ async function main(): Promise<void> {
     assert.equal(returnedEvent?.message, "Tutor turn failed", "a failure after an idle picture lesson reaches Sentry as a failure");
     assert.equal(returnedEvent?.tags.area, "turn-failure", "the failure counts for the failure alerts");
     await db.turn.deleteMany({ where: { id: { in: abandoned } } });
-    receipts.push("an idle picture lesson queues nothing on real Postgres, and a later failure still reports as a failure");
+    receipts.push("real Postgres recovers an abandoned required-picture failure into a private receipt, excludes optional declines, and leaves idle shown-picture events free");
 
     // Legacy save paths could persist a completed, verified diagram without any
     // teaching rows. Its diagram status must not make the outbox strand it.
