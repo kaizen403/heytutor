@@ -134,7 +134,7 @@ export function mergePlaygroundRecordings(
   recordingBoardIds: ReadonlySet<string>,
   remembered: ReadonlyMap<string, LectureBoardMeta> = readLectureBoardIndex(),
 ): Map<string, BoardEntry> {
-  const unavailable = new Set(jobs.filter(job => job.status === "failed" || job.status === "running").map(job => job.boardId));
+  const unavailable = new Set(jobs.filter(job => job.status === "running").map(job => job.boardId));
   const index = indexPlaygroundRecordings(boards.filter(board => !recordingBoardIds.has(board.id) && !unavailable.has(board.id)), remembered);
   const byId = new Map(boards.map(board => [board.id, board]));
 

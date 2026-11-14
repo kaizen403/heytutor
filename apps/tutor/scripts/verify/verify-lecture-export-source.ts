@@ -338,3 +338,9 @@ void main().catch((error: unknown) => {
   console.error(error);
   process.exit(1);
 });
+
+// Both public collection and the PDF hook must use the restore barrier tested by
+// verify-continue-board-refresh; wiring only the preview leaves downloads partial.
+const sessionShell = readFileSync(resolve(import.meta.dirname, "../../features/tutor-session/TutorSessionShell.tsx"), "utf8");
+assert.match(sessionShell, /const collectRestoredNotesSlides = useCallback\(async \(\) => \{\s*await waitForBoardRestore\(\);\s*return collectNotesSlides\(\);/);
+assert.equal(sessionShell.match(/collectNotesSlides: collectRestoredNotesSlides/g)?.length, 2, "preview and PDF share the same restore-aware collector");

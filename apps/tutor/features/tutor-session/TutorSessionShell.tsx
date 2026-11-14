@@ -1304,6 +1304,11 @@ export function TutorSessionShell({
     settleBoardRestore,
   });
 
+  const collectRestoredNotesSlides = useCallback(async () => {
+    await waitForBoardRestore();
+    return collectNotesSlides();
+  }, [waitForBoardRestore, collectNotesSlides]);
+
   const pauseForRewind = useCallback(() => pauseTurn("rewind"), [pauseTurn]);
   const {
     rewindBoardRef,
@@ -1361,7 +1366,7 @@ export function TutorSessionShell({
     // turn included.
     getLiveTurn,
     hasLiveTurn,
-    collectNotesSlides,
+    collectNotesSlides: collectRestoredNotesSlides,
     title: boards.find((board) => board.id === sessionId)?.title ?? "",
   });
 
@@ -1753,10 +1758,7 @@ export function TutorSessionShell({
       lectureExportProgress,
       lectureExportError,
       replayLecture: startLectureReplay,
-      collectNotesSlides: async () => {
-        await waitForBoardRestore();
-        return collectNotesSlides();
-      },
+      collectNotesSlides: collectRestoredNotesSlides,
       boardReady: boardLoaded,
       hasSavedTurns: storedTurnsCount > 0,
       downloadNotesPdf,
@@ -1778,8 +1780,7 @@ export function TutorSessionShell({
     lectureExportProgress,
     lectureExportError,
     startLectureReplay,
-    collectNotesSlides,
-    waitForBoardRestore,
+    collectRestoredNotesSlides,
     boardLoaded,
     storedTurnsCount,
     downloadNotesPdf,

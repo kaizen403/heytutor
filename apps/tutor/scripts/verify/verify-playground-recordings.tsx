@@ -29,6 +29,7 @@ const partial = { ...good, id: "partial", createdAt: 2, playground: { ...lecture
 assert.equal(indexPlaygroundRecordings([partial, good]).get("physics|1|work::easy")?.id, "good", "newer partial cannot replace complete recording");
 assert.equal(indexPlaygroundRecordings([{ ...good, playground: null }]).size, 0, "preview without completion evidence is hidden");
 assert.equal(mergePlaygroundRecordings([partial, good], [{ ...lecture, boardId: "partial", status: "failed", question: "Question" }], new Set()).get("physics|1|work::easy")?.id, "good");
+assert.equal(mergePlaygroundRecordings([good], [{ ...lecture, boardId: "good", status: "failed", question: "Question" }], new Set()).get("physics|1|work::easy")?.id, "good", "later server-verified completion recovers a job that failed verification");
 assert.equal(figureCount([lecture, { ...lecture, figure: "without-figure" }, { ...lecture, figure: "reference-picture" }, partial.playground, undefined]), 1);
 
 const review = { stars: null, figure: "not-drawn", tags: [], feedback: "No diagram visible", skipped: false };

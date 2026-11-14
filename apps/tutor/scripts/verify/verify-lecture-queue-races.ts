@@ -1,4 +1,5 @@
 import * as React from "react";
+import type { BoardEntry } from "../../lib/boards/types";
 import { makeLectureJobs, JOB_TIMEOUT_MS } from "../../features/admin/lib/lectureJobs";
 import { useLectureQueue } from "../../features/admin/hooks/useLectureQueue";
 
@@ -73,6 +74,7 @@ const pendingDetails = new Map<string, ReturnType<typeof deferred<Response>>>();
 const detailResponses = new Map<string, Response>();
 const deleteResponses = new Map<string, Response | Error>();
 let failNextBoardList = false;
+let listedBoards: BoardEntry[] = [];
 const incompleteBoardIds = new Set<string>();
 const inspectionFailureIds = new Set<string>();
 const discardedBoardIds: string[] = [];
@@ -99,7 +101,7 @@ globalThis.fetch = async (input, init) => {
   }
   if (new URL(url, "http://localhost").pathname === "/api/boards" && !init?.method) {
     if (failNextBoardList) { failNextBoardList = false; throw new Error("offline listing"); }
-    return Response.json({ boards: [] });
+    return Response.json({ boards: listedBoards });
   }
   if (url.endsWith("/api/board-name")) return Response.json({ title: "Motion" });
   if (init?.method === "DELETE" && url.includes("/api/boards/")) {
@@ -207,6 +209,14 @@ try {
   await tick();
   assert(render().jobs.at(-1)!.status === "failed", "an unverifiable result must not show complete");
   assert(!deletedBoardIds.includes("inspection-unavailable"), "network uncertainty must not delete a possible complete lesson");
+  listedBoards = [{ id: "inspection-unavailable", title: "Motion", preview: "Explain motion", createdAt: 1,
+    playground: { topicId: question.topicId, difficulty: question.difficulty, state: "running" } }];
+  await render().refreshBoards();
+  queue = render();
+  assert(queue.jobs.find(job => job.boardId === "inspection-unavailable")?.status === "complete", "polling must recover a failed verification job when server inspection succeeds");
+  assert(queue.jobs.find(job => job.boardId === "inspection-unavailable")?.error === undefined, "recovery clears stale verification errors");
+  listedBoards = [];
+
 
   queue.enqueue([question]);
   boardRequests.at(-1)!.resolve(boardResponse("stopped-attached"));

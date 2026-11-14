@@ -119,8 +119,12 @@ export function useLectureQueue() {
     const adopted = await adoptLegacyPlaygroundBoards(list);
     if (aliveRef.current && revision === boardReadRevisionRef.current && (generation === undefined || generation === generationRef.current)) {
       setBoards(adopted);
+      const recovered = new Set(adopted.filter(board => board.playground?.state === "complete").map(board => board.id));
+      syncJobs(jobsRef.current.map(job => job.status === "failed" && job.boardId && recovered.has(job.boardId)
+        ? { ...job, status: "complete", error: undefined }
+        : job));
     }
-  }, []);
+  }, [syncJobs]);
 
   useEffect(() => {
     void refreshBoards().catch(() => {});
