@@ -79,6 +79,20 @@ Azure output runs at roughly 50 to 80 tokens a second, so long planner JSON
 
 ## Known gaps
 
+- Aborted planner generations (level WARNING, `aborted: true`) are mostly by
+  design. Measured 4 to 11 Nov 2026: 17 of 19 aborted `scene-planner-v2` calls
+  were a peer stopped about a second after the winning lane's valid scene (the
+  750 ms grace plus validation), hence the 10 to 13 s cluster at a 9 s p50;
+  two were a repair round started with 11 s left of the 60 s figure deadline.
+  Of 10 aborted `turn-plan-v3` calls, 4 were Stop, 3 a peer after the 3 s
+  grace, and 3 hit the 20 s deadline: one turn's lanes both stalled, the other
+  started its retry only after the slower lane also failed, with 5 s left (it
+  now starts when the first lane fails).
+- Each planner request sends a random `x-planner-request-id`, and its
+  generation id derives from it. The server records `abort_source`
+  (`client_closed`, `server_deadline`, `request_timeout`, `attempt_timeout`);
+  the client's `planner-request-aborted` event merges `abort_reason`
+  (`superseded`, `deadline`, `turn_cancelled`) into the same generation.
 - Home suggestions take 15 to 17 s on both providers against the route's 8 s
   timeout, so they fall back to the stock cards either way.
 - The lecture lab's diagram example picker (branch

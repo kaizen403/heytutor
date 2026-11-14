@@ -15,13 +15,16 @@ export const FAILED_TURN_CODES = [
   "required_visual_unavailable", "unrecorded", "turn_plan_rejected", "problem_ir_invalid",
   "scene_planner_invalid", "planner_deadline", "planner_declined", "fallback_suppressed",
   "transport_error", "provider_error", "budget_limit", "rate_limit", "save_failure",
-  "not_needed", "continuation", "scene_relevance_rejected", "lesson_not_taught", "teaching_segment_failed", "dsa_hint_unsupported", "valid_candidate_dropped", "unknown",
+  "not_needed", "continuation", "scene_relevance_rejected", "lesson_not_taught", "teaching_segment_failed", "dsa_hint_unsupported", "valid_candidate_dropped",
+  // Sentry only: a taught lesson where a sentence was silent. Never confirmed,
+  // so it cannot fail the turn (see `buildFailedTurnSentryEvent`).
+  "speech_silent_segments", "unknown",
 ] as const;
 export const FAILED_TURN_ISSUE_CODES = [
   ...FAILED_TURN_CODES,
   // Not a failure: both voices failed and the lesson still taught every
-  // sentence with its ink. Kept out of FAILED_TURN_CODES and the confirmed
-  // failure list on purpose, so it never fails the turn or opens an issue.
+  // sentence with its ink. Kept out of the confirmed failure list on purpose,
+  // so it never fails the turn; Sentry gets a `speech_silent_segments` warning.
   "teaching_voice_degraded",
   // #172 drop codes, saved after valid_candidate_dropped.
   "colliding_circuit_views", "exact_assertion_unproven", "exact_not_normalized", "exact_not_scene", "exact_recompile_invalid", "exact_report_disagrees", "exact_report_not_current", "exact_without_readable_ink", "generic_vectors_on_river_boat", "mensuration_solid_on_contact_problem", "picture_demand_unmet", "planner_optics_on_archetype_stem", "source_question_mismatch", "exact_not_drawable", "exact_scene_not_admitted", "fast_figure_preferred", "no_figure_asked", "law_only_archetype_lead", "refused_archetype_lead", "save_admission_refused", "selection_error", "source_policy_suppressed",
@@ -169,7 +172,7 @@ function stageFor(code: FailureCode): FailureStage {
   if (code === "solver_contradiction") return "solver";
   if (code === "candidate_invalid") return "validation";
   if (code === "planner_deadline") return "deadline";
-  if (code === "lesson_not_taught" || code === "teaching_segment_failed") return "teaching";
+  if (code === "lesson_not_taught" || code === "teaching_segment_failed" || code === "speech_silent_segments") return "teaching";
   if (code === "save_failure") return "save";
   return code === "unrecorded" || code === "unknown" ? "unknown" : "scene_planner";
 }
@@ -185,20 +188,24 @@ export function buildFailedTurnSentryEvent(
     effectiveTurnStatus(turn.status, turn.updatedAt, options.now?.getTime() ?? Date.now()) === "stopped";
   if (turn.status === "live" && !staleLive) return null;
   const failure = classifyTurnFailure(turn);
-  // A shown picture is reported as its own outcome, under its own issue, so the
-  // engine's reason is still counted without calling the lesson failed.
-  const pictureShown = failure.classification === "picture_shown";
-  if (failure.classification !== "failed" && !pictureShown) return null;
   const artifacts = record(turn.sceneArtifacts);
   const telemetry = readFailedTurnTelemetry(artifacts.failureTelemetry) ?? { subject: "unknown" };
+  const failed = failure.classification === "failed";
+  // The lesson taught, so the turn is not failed, but the student sat through
+  // silence: a warning under its own code. It outranks a shown picture's info.
+  const silentSpeech = !failed && telemetry.issueCodes?.includes(TEACHING_VOICE_DEGRADED) === true;
+  // A shown picture is reported as its own outcome, under its own issue, so the
+  // engine's reason is still counted without calling the lesson failed.
+  const pictureShown = !silentSpeech && failure.classification === "picture_shown";
+  if (!failed && !silentSpeech && !pictureShown) return null;
   const plan = record(artifacts.turnPlan);
   const degradation = record(artifacts.degradation);
   const taught = record(turn.resumeState).earlyOpeningOnly !== true &&
     hasMeaningfulTurnSegments(turn.segments);
   const figureNeed = member(plan.visualRequirement, ["required", "optional", "none", "unknown"] as const, "unknown");
   const subject = member(telemetry.subject, ["maths", "physics", "chemistry", "other", "unknown"] as const, "unknown");
-  const code = member(failure.code, FAILED_TURN_CODES, "unknown");
-  const stage = member(telemetry.stage, FAILED_TURN_STAGES, stageFor(code));
+  const code = silentSpeech ? "speech_silent_segments" : member(failure.code, FAILED_TURN_CODES, "unknown");
+  const stage = silentSpeech ? stageFor(code) : member(telemetry.stage, FAILED_TURN_STAGES, stageFor(code));
   const rawCodes = [...(Array.isArray(degradation.issueCodes) ? degradation.issueCodes : []), ...(telemetry.issueCodes ?? [])];
   const known = new Set<string>(FAILED_TURN_ISSUE_CODES);
   const issueCodes = [...new Set(rawCodes.map(value => typeof value === "string" && known.has(value) ? value : "unknown_issue"))].slice(0, 32);
@@ -223,7 +230,7 @@ export function buildFailedTurnSentryEvent(
   return {
     timestamp: (options.now?.getTime() ?? Date.now()) / 1_000,
     message: pictureShown ? "Tutor turn picture shown" : "Tutor turn failed",
-    level: pictureShown ? "info" : taught && telemetry.failed !== true ? "warning" : "error",
+    level: pictureShown ? "info" : silentSpeech || (taught && telemetry.failed !== true) ? "warning" : "error",
     fingerprint: [pictureShown ? "turn-picture" : "turn-failure", stage, code, subject],
     tags: {
       area: pictureShown ? "turn-picture" : "turn-failure", subject, stage, code, figure_need: figureNeed,

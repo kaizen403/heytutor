@@ -30,6 +30,7 @@ tsx scripts/verify/verify-planner-transport.ts
 tsx scripts/verify/verify-teaching-transport.ts
 tsx scripts/verify/verify-langfuse-chat-trace.ts
 tsx scripts/verify/verify-extract-question.ts
+node --experimental-test-module-mocks --import tsx scripts/verify/verify-extract-question-route.ts
 tsx scripts/verify/verify-llm-provider.ts
 tsx scripts/verify/verify-tts-relay-protocol.ts
 tsx scripts/verify/verify-ws-ticket.ts

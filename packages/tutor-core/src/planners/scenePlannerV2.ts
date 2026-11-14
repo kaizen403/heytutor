@@ -1,7 +1,8 @@
 import { renderRepairErrors } from "./sceneRepairErrors";
 import { validateRepairSurvivorship, validateRepairCandidateSetSurvivorship } from "@heytutor/scene-engine";
 import { withFastModeHeader } from "../llm/fastMode";
-import { withTurnTraceHeaders } from "../llm/traceHeaders";
+import { plannerAbort, plannerAbortReason, type PlannerAbortReason } from "../llm/plannerAbort";
+import { newPlannerRequestId, PLANNER_REQUEST_ID_HEADER, withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
 import {
   buildSceneDocumentPlannerPrompt,
@@ -76,6 +77,10 @@ export interface ScenePlannerRequestOutcome {
   elapsedMs: number;
   /** Model-stated refusal, never the deterministic fallback's reason. */
   declineReason?: string | null;
+  /** Set only when the request was aborted. */
+  abortReason?: PlannerAbortReason;
+  /** Sent as `x-planner-request-id`; the server's generation for this request is keyed by it. */
+  requestId?: string;
 }
 
 export interface ScenePlannerCandidateDiagnostics {
@@ -592,7 +597,8 @@ export async function planSceneDocumentWithRepair<T>(
     }
     // The arrived scan at the top collects it, in arrival order.
   }
-  for (const entry of inFlight.values()) entry.controller.abort();
+  const stopReason = plannerAbort(remainingMs() <= 0 ? "deadline" : "superseded");
+  for (const entry of inFlight.values()) entry.controller.abort(stopReason);
 
   if (evaluated.length === 0) return null;
   // A second initial lane can settle after a repair. Its typed core obligations
@@ -698,6 +704,8 @@ async function requestSceneDocument(
   let httpStatus: number | null = null;
   let outcomeReported = false;
   let declineReason: string | null = null;
+  let abortReason: PlannerAbortReason | null = null;
+  const requestId = newPlannerRequestId();
   const reportOutcome = (error: string | null, bodyParsed: boolean) => {
     if (outcomeReported) return;
     outcomeReported = true;
@@ -711,6 +719,8 @@ async function requestSceneDocument(
         promptChars: prompt.length,
         elapsedMs: Date.now() - startedAt,
         declineReason,
+        ...(abortReason ? { abortReason } : {}),
+        ...(requestId ? { requestId } : {}),
       });
     } catch {
       // Diagnostics must never change planning behavior.
@@ -741,6 +751,7 @@ async function requestSceneDocument(
             "x-scene-planner-phase": phase,
             "x-scene-planner-lane": lane,
             "x-planner-deadline-ms": String(timeoutMs),
+            ...(requestId ? { [PLANNER_REQUEST_ID_HEADER]: requestId } : {}),
           },
           { sessionId, traceId, question },
         ),
@@ -826,8 +837,10 @@ async function requestSceneDocument(
     return plannedResponse;
   } catch (error) {
     const isAbort = error instanceof DOMException && error.name === "AbortError";
+    if (isAbort) abortReason = timeoutController.signal.aborted ? "deadline" : plannerAbortReason(signal);
     tutorDebug("planner", `semantic scene ${phase} failed`, {
       reason: isAbort ? "timeout_or_cancelled" : String(error),
+      abort_reason: abortReason,
       elapsed_ms: Date.now() - startedAt,
     });
     reportOutcome(
@@ -925,8 +938,7 @@ function mergeAbortSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
   if (a.aborted) return a;
   if (b.aborted) return b;
   const controller = new AbortController();
-  const abort = () => controller.abort();
-  a.addEventListener("abort", abort, { once: true });
-  b.addEventListener("abort", abort, { once: true });
+  a.addEventListener("abort", () => controller.abort(a.reason), { once: true });
+  b.addEventListener("abort", () => controller.abort(b.reason), { once: true });
   return controller.signal;
 }

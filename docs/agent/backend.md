@@ -18,7 +18,7 @@ routes are Next.js route handlers, plus a custom WebSocket relay in `server.ts`.
 | `/api/boards/[boardId]/notes-chat` | `app/api/boards/[boardId]/notes-chat/route.ts` | POST | Notes-sidebar chat against the current board |
 | `/api/boards/[boardId]/turns/[turnId]/rating` | `app/api/boards/[boardId]/turns/[turnId]/rating/route.ts` | PUT | The student's 1 to 5 stars and optional note for a lesson or Continue turn, per moment (`during`, `after`); upserts. [Plan](../plans/lecture-ratings.md) |
 | `/api/board-name` | `app/api/board-name/route.ts` | POST | LLM-generated board title from first question |
-| `/api/extract-question` | `app/api/extract-question/route.ts` | POST | Image → question text; stores the photo on S3 |
+| `/api/extract-question` | `app/api/extract-question/route.ts` | POST | Image → question text; stores the photo on S3. A declined first reading gets one funded second look at higher effort before the 422; the `vision-ocr` trace records the decline reply, reason and image size. Gates: `verify-extract-question.ts`, `verify-extract-question-route.ts` |
 | `/api/lecture-audio` | `app/api/lecture-audio/route.ts` | GET | Same-origin MP3 proxy (`key=` for S3, `src=` for legacy public hosts) |
 | `/api/media` | `app/api/media/route.ts` | GET | Auth-gated S3 read for lecture MP3s and question photos |
 | `/api/health` | `app/api/health/route.ts` | GET | Process + Postgres ping |

@@ -99,6 +99,9 @@ tutor_activate_release() {
   # The service is stopped during the switch, so replacing the link in place
   # is enough; nothing serves from it at this moment.
   if ln -sfn "$release" "$tutor/.next" && [ "$(readlink "$tutor/.next")" = "$release" ]; then
+    # Once a release replaced a release, rollback uses $previous and the
+    # carried chunks live in the releases; the legacy build only fills the disk.
+    if [ -n "$previous" ]; then rm -rf "$tutor/.next-legacy"; fi
     return 0
   fi
   echo "Could not point .next at $release; restoring the previous build." >&2

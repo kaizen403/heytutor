@@ -4,6 +4,7 @@ import { fetchRunCostForSessions, fetchRunCostForWindow } from "@/lib/obs/langfu
 import { sumSessionCosts, type RunCostSessionRow } from "@/lib/obs/runCost";
 import { previousPeriodKey, recentPeriodKeys } from "./costPeriods";
 import { userLabel } from "./labels";
+import { createStaleCache } from "./staleCache";
 import type {
   OverviewCost,
   OverviewCostPeriod,
@@ -126,9 +127,22 @@ async function fetchLedgerCostOverview(nowMs: number = Date.now()): Promise<
   };
 }
 
-async function fetchInferenceWindow(
-  nowMs: number = Date.now(),
-): Promise<OverviewInference> {
+/**
+ * The overview polls while an admin page is open; every poll used to page
+ * Langfuse and hit its rate limit. A seven-day total moves slowly.
+ */
+const inferenceWindowCache = createStaleCache<OverviewInference>({
+  load: () => loadInferenceWindow(Date.now()),
+  isFailure: (value) => !value.configured || Boolean(value.error),
+  freshMs: 5 * 60_000,
+  staleMs: 60 * 60_000,
+});
+
+function fetchInferenceWindow(nowMs: number = Date.now()): Promise<OverviewInference> {
+  return inferenceWindowCache.read(nowMs);
+}
+
+async function loadInferenceWindow(nowMs: number): Promise<OverviewInference> {
   const to = new Date(nowMs);
   const from = new Date(nowMs - INFERENCE_WINDOW_DAYS * 86_400_000);
   const result = await fetchRunCostForWindow({ from, to });

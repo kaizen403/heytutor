@@ -28,7 +28,7 @@ import {
 import { drawSegmentInk, planSegmentInk } from "../../lib/turn/segmentInk";
 import { guardDrawWithSpeech, incompleteCodeBeatFailure, requiredCodeBeatTargets, shouldFinishSegmentAfterHeardSpeechFailure, silentSentenceRemainingMs, voiceFailureDisposition, type SegmentRunOutcome } from "../../lib/turn/turnFailurePolicy";
 import { segmentWatchdogPlaybackRate, speakSegmentTimeoutMs } from "../../lib/turn/ttsSegmentTimeout";
-import { browserRecoveryPlaybackRate, createPauseAwareSpeechClock, requireSpeechStart, SPEECH_AUDIO_IN_TRANSIT_GRACE_MS, speakWithPauseOwnedFallback, speakWithStartupRecovery, speechPlaybackOverdue, type PauseAwareSpeechClock } from "../../lib/turn/speechStartup";
+import { browserRecoveryPlaybackRate, createPauseAwareSpeechClock, PROVIDER_ONLY_STARTUP_DEADLINE_MS, requireSpeechStart, SPEECH_AUDIO_IN_TRANSIT_GRACE_MS, speakWithPauseOwnedFallback, speakWithStartupRecovery, speechPlaybackOverdue, type PauseAwareSpeechClock } from "../../lib/turn/speechStartup";
 import { liveTurnSave } from "../../lib/turn/liveTurnSave";
 import { savedCommandFilter } from "../../lib/scene/lessonFigureSequence";
 import type { UseSegmentRunnerParams } from "./types";
@@ -75,6 +75,8 @@ export function useSegmentRunner({
   const speakingNarrationRef = useRef("");
   const browserSpeechRef = useRef<SpeechSynthesisTTSClient | null>(null);
   const browserFallbackOwnerRef = useRef<symbol | null>(null);
+  /** The turn generation in which browser speech failed to start. */
+  const browserSpeechFailedTurnRef = useRef<number | null>(null);
   const fallbackPauseGenerationRef = useRef(0);
   const speechClockRef = useRef<PauseAwareSpeechClock | null>(null);
   const timingWaitClockRef = useRef<PauseAwareSpeechClock | null>(null);
@@ -887,10 +889,15 @@ export function useSegmentRunner({
           }
         };
 
+        // Handing a late provider sentence to a browser voice that already
+        // failed to start only adds its give-up and then silence, every time.
+        const browserSpeechFailed = browserSpeechFailedTurnRef.current === turnGeneration;
         try {
           const spoken = requireSpeechStart(speakWithStartupRecovery({
             primary: speakPrimary,
+            ...(browserSpeechFailed ? { deadlineMs: PROVIDER_ONLY_STARTUP_DEADLINE_MS } : {}),
             fallback: async () => {
+              if (browserSpeechFailed) throw new Error("Browser speech already failed to start in this turn");
               browserSpeechRef.current ??= new SpeechSynthesisTTSClient();
               browserSpeechRef.current.setPlaybackRate(segmentPlaybackRate());
               browserFallbackOwnerRef.current = segmentFallbackOwner;
@@ -942,6 +949,9 @@ export function useSegmentRunner({
                   pauseGeneration: () => fallbackPauseGenerationRef.current,
                 });
               } catch (error) {
+                if (audioStartedAtMs === null && !isCancelled() && !speechAborted) {
+                  browserSpeechFailedTurnRef.current = turnGeneration;
+                }
                 // The failed speak promise is joined above. Stop its owned voice
                 // before retrying the SAME sentence, never mark it completed.
                 if (!browserRestartAttempted || providerRecoveryAttempted || isCancelled() || speechAborted) throw error;
@@ -985,6 +995,10 @@ export function useSegmentRunner({
             hasStarted: () => audioStartedAtMs !== null,
             canFallback: () => !isCancelled() && !speechAborted && !isPausedRef.current,
             onFallback: (reason) => {
+              if (browserSpeechFailed) {
+                tel?.mark("tts-browser-recovery-skipped", { segment_index: index, reason });
+                return;
+              }
               usingBrowserFallback = true;
               browserRecoveryRate = browserRecoveryPlaybackRate(tts.getPlaybackRate?.() ?? 1);
               capturedAudio = null;

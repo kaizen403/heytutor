@@ -56,11 +56,20 @@ export function shouldUpdateParentTraceOutput(
 export function readChatTraceHeaders(headers: Headers): {
   traceId?: string;
   question?: string;
+  plannerRequestId?: string;
 } {
   return {
     traceId: readTraceIdHeader(headers.get(HEYTUTOR_TRACE_ID_HEADER)),
     question: readQuestionHeader(headers.get(HEYTUTOR_QUESTION_HEADER)),
+    plannerRequestId: readPlannerRequestId(headers.get("x-planner-request-id")),
   };
+}
+
+/** The random id a planner request sends (tutor-core PLANNER_REQUEST_ID_HEADER); nothing else is accepted. */
+export function readPlannerRequestId(value: unknown): string | undefined {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+    ? value.toLowerCase()
+    : undefined;
 }
 
 function perfNumber(value: unknown): number | undefined {

@@ -8,6 +8,7 @@ import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import * as sceneEngine from "@heytutor/scene-engine";
 import * as sourcePlanner from "../../src/planners/turnPlannerV3";
 import * as fastMode from "../../src/llm/fastMode";
+import * as plannerAbort from "../../src/llm/plannerAbort";
 import * as traceHeaders from "../../src/llm/traceHeaders";
 import * as debug from "../../src/tutorDebug";
 import * as capabilities from "../../src/planners/sceneCapabilities";
@@ -41,7 +42,7 @@ async function plannerUnderTest(): Promise<typeof sourcePlanner> {
   const compiledModule = { exports: {} };
   // ESM-only dependencies are the actual source namespaces, not mocked behavior.
   const dependencies: Record<string, unknown> = { "@heytutor/scene-engine": sceneEngine,
-    "../llm/fastMode": fastMode, "../llm/traceHeaders": traceHeaders, "../tutorDebug": debug,
+    "../llm/fastMode": fastMode, "../llm/plannerAbort": plannerAbort, "../llm/traceHeaders": traceHeaders, "../tutorDebug": debug,
     "./sceneCapabilities": capabilities, "./opticsPlanAudit": optics, "./diagramSubject": subject,
     "./turnPlanJson": framing };
   const seed = { module: compiledModule, exports: compiledModule.exports, require: (id: string) => {
@@ -133,8 +134,12 @@ try {
       const requests: string[] = [];
       const observed: TurnPlanRequestOutcome[] = [];
       globalThis.fetch = async (_url, init) => {
+        const headers = new Headers(init?.headers);
+        // Fresh per request whatever the observer; it only names the request.
+        assert.match(headers.get(traceHeaders.PLANNER_REQUEST_ID_HEADER) ?? "", /^[0-9a-f-]{36}$/);
+        headers.delete(traceHeaders.PLANNER_REQUEST_ID_HEADER);
         requests.push(createHash("sha256").update(JSON.stringify({
-          headers: [...new Headers(init?.headers).entries()], body: init?.body,
+          headers: [...headers.entries()], body: init?.body,
         })).digest("hex"));
         return response(JSON.stringify(succeeds ? plan : { ...plan, unknowns: [{ id: privateSentinel }] }));
       };
@@ -301,7 +306,8 @@ try {
   assert.equal(unrecognizedAbort[0]?.code, "cancelled", "an abort our deadline and caller signals did not own is not transport");
   assert.ok(!JSON.stringify(unrecognizedAbort).includes(privateSentinel));
   assert.deepEqual(Object.keys(outcomes[0]!).sort(),
-    ["code", "elapsedMs", "httpStatus", "issueCodes", "lane", "phase", "requestKind", "unrecognizedIssueCount"]);
+    ["code", "elapsedMs", "httpStatus", "issueCodes", "lane", "phase", "requestId", "requestKind", "unrecognizedIssueCount"]);
+  assert.match(outcomes[0]!.requestId ?? "", /^[0-9a-f-]{36}$/, "a random request id, never content");
   console.log("TurnPlan content-free outcomes passed: 27 scenarios.");
 } finally {
   globalThis.fetch = originalFetch;

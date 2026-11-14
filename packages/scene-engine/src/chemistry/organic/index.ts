@@ -28,6 +28,7 @@ import { readOrganicReactionSource } from "./reactionSource";
 import { buildOrganicReactionFigure } from "./reactionFigure";
 import { readMechanismSource } from "./mechanism/source";
 import { buildNewmanScene, newmanBinding } from "./newman";
+import { clinicalPracticeContext } from "../semanticCues";
 
 export const ORGANIC_FAMILY = "chem_organic" as const;
 
@@ -272,6 +273,8 @@ function isomerSet(stem: string, formulas: string[]): { formula: string; members
 const ORGANIC_CONTEXT = /\b(?:iupac|structure|structural|isomer|hybridi[sz]|chiral|optically|unsaturation|functional group|major product|reaction sequence|treatment|treated|reagent|reacts?|gives?|grignard|carbocation|nucleophil|electrophil|sn1|sn2|e1|e2|ester|alcohol|aldehyde|ketone|amine|alkene|alkyne|alkane|aromatic|benzene ring|oxidation|reduction|hydrolysis|dehydration|halogenation|nitration|sulphonation|sulfonation|acylation|alkylation|ozonolysis|polymer|monomer)\b/;
 const NOT_ORGANIC = /\b(?:molal|molality|molarity|freezing point|boiling point (?:of|elevation)|osmotic|vapou?r pressure|enthalpy of (?:combustion|formation|neutrali)|heat of|calorimet|rate constant|half.?life|order of (?:the )?reaction|activation energy|equilibrium constant|solubility product|buffer|titrat(?:ion|ed|ing|e)s?|electrode potential|emf|conductivity|crystal field|coordination number|ligand|unit cell|lattice|radioactive|nearest integer|weight percentage|molar mass of the compound|empirical formula|how many grams|mass of|[xy] g of|quantitatively produced|fuel cell|cell potential|electrochemical cell|galvanic|flame test|group (?:reagent|precipitate)|salt analysis|sodium carbonate extract|moles? of [a-z0-9 ]{1,30} required|required to produce|adsorption|freundlich|langmuir|isotonic|total number of atoms|number of (?:atoms|molecules) present|at stp|charged comb|decay sequence|particles?\/radiation)\b/;
 const FIGURE_ONLY = /\b(?:the following (?:compound|structure|reaction|molecule|reaction sequence)|given (?:compound|structure|reaction)|shown below|structure shown|compound \([a-z]\))\b/;
+/** In a clinical note a drug name is a treatment, not the structure the lesson is about, unless one is asked for. */
+const STRUCTURE_ASK = /\b(?:structures?|structural formula|skeletal|iupac|functional groups?|draw|sketch|depict)\b/;
 
 /** Exam-paper scaffolding an OCR pass leaves in front of the question. */
 const SCAFFOLD = /topic\s*name\s*:\s*chemistry\s*-?\s*section\s*[ab]\s*[it]?[lt]?em\s*code\s*:?\s*\d+|\bquestion\s*[:;]/gi;
@@ -313,6 +316,7 @@ export function mentionRole(lower: string, mention: Mention): "reagent" | "produ
 export function isOrganicStem(question: string): boolean {
   const stem = chemStem(question);
   if (NOT_ORGANIC.test(stem)) return false;
+  if (clinicalPracticeContext(stem) && !STRUCTURE_ASK.test(stem)) return false;
   // A conformation ask is answered by Newman projections of one bound molecule, or by
   // nothing: never by the flat structure. The cue fires only when that binding holds.
   if (requiresConformationProjection(question)) return !CHARGED_FORM_ASK.test(stem) && newmanBinding(question).status === "bound";
