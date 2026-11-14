@@ -32,6 +32,9 @@ async function verifyComputationalAdmissions() {
     "Given an integer value, calculate its digit count.",
     "Given a string word return word in uppercase",
     "Given string text return it unchanged",
+    ...["`value`", "**value**", "*value*", "_value_", "__value__", "$value$"].map(binding =>
+      `Given an integer ${binding}, calculate its digit count.`,
+    ),
   ];
   const fetchBefore = globalThis.fetch;
   const results = [];
@@ -39,6 +42,8 @@ async function verifyComputationalAdmissions() {
     "Given a string of length 2 m carrying a mass of 3 kg, find its tension.",
     "Given two integers 2 and 3, find their sum.",
     "Given a string under tension 20 N, calculate its wave speed.",
+    "Given a string **of** length 2 m carrying a mass of 3 kg, find its tension.",
+    "Given a string _under_ tension 20 N, calculate its wave speed.",
   ];
   try {
     for (const question of [...questions, ...nonCoding]) {

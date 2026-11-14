@@ -119,7 +119,10 @@ const PROBLEM_SHAPE: readonly RegExp[] = [
 export function looksLikeCodingProblem(question: string): boolean {
   const computation = /\breturn\s+(?:the\s+|an?\s+|all\s+|any\s+)?(?:true|false|indices|index|maximum|minimum|number|length|sum|count|result|array|string|list|root|head|value|total|smallest|largest|kth)\b/i.test(question);
   const typedInput = /\bgiven\s+(?:(?:an?|the|two)\s+)?(?:arrays?|strings?|integers?|lists?|booleans?|matri(?:x|ces)|grids?|linked\s+lists?)\b/i.exec(question);
-  const binding = typedInput && /^\s+([a-zA-Z_]\w*)\b/.exec(question.slice(typedInput.index + typedInput[0].length))?.[1];
+  // Match paired inline formatting before testing the input name, so both
+  // `value` and value work while an emphasized physical preposition stays one.
+  const inputName = typedInput && /^\s+(?:(`+|\*{1,2}|_{1,2}|\$)([a-zA-Z_]\w*)\1(?=\W|$)|([a-zA-Z_]\w*)\b)/.exec(question.slice(typedInput.index + typedInput[0].length));
+  const binding = inputName && (inputName[2] ?? inputName[3]);
   const namedInput = binding && !/^(?:of|under|with|in|at|on|whose|which|that|is|has)\b/i.test(binding);
   const inputOperation = typedInput && (
     /\b(?:return|remove|replace|reverse|sort|merge|filter)\s+\S/i.test(question) ||
