@@ -121,6 +121,8 @@ export interface FrozenStartupFixture {
   };
   /** Replay recorded teaching through the real DSA planner/handler/queue. */
   recordedCodeLesson?: { plan: CodeLessonPlan; response: string; continuationResponses?: string[]; revealCommittedCode?: boolean };
+  /** Replay resume markup through the real parser, queue and ink gate. */
+  resumeTeaching?: { responses: string[]; expectedWrites: number };
   /** A language selected since the previous turn, applied by the real handler. */
   voiceKey?: TutorVoiceKey;
   /** Require the real Given-row request and committed WRITE path, not a no-givens prompt. */
@@ -1054,7 +1056,34 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       assert([...timers.values()].some((timer) => timer.at === 15_000), "control-only steps must keep the startup deadline armed");
     }
 
-    if (mode === "resume-no-ink") {
+    if (mode === "resume-no-ink" && fixture?.resumeTeaching) {
+      const replay = fixture.resumeTeaching;
+      for (let i = 0; i < replay.responses.length; i++) {
+        assert(streams[i], "resume replay owns its actual teaching request");
+        content(i, replay.responses[i]!);
+        finishStream(i);
+        await flush();
+        if (i < replay.responses.length - 1) await pump(() => done || Boolean(streams[i + 1]));
+        if (done) break;
+      }
+      await pump(() => done);
+      await turn;
+      const writes = events.filter(event => event.name === "board-command" && (event.data as DrawCommand).type === "WRITE");
+      assert.equal(writes.length, replay.expectedWrites, "replayed WRITE tags survive the real handler/parser/resume ink gate");
+      if (replay.expectedWrites > 0) {
+        assert(!events.some(event => event.name === "turn-error"), "valid repaired markup cannot fail resume-without-ink");
+        assert.equal(streams.length, 1, "existing protocol repairs must avoid the historical no-ink retry");
+      } else {
+        assert(events.some(event => event.name === "turn-error"), "refused ambiguous ink cannot complete the lesson");
+        assert.equal(outputs().length, 0, "refused ink releases neither narration nor invented ink");
+      }
+      assert.equal(lifecycle.turnAbortRef.current, null);
+      assert.equal(lifecycle.turnActiveRef.current, false);
+      assert.equal(lifecycle.pendingSegmentCountRef.current, 0);
+      assert.equal(timers.size, 0, "resume replay releases startup and playback timers");
+      for (const stream of streams) assert.equal(stream.response.body?.locked, false);
+      return { mode, writes: writes.length, requests: streams.length };
+    } else if (mode === "resume-no-ink") {
       content(0, "[STEP]We continue from the horizontal motion without writing anything.[/STEP]");
       finishStream(0);
       await flush();
