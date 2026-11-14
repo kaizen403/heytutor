@@ -2,6 +2,7 @@
  * Physics Units 2–3 lecture probes must compile a verified family scene.
  * Text-only is reserved for definition stems with no spatial setup.
  */
+import "./verify-mechanics-source-reading.ts";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
