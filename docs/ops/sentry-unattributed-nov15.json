@@ -1,14 +1,15 @@
 {
   "date": "2026-11-15",
   "base": "500649965c0a2f12b98f6241959220c0ad249eb5",
-  "scope": "Historical browser/relay audit, followed by read-only live Sentry caller/artifact recovery and a regression of the actual current notes-history owner. No Sentry resolution or production changes.",
+  "scope": "Historical browser/relay audit, live Sentry caller recovery and hash-and-coordinate matched rebuild attribution. Source-owner fixes are regression-tested; no Sentry resolution or production changes.",
   "evidenceLimits": [
     "Production environment and URL are retained event tags, not fresh production verification. Local tests use synthetic identities and loopback sockets only.",
     "The issue index repeats the retained latest-event evidence; it does not supply the earlier occurrences.",
     "The retained Sentry log export covers 2026-11-13T05:41:26Z through 2026-11-14T18:21:04Z; none of the five traces matches. Four events predate this log window.",
     "Existing message-based browser ignoreErrors in the base are unchanged and are not evidence that rejection owners are fixed.",
     "Existing f29770afd email signIn and under-13 refusal fixes are not duplicated or used to claim attribution of these groups.",
-    "Earlier local exports deliberately omitted request/breadcrumb entries. Live Sentry retrieval on 2026-11-14T21:24:39Z\u201321:27:39Z recovered them; claims about missing entries below refer only to that earlier export."
+    "Earlier local exports deliberately omitted request/breadcrumb entries. Live Sentry retrieval on 2026-11-14T21:24:39Z\u201321:27:39Z recovered them; claims about missing entries below refer only to that earlier export.",
+    "A later isolated rebuild of 601083c reproduced the raw xxhash64 content hashes and exact frame coordinates for both application chunks. This supersedes the initial missing-chunk caller limit for 1X/1Y; original deployed bytes and source maps remain unavailable, and underlying network causes remain unknown."
   ],
   "artifactSearch": {
     "roots": [
@@ -85,8 +86,8 @@
       "exactEventRootCauseKnown": false,
       "resolved": false,
       "productionVerified": false,
-      "disposition": "unresolved_application_chunk_missing",
-      "finding": "Shares trace 322daabfd3bf4010bf8e06d2eba4af54 with HEYTUTOR-1Y, 2ms later. The surviving matching React vendor filename identifies passive-effect traversal and invocation of t.create; the application frames remain unsymbolicated. Live reads recovered matching trace and span IDs and eight failed GET breadcrumbs: billing entitlement, boards, home suggestions, account profile/settings, notes history, version and one filtered URL. None records an HTTP status. These identify candidate owners, not the exact application frame.",
+      "disposition": "caller_attributed_source_fix_production_unverified",
+      "finding": "Isolated rebuild of release 601083c matches the recorded chunk filenames, raw xxhash64 content digests and all application coordinates. The useNotesChat history effect invokes fetchNotesChatMessages for GET /api/boards/:boardId/notes-chat without a rejection handler. The corresponding current owner is fixed in this PR with actual React/fetch failure, cancellation, stale-read and retry regressions. Caller attribution does not identify the original cause of the failed network request; the source fix has not been production-verified.",
       "applicationFrames": [
         {
           "file": "4945-980d3a8462c33471.js",
@@ -102,9 +103,32 @@
         }
       ],
       "missingEvidence": [
-        "4945-980d3a8462c33471.js and its source map for release 601083caa5548b6fd03b03465583d5c508d40193"
+        "Original deployed bytes/full SHA256 comparison and source maps",
+        "Underlying cause of the failed fetch and verification of the candidate after release"
       ],
-      "nextEvidenceNeeded": "The exact release application chunk or source map; current chunks and minified function names cannot substitute for it."
+      "nextEvidenceNeeded": "Observe the repaired owner after an approved deployment; investigate any new failed-fetch receipt with its request/lifecycle context. No historical issue closure is inferred.",
+      "callerIdentified": true,
+      "callerEvidence": {
+        "release": "601083caa5548b6fd03b03465583d5c508d40193",
+        "caller": {
+          "repository_path": "apps/tutor/features/tutor-session/hooks/useNotesChat.ts",
+          "line": 43,
+          "bundle": "4945-980d3a8462c33471.js",
+          "bundle_line": 1,
+          "bundle_column": 743364,
+          "expression": "hE(e).then(t=>{i||c.current!==e||r(t)})"
+        },
+        "fetch": {
+          "repository_path": "apps/tutor/lib/boards/notesChatClient.ts",
+          "line": 32,
+          "symbol": "fetchNotesChatMessages",
+          "minified_symbol": "hE",
+          "bundle_line": 1,
+          "bundle_column": 545528,
+          "route": "GET /api/boards/:boardId/notes-chat"
+        },
+        "method": "Exact 1-based UTF-16 minified coordinates plus import/export binding and git source correspondence; no source maps used."
+      }
     },
     {
       "issue": "HEYTUTOR-1Y",
@@ -129,8 +153,8 @@
       "exactEventRootCauseKnown": false,
       "resolved": false,
       "productionVerified": false,
-      "disposition": "unresolved_application_chunk_missing",
-      "finding": "Shares trace 322daabfd3bf4010bf8e06d2eba4af54 with HEYTUTOR-1X. Matching React vendor coordinates identify effect execution, but neither application chunk survives. The timing does not establish a common request or root cause. Live reads recovered matching trace and span IDs and eight failed GET breadcrumbs: billing entitlement, boards, home suggestions, account profile/settings, notes history, version and one filtered URL. None records an HTTP status. These identify candidate owners, not the exact application frame.",
+      "disposition": "caller_attributed_source_fix_production_unverified",
+      "finding": "Isolated rebuild of release 601083c matches the recorded chunk filenames, raw xxhash64 content digests and all application coordinates. The useBoardSession board-list effect invokes fetchBoards for GET /api/boards?page=<page> without a rejection handler. The corresponding current owner is fixed in this PR with actual React/fetch failure, cancellation, stale-read and retry regressions. Caller attribution does not identify the original cause of the failed network request; the source fix has not been production-verified.",
       "applicationFrames": [
         {
           "file": "4945-980d3a8462c33471.js",
@@ -146,9 +170,33 @@
         }
       ],
       "missingEvidence": [
-        "4945-980d3a8462c33471.js and 6624-3dc436f1c376ad36.js and their source maps for release 601083caa5548b6fd03b03465583d5c508d40193"
+        "Original deployed bytes/full SHA256 comparison and source maps",
+        "Underlying cause of the failed fetch and verification of the candidate after release"
       ],
-      "nextEvidenceNeeded": "Exact release application chunks or source maps, followed by an actual consumer reproduction."
+      "nextEvidenceNeeded": "Observe the repaired owner after an approved deployment; investigate any new failed-fetch receipt with its request/lifecycle context. No historical issue closure is inferred.",
+      "callerIdentified": true,
+      "callerEvidence": {
+        "release": "601083caa5548b6fd03b03465583d5c508d40193",
+        "caller": {
+          "repository_path": "apps/tutor/features/tutor-session/hooks/useBoardSession.ts",
+          "line": 216,
+          "bundle": "4945-980d3a8462c33471.js",
+          "bundle_line": 1,
+          "bundle_column": 565560,
+          "expression": "(0,tG.cS)().then(...)"
+        },
+        "fetch": {
+          "repository_path": "apps/tutor/lib/boards/boardsClient.ts",
+          "line": 76,
+          "symbol": "fetchBoards",
+          "minified_symbol": "l",
+          "bundle": "6624-3dc436f1c376ad36.js",
+          "bundle_line": 1,
+          "bundle_column": 5162,
+          "route": "GET /api/boards?page=<page>"
+        },
+        "method": "Exact 1-based UTF-16 minified coordinates plus import/export binding and git source correspondence; no source maps used."
+      }
     },
     {
       "issue": "HEYTUTOR-1T",
@@ -234,5 +282,48 @@
     "sourceDiagnostics": "No event debug IDs, release artifacts, artifact bundles or uploaded debug-ID artifacts. Source/map lookup failed for 1X/1Y/1T; app:/// scraping reports invalid_host.",
     "traceQueries": "Explicitly dated reads returned the six known errors in five traces, with no HTTP spans or additional caller chain.",
     "privacy": "Only aggregate path templates and evidence dispositions are committed here; board-specific paths and sanitized event payloads remain in private recovery evidence."
+  },
+  "historicalRebuildSupplement": {
+    "completedUTC": "2026-11-14T22:40:08.768340+00:00",
+    "privateFindingsSha256": "5e458a97a8383508e1577bd343b2ce4fc1f4c0d9be1c63eeeeb1801b1a471a4b",
+    "ciProvenance": "https://github.com/kaizen403/heytutor/actions/runs/42276671720",
+    "retainedGitHubArtifacts": "Zero artifacts for all three exact releases; one isolated build was used.",
+    "matchedFiles": [
+      {
+        "build_relative_path": "apps/tutor/.next-a/static/chunks/4945-980d3a8462c33471.js",
+        "bytes": 858511,
+        "sha256": "ee58214d01fbcbe7b93f878cd3d7f9e8db95a91a8237ea519cc3734a82e14fea",
+        "filename_hash": "980d3a8462c33471"
+      },
+      {
+        "build_relative_path": "apps/tutor/.next-a/static/chunks/6624-3dc436f1c376ad36.js",
+        "bytes": 18467,
+        "sha256": "08aa973a028c9722f190a1e45703138f6d8e6d3058e7889a496f4ec6ffe5e902",
+        "filename_hash": "3dc436f1c376ad36"
+      }
+    ],
+    "rawHashVerification": [
+      {
+        "file": "4945-980d3a8462c33471.js",
+        "raw_xxhash64": "980d3a8462c33471",
+        "filename_hash": "980d3a8462c33471",
+        "matches": true
+      },
+      {
+        "file": "6624-3dc436f1c376ad36.js",
+        "raw_xxhash64": "3dc436f1c376ad36",
+        "filename_hash": "3dc436f1c376ad36",
+        "matches": true
+      }
+    ],
+    "limits": [
+      "Original deployed JS bytes/full SHA-256 were not retained or retrieved. Matching raw xxhash64 values equal the exact content hashes recorded in historical filenames; SHA-256 values are for the reconstructed files, not an original-byte comparison.",
+      "No source maps recovered. Source mapping is exact-coordinate minified AST plus export/import binding and git source correspondence, not source-map symbolication.",
+      "The original full production environment and EC2 compiler platform were not recovered or invented. Relevant files nonetheless exactly match their recorded raw content hashes.",
+      "The underlying reason fetch failed, including browser connectivity, CORS, shutdown timing or remote response, is not established by caller attribution.",
+      "1T login inline HTML/assets unavailable; no optional rebuild attempted. Its endpoint and caller remain unknown.",
+      "1P newest event still has no frames. Notes-chat breadcrumb 1 ms earlier remains temporal evidence, not definitive historical caller identity. No claim that the 601 build proves its distinct 665 release event."
+    ],
+    "privacy": "Only code-coordinate attribution and aggregate route templates are committed; private build records remain in quarantined recovery evidence."
   }
 }
