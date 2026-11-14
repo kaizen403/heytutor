@@ -1,8 +1,9 @@
 /** A bounded source program: formula-unit mass -> moles -> solution concentration.
  * No solvent volume, mixtures, hydration assumption, or supplied answer is inferred. */
+import { equivalentRoundedMeasuredQuantity } from "../contracts/contractsV3";
 import { parseFormula } from "./formula";
 import { ChemScene, type ChemPlanQuantity } from "./sceneKit";
-import { CHEMISTRY_SCALAR_PATTERN, readChemistryLiteral, convertChemistryValue, chemistryCanonicalValuesAgree, chemistryPlanBindingsValid, type ChemistryDimension, type ChemistryUnit, type ChemistryReading } from "./quantityReader";
+import { CHEMISTRY_SCALAR_PATTERN, readChemistryLiteral, convertChemistryValue, chemistryUnitSymbol, chemistryCanonicalValuesAgree, chemistryPlanBindingsValid, type ChemistryDimension, type ChemistryUnit, type ChemistryReading } from "./quantityReader";
 import { parseMathExpression } from "../math/expression";
 import type { ProblemIR, ExpressionNodeIR } from "../ir/problemIR";
 
@@ -52,18 +53,26 @@ export function readMassMolaritySource(question: string): MassMolaritySource | n
 /** All recognized numerical plan roles must agree, after exact unit conversion.
  * Unknown physical roles fail closed; neither a correct answer nor another same-unit
  * input can vouch for a swapped role. */
-export function chemistryCompositionPlanAgrees(question: string, quantities: readonly ChemPlanQuantity[], roles: readonly { aliases: readonly string[]; value: number; unit: ChemistryUnit; dimension: ChemistryDimension }[]): boolean {
+export function chemistryCompositionPlanAgrees(question: string, quantities: readonly ChemPlanQuantity[], roles: readonly { aliases: readonly string[]; value: number; unit: ChemistryUnit; dimension: ChemistryDimension; allowDerivedRounding?: boolean }[]): boolean {
   if (!chemistryPlanBindingsValid(question, quantities)) return false;
   const key = (text: string) => text.replace(/[{}\s_]/g, "");
   return quantities.every(quantity => {
     const symbolic = roles.filter(role => role.aliases.some(alias => key(alias) === key(quantity.symbol)));
+    if (quantity.symbol.trim() && symbolic.length !== 1) return false;
     const identified = roles.filter(role => role.aliases.some(alias => key(alias) === key(quantity.id)));
     if (symbolic.length && identified.length && symbolic[0] !== identified[0]) return false;
     const found = symbolic.length ? symbolic : identified;
     if (found.length !== 1 || !quantity.unit) return false;
     const role = found[0]!;
-    const converted = convertChemistryValue(quantity.value, quantity.unit as ChemistryUnit, role.unit, role.dimension);
-    return converted.ok && chemistryCanonicalValuesAgree(converted.reading, role.value);
+    const inputUnit = chemistryUnitSymbol(quantity.unit, role.dimension);
+    if (!inputUnit) return false;
+    const converted = convertChemistryValue(quantity.value, inputUnit, role.unit, role.dimension);
+    return converted.ok && (chemistryCanonicalValuesAgree(converted.reading, role.value)
+      // Only source-recomputed outputs use the existing plan rounding contract.
+      // Measurements and reference inputs never acquire rounded given authority.
+      || quantity.origin === "derived" && role.allowDerivedRounding === true
+        && Math.abs(converted.reading - role.value) <= 0.01 * Math.abs(role.value)
+        && equivalentRoundedMeasuredQuantity(role.value, role.unit, quantity.value, inputUnit));
   });
 }
 
@@ -89,8 +98,8 @@ export function buildMassMolarityScene(question: string, quantities: readonly Ch
     {aliases:["mass","m","solute_mass"],value:source.mass.value,unit:"g",dimension:"mass"},
     {aliases:["V","volume","solution_volume"],value:source.volume.value,unit:"L",dimension:"volume"},
     {aliases:["M_s","molar_mass"],value:source.molarMass,unit:"g/mol",dimension:"molar_mass"},
-    {aliases:["n","moles","solute_amount"],value:source.moles,unit:"mol",dimension:"amount"},
-    {aliases:["M","c","molarity","concentration"],value:source.concentration,unit:"mol/L",dimension:"concentration"},
+    {aliases:["n","moles","solute_amount"],value:source.moles,unit:"mol",dimension:"amount",allowDerivedRounding:true},
+    {aliases:["M","c","molarity","concentration"],value:source.concentration,unit:"mol/L",dimension:"concentration",allowDerivedRounding:true},
   ])) return null;
   const c = new ChemScene(question,"source-bound formula mass, amount and solution concentration","chem_solutions");
   const show = (value: number) => String(Number(value.toPrecision(6)));

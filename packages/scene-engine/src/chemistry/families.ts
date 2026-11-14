@@ -3,6 +3,7 @@
  * its side effect by the package index, so the router knows every family
  * before the first stem is classified.
  */
+import { EFFUSION_FAMILY, claimsEffusion, buildEffusionScene } from "./effusion";
 import { registerChemistryFamily } from "./router";
 import { ORGANIC_FAMILY, isOrganicStem, buildOrganicScene } from "./organic";
 import { VSEPR_FAMILY, isVseprStem, buildVseprScene } from "./vsepr";
@@ -28,6 +29,7 @@ registerChemistryFamily({ family: ELECTROCHEM_FAMILY, cue: isElectrochemStem, bu
 registerChemistryFamily({ family: SOLID_FAMILY, cue: isUnitCellStem, build: buildUnitCellScene });
 registerChemistryFamily({ family: KINETICS_FAMILY, cue: isKineticsStem, build: buildKineticsScene });
 registerChemistryFamily({ family: THERMO_FAMILY, cue: isThermoGraphStem, build: buildThermoGraphScene });
+registerChemistryFamily({ family: EFFUSION_FAMILY, cue: claimsEffusion, build: buildEffusionScene });
 registerChemistryFamily({ family: SOLUTIONS_FAMILY, cue: isSolutionsGraphStem, build: buildSolutionsGraphScene });
 registerChemistryFamily({ family: PERIODIC_FAMILY, cue: isPeriodicTrendStem, build: buildPeriodicTrendScene });
 registerChemistryFamily({ family: ORGANIC_FAMILY, cue: isOrganicStem, build: buildOrganicScene });

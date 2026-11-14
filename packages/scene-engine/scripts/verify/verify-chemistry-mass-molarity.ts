@@ -30,6 +30,8 @@ async function main() {
     assert.equal(validateSolverResult(tampered,problem).valid,false);
     const answer = {id:"molarity",symbol:"c",value:expected,unit:"mol/L",origin:"derived" as const};
     assert(buildMassMolarityScene(question,[answer]));
+    assert(buildMassMolarityScene(question,[{...answer,value:Number(expected.toPrecision(3))}]), "derived outputs retain the existing rounding contract");
+    assert.equal(buildMassMolarityScene(question,[{id:"solute_mass",symbol:"mass",value:readMassMolaritySource(question)!.mass.value*1.01,unit:"g",origin:"given"}]),null,"source inputs remain exact");
     assert.equal(buildMassMolarityScene(question,[{...answer,value:expected*2}]),null);
     assert.equal(buildMassMolarityScene(question,[{...answer,symbol:"n",unit:"mol"}]),null);
     assert.equal(buildMassMolarityScene(question,[{...answer,unit:"kg"}]),null);
@@ -48,7 +50,7 @@ async function main() {
   for (const question of negatives) {
     assert.equal(readMassMolaritySource(question),null,question);
     const result = synthesizeFamilyScene({question});
-    assert(!result || result.document.source.sourceModel!=="formula_mass_molarity/v1",question);
+    assert.equal(result,null,"invalid concentration source must not borrow an unrelated figure: "+question);
   }
   console.log(`mass-molarity: ${examples.length} source/compile/solver cases, 20 stale-role/unit checks and ${negatives.length} source negatives passed`);
 }

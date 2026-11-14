@@ -85,6 +85,7 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
   chem_unit_cell: ["point", "segment", "circle", "dimension", "label"],
   chem_kinetics: CHEMISTRY_GRAPH_OPERATORS,
   chem_thermo: CHEMISTRY_GRAPH_OPERATORS,
+  chem_effusion: ["point", "label"],
   chem_solutions: CHEMISTRY_GRAPH_OPERATORS,
   chem_periodic: ["axes", "polyline", "point", "rectangle", "label"],
   ray_path: [
@@ -173,6 +174,7 @@ const FAMILY_PREDICATES: Record<SceneVisualFamily, readonly string[]> = {
   chem_unit_cell: CHEMISTRY_PREDICATES,
   chem_kinetics: CHEMISTRY_GRAPH_PREDICATES,
   chem_thermo: CHEMISTRY_GRAPH_PREDICATES,
+  chem_effusion: CHEMISTRY_PREDICATES,
   chem_solutions: CHEMISTRY_GRAPH_PREDICATES,
   chem_periodic: CHEMISTRY_PREDICATES,
   ray_path: ["incident", "on", "parallel", "converges", "equal_angle", "snells_law"],
@@ -212,6 +214,7 @@ const FAMILY_GUIDANCE: Record<SceneVisualFamily, string> = {
   chem_unit_cell: CHEMISTRY_GUIDANCE,
   chem_kinetics: CHEMISTRY_GUIDANCE,
   chem_thermo: CHEMISTRY_GUIDANCE,
+  chem_effusion: CHEMISTRY_GUIDANCE,
   chem_solutions: CHEMISTRY_GUIDANCE,
   chem_periodic: CHEMISTRY_GUIDANCE,
   ray_path: "Derive every reflected or refracted direction with reflect_at/refract_at or the surface-contact chain; never guess ray endpoints. Prove incidence, angle, convergence, or parallelism named by the question.",

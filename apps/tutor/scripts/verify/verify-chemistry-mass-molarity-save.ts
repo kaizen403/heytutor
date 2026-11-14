@@ -32,6 +32,12 @@ async function main() {
     const correctAttempt = correctSelection.attemptedRepresentation!;
     const correctSaved = await canonicalizeTurnSceneMetadata({question,sceneDocument:correctAttempt.sceneDocument,visualStatus:"validated",sceneArtifacts:{schemaVersion:"scene-artifacts/v3",representationTier:correctAttempt.tier,nonMetric:correctAttempt.nonMetric,diagramResultStatus:"ready",turnPlan:correctPlan},segments:[]} as unknown as SubmittedTurnSceneMetadata);
     assert(correctSaved.ok,correctSaved.ok?"":correctSaved.error);
+    const roundedPlan: TurnPlanV3 = {...correctPlan,derived:correctPlan.derived.map(quantity=>({...quantity,value:Number(quantity.value.toPrecision(3))}))};
+    const roundedSelection = selectProductionScene({question,turnPlan:roundedPlan,problemIR:null,requiredRetryEnabled:true});
+    assert.equal(roundedSelection.visualStatus,"validated","source-proved computed values retain the existing derived-plan rounding contract: "+roundedSelection.reason);
+    const roundedAttempt = roundedSelection.attemptedRepresentation!;
+    const roundedSaved = await canonicalizeTurnSceneMetadata({question,sceneDocument:roundedAttempt.sceneDocument,visualStatus:"validated",sceneArtifacts:{schemaVersion:"scene-artifacts/v3",representationTier:roundedAttempt.tier,nonMetric:roundedAttempt.nonMetric,diagramResultStatus:"ready",turnPlan:roundedPlan},segments:[]} as unknown as SubmittedTurnSceneMetadata);
+    assert(roundedSaved.ok,roundedSaved.ok?"":roundedSaved.error);
     assert(reopened.source.answerLabelEntityIds.length > 0, "computed answer ink is deferred until teaching finishes");
     for (const text of ["2 mol/L", "300 K", "6 J"]) {
       const forged=structuredClone(reopened);
@@ -48,6 +54,6 @@ async function main() {
       assert(sceneSaveAdmissionFailure({document:reopened,question,turnPlan:stale,tier:attempted.tier}));
     }
   }
-  console.log("mass-molarity: 3 production/live/save/JSON-reopen cases, 9 label forgeries and 6 stale-answer controls passed");
+  console.log("mass-molarity: 9 production/save cases (empty, exact and rounded plans), 3 saved-document JSON reopens and 18 rejection controls passed");
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

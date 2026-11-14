@@ -5,6 +5,7 @@
  * question, after each relevant planner scalar has been checked by chemical
  * role and species. In particular, a layout angle is never a measured angle.
  */
+import { buildEffusionScene, readEffusionSource } from "./effusion";
 import { buildMassMolarityScene, readMassMolaritySource } from "./massMolarity";
 import type { TurnPlanQuantityV3, TurnPlanV3 } from "../contracts/contractsV3";
 import { PLAN_EXAMPLE_PROVENANCE, buildPlanExampleDocument } from "./planExample";
@@ -198,13 +199,16 @@ function graphMatches(document: SceneDocument, fresh: SceneDocument, plan: TurnP
 export function certifyVseprSourceDocument(document: SceneDocument, question: string, plan: TurnPlanV3 | null): VseprSourceCertification {
   // Composition labels need graph/role closure as well as numerical equality.
   // On success retain the ordinary numeric audit (no chemistry exemption).
-  const compositionSource = readMassMolaritySource(question);
-  const claimsComposition = document.source.sourceModel === "formula_mass_molarity/v1";
+  const massMolaritySource = readMassMolaritySource(question);
+  const effusionSource = readEffusionSource(question);
+  const compositionSource = massMolaritySource || effusionSource;
+  const claimsComposition = document.source.sourceModel === "formula_mass_molarity/v1"
+    || document.source.sourceModel === "graham_effusion/v1" || document.source.chemistryFamily === "chem_effusion";
   if (compositionSource || claimsComposition) {
     const quantities = plan ? [...plan.givens, ...plan.derived].map(quantity => ({
       ...quantity, origin: quantity.provenance === "given" ? "given" as const : "derived" as const,
     })) : [];
-    const raw = buildMassMolarityScene(question, quantities);
+    const raw = massMolaritySource ? buildMassMolarityScene(question, quantities) : buildEffusionScene(question, quantities, false);
     const fresh = raw ? validateSceneDocument(pruneDeadSceneEntities(raw as unknown as Record<string, unknown>)).document : null;
     const submitted = validateSceneDocument(document).document;
     // Admit only the exact native deferred result or the exact plan-staged form.
