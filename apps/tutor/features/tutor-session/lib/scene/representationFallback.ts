@@ -24,6 +24,7 @@ import {
   type ProblemStructureView,
   type RenderScene,
   type SceneDocument,
+  type SceneIssue,
   type TurnPlanV3,
   type ValidationReport,
   type FigureSource,
@@ -564,6 +565,8 @@ function checkUsableExactRepresentation(
       normalizeQuestion(sourceQuestion) !== normalizeQuestion(expectedQuestion)) {
     return reject("source_question_mismatch", "the scene was drawn for a different question");
   }
+  const functionIssues = validateSourceFunctionInventory(candidate.sceneDocument, expectedQuestion);
+  if (functionIssues.length) return reject("source_function_inventory_unmet", functionIssues[0]!.message);
   if (candidate.validationReport.issues.some((issue) =>
     issue.severity === "fatal" || issue.code === "assertion_failed")) {
     return reject("exact_assertion_unproven", "the scene report carries a fatal issue or a failed assertion");
@@ -1270,6 +1273,32 @@ function sourceFunctionSettingEqualities(source: string, unquoted: Uint8Array, e
  * neither decodes display coordinates nor grants derivative/answer authority:
  * it accepts only the whole program independently re-derived from the same
  * unquoted source, with no plan, IR or family hints, and returns it unchanged. */
+/** A declared plot owns every explicit source function, independently of its
+ * geometric tier or planner metadata. Equation labels are also checked against
+ * their actual curve bodies by the compiler; existence alone proves no plot. */
+export function validateSourceFunctionInventory(document: SceneDocument, question: string): SceneIssue[] {
+  const normalized = normalizeMathText(question);
+  const positions = unquotedFunctionSourcePositions(normalized);
+  const stem = normalized.split("").map((character, index) => positions[index] ? character : " ").join("");
+  if (!/\b(?:plot|sketch|graph|curves?|region)\b/iu.test(stem)) return [];
+  const facts = extractExplicitFunctionFacts(question, true);
+  if (facts.length === 0) return [];
+  const owners = new Set<number>();
+  const boundaries = new Set(document.constructions.filter(construction => construction.operator === "function_region")
+    .flatMap(construction => [construction.inputs.upper, construction.inputs.lower]));
+  const sourceAxis = /(?<![\p{L}\p{N}_])x[\s-]+axis(?![\p{L}\p{N}_])/iu.test(stem);
+  let unowned = false;
+  for (const curve of document.constructions.filter(construction => construction.operator === "function_curve" || construction.operator === "implicit_curve")) {
+    const label = document.entities.find(entity => entity.id === curve.outputs[0])?.label;
+    const owner = facts.findIndex(fact => ownsCompleteFunctionLabel(label, stripCompleteExpressionGroups(fact.expression)));
+    if (owner >= 0) owners.add(owner);
+    else if (!(sourceAxis && boundaries.has(curve.outputs[0]) && ownsCompleteFunctionLabel(label, "0"))) unowned = true;
+  }
+  if (!unowned && owners.size === facts.length) return [];
+  return [{ code: "source_function_inventory_unmet", severity: "fatal", path: "constructions",
+    message: "The requested plot must retain every explicit source function with its complete equation; unrelated geometry cannot satisfy it." }];
+}
+
 export function prepareFallbackFunctionInventory<T extends { document: SceneDocument; renderScene: RenderScene; validationReport: ValidationReport; tier?: string; nonMetric?: boolean; family?: string }>(question: string, candidate: T | null, lastResort = false): T | null {
   if (!candidate) return null;
   const curves = candidate.document.constructions.filter(({ operator }) => operator === "function_curve" || operator === "implicit_curve");
