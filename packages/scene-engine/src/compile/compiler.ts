@@ -1,3 +1,4 @@
+import { separateSharedOriginVectors } from "./vectorLanes";
 import { strokePieces, validateLabelOwnerTruth, validateStraightLineNames } from "./labelOwnerTruth";
 import { circularStrokeDistance } from "./circularStrokeDistance";
 import { validateFigureConsistency } from "./figureConsistency";
@@ -592,6 +593,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
       }
     }
   }
+  separateSharedOriginVectors(document, primitives, viewport);
   const projectileProjectionIssues = validateProjectileMeasurementProjection(document, primitives);
   if (projectileProjectionIssues.length) return { ok: false, renderScene: null, report: report(document, [...issues, ...projectileProjectionIssues], primitives.length) };
   if (verifiedPartsEnabled) {
@@ -5948,6 +5950,8 @@ function dimensionLabelPlacement(entityId: string, value: Geometry, primitives: 
 }
 
 function screenLabelAnchor(entityId: string, value: Geometry, primitives: RenderPrimitive[], transform: (point: Point) => RenderPoint): RenderPoint {
+  const lane = primitives.find(p => p.entityId === entityId && p.kind === "vector" && p.provenance?.vectorLane === true);
+  if (lane) return labelAnchorForPath(lane.points, true, false);
   if (value.kind === "path" && value.infinite) {
     const rendered = primitives.find((primitive) => primitive.entityId === entityId && primitive.kind !== "label");
     const start = rendered?.points[0];

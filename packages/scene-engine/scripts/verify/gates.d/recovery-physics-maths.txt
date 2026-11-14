@@ -1,0 +1,1 @@
+tsx scripts/verify/verify-recovery-physics-maths.ts

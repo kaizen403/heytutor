@@ -4218,10 +4218,14 @@ function validateSemanticVectorGeometry(
       predicate: "parallel" | "perpendicular",
     ) => {
       const first = directionForEntity(entity.id, constructions);
-      const second = directionForEntity(surface.id, constructions);
+      // A force at a proven circular contact belongs to that curve, rather
+      // than the separate straight approach elsewhere in the same figure.
+      const circular = circularContactTangent(entity.id, document, constructions);
+      const supportId = circular?.id ?? surface.id;
+      const second = circular?.direction ?? directionForEntity(surface.id, constructions);
       if (!first || !second) return;
       const firstSpace = coordinateSpaceForEntity(entity.id, constructions);
-      const secondSpace = coordinateSpaceForEntity(surface.id, constructions);
+      const secondSpace = coordinateSpaceForEntity(supportId, constructions);
       if (
         firstSpace === "mixed" ||
         secondSpace === "mixed" ||
@@ -4229,9 +4233,9 @@ function validateSemanticVectorGeometry(
       ) {
         issues.push({
           code: "physical_relation_mixed_coordinate_spaces",
-          message: `${predicate} relation between ${entity.id} and ${surface.id} mixes coordinate spaces`,
+          message: `${predicate} relation between ${entity.id} and ${supportId} mixes coordinate spaces`,
           severity: "fatal",
-          entityIds: [entity.id, surface.id],
+          entityIds: [entity.id, supportId],
         });
         return;
       }
@@ -4244,11 +4248,11 @@ function validateSemanticVectorGeometry(
       if (residual > 0.04) {
         issues.push({
           code: "physical_direction_relation_failed",
-          message: `${entity.id} must be ${predicate} to ${surface.id}: the angle between their directions is ` +
+          message: `${entity.id} must be ${predicate} to ${supportId}: the angle between their directions is ` +
             `${Math.round(Math.acos(Math.min(1, Math.abs(first.x * second.x + first.y * second.y) / (firstLength * secondLength))) * 1800 / Math.PI) / 10} degrees, ` +
-            `and ${predicate === "parallel" ? "0" : "90"} is needed. Valid when ${entity.id} is constructed along ${predicate === "parallel" ? `${surface.id}'s own direction` : `the normal of ${surface.id}`}.`,
+            `and ${predicate === "parallel" ? "0" : "90"} is needed. Valid when ${entity.id} is constructed along ${predicate === "parallel" ? `${supportId}'s own direction` : `the normal of ${supportId}`}.`,
           severity: "fatal",
-          entityIds: [entity.id, surface.id],
+          entityIds: [entity.id, supportId],
           residual,
         });
       }
@@ -4472,6 +4476,32 @@ function coordinateSpaceForEntity(
     .filter((value): value is "world" | "layout" | "mixed" => value !== null);
   if (spaces.length === 0) return null;
   return spaces.every((space) => space === spaces[0]) ? spaces[0]! : "mixed";
+}
+
+/** Unique circular support incident to this vector's actual origin. */
+function circularContactTangent(
+  vectorId: string,
+  document: SceneDocument,
+  constructions: Map<string, SceneDocument["constructions"][number]>,
+): { id: string; direction: { x: number; y: number } } | null {
+  const start = constructions.get(vectorId)?.inputs.start;
+  const contact = typeof start === "string" ? pointForEntity(start, constructions) : null;
+  if (!contact) return null;
+  const matches = document.entities.flatMap(entity => {
+    if (entity.kind !== "circle" || !/\b(?:track|path|loop)\b/i.test(`${entity.id} ${entity.role}`)) return [];
+    const producer = constructions.get(entity.id);
+    if (producer?.operator !== "circle" || typeof producer.inputs.center !== "string") return [];
+    if (coordinateSpaceForEntity(entity.id, constructions) !== coordinateSpaceForEntity(vectorId, constructions)) return [];
+    const center = pointForEntity(producer.inputs.center, constructions);
+    const rawRadius = producer.inputs.radius;
+    const radius = typeof rawRadius === "number" ? rawRadius
+      : document.quantities.find(q => q.id === rawRadius)?.value;
+    if (!center || typeof radius !== "number" || !Number.isFinite(radius) || radius <= 0) return [];
+    const dx = contact.x - center.x, dy = contact.y - center.y;
+    if (Math.abs(Math.hypot(dx, dy) - radius) > 1e-6 * Math.max(1, radius)) return [];
+    return [{ id: entity.id, direction: { x: -dy, y: dx } }];
+  });
+  return matches.length === 1 ? matches[0]! : null;
 }
 
 function directionForEntity(
