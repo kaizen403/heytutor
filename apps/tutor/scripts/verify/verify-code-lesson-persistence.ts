@@ -306,7 +306,9 @@ async function main(): Promise<void> {
     );
 
     const controller = { frames: new DsaFrameController() };
-    restoreDsaFrames(controller, { question: sortQuestion }, sortPlan);
+    const restoredTurn = { question: sortQuestion, visualStatus: "validated" as const,
+      sceneDocument: live.scenes.frames[0]!.document };
+    restoreDsaFrames(controller, restoredTurn, sortPlan);
     assert(
       controller.frames.total() === live!.frames.length,
       `restore rebuilt ${controller.frames.total()} frames against the live turn's ${live!.frames.length}`,
@@ -318,7 +320,7 @@ async function main(): Promise<void> {
 
     // A turn with no plan must clear the frames rather than leave the previous
     // turn's walk on the controller.
-    restoreDsaFrames(controller, { question: sortQuestion }, null);
+    restoreDsaFrames(controller, restoredTurn, null);
     assert(controller.frames.total() === 0, "a turn without a plan must clear the walk-through");
   }
 

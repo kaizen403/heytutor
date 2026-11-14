@@ -8,6 +8,10 @@ import { scenario } from "./verify-startup-turn";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { storedCodeLessonPlan } from "../../lib/code-lesson/persistedCodeLesson";
 import { restoreVerifiedDiagramFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
+import {
+  DsaFrameController,
+  restoreDsaFrames,
+} from "../../features/tutor-session/lib/code-lesson/dsaFrames";
 
 async function main() {
   for (const long of [true, false]) {
@@ -76,6 +80,28 @@ async function main() {
       !long,
       "reopened diagram authority agrees with live/save",
     );
+    const restored = { frames: new DsaFrameController() };
+    restoreDsaFrames(restored, { ...saved.value, question }, plan);
+    assert.equal(
+      restored.frames.total() > 0,
+      !long,
+      "a code plan alone cannot restore walk-through geometry after save removed the scene",
+    );
+    for (const sceneDocument of [
+      null,
+      { schemaVersion: "scene-document/v2", source: { question } },
+    ]) {
+      restoreDsaFrames(
+        restored,
+        { question, visualStatus: "validated", sceneDocument },
+        plan,
+      );
+      assert.equal(
+        restored.frames.total(),
+        0,
+        "an absent or invalid saved document cannot grant frame authority",
+      );
+    }
   }
   console.log("code scene live/save parity verification passed");
 }

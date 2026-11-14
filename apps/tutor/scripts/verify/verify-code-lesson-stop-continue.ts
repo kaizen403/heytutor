@@ -239,7 +239,7 @@ async function completeCase(mode: "same-context" | "reload" | "already-drawn" | 
   const stoppedPrefix = buildReplayTimeline([f.savedParent]);
   assert.equal(codeLessonFrameSpec(track, stoppedPrefix.totalMs - 1).revealedChars, mode === "partial-code" ? f.partial : 0,
     "the stopped prefix cannot borrow the later resume's code");
-  const replayController = new CodeLessonController(); replayController.commit(plan); restoreDsaFrames(replayController, f.savedParent, plan);
+  const replayController = new CodeLessonController(); replayController.commit(plan); restoreDsaFrames(replayController, resumed, plan);
   const replayParams = { ...f.values, codeLessonControllerRef: ref(replayController), cancelRef: ref(false), activeVerifiedDiagramRef: ref(frames.frames[0]!.presentation.diagram) };
   const replayExecute = (load("features/tutor-session/hooks/useCommandExecution.ts").useCommandExecution as typeof import("../../features/tutor-session/hooks/useCommandExecution").useCommandExecution)(replayParams as never).executeCommand;
   let previous = -1;
