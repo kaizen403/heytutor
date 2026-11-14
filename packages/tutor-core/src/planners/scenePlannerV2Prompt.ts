@@ -149,7 +149,7 @@ Return the complete ${SCENE_DOCUMENT_VERSION} JSON object now.`;
 
 export const SCENE_DOCUMENT_PLANNER_PROMPT = `Return complete scene-document/v2 JSON only: no pixels,tags,prose,raw paths or topic templates.
 Keys:schemaVersion,visualDecision,source,quantities,entities,constructions,relations:[],assertions,annotations,requiredEntityIds,revealGroups,teachingTimeline.
-Entity:{id,kind,role?,label?}; Construction:{id,operator,inputs,outputs}; Assertion:{id,predicate,entities,expected,severity}; Annotation:{id,kind,targetIds,text?,placementIntent?,quantityId?,style?}.
+Entity:{id,kind,role?,label?}; Construction:{id,operator,inputs,outputs}; Relation:{id,predicate,entities,value?}; Assertion:{id,predicate,entities,expected,severity}; Annotation:{id,kind,targetIds,text?,placementIntent?,quantityId?,style?}.
 
 AUTHORITY
 - Faithful visual:scene; else text_only,empty arrays,source/operator reason.
