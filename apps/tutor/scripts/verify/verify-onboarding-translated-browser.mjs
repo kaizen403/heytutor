@@ -22,9 +22,17 @@ const bundle = await build({
       import React from 'react';
       import { createRoot } from 'react-dom/client';
       import { OnboardingScreen } from './features/account/OnboardingScreen';
+      import { LoginScreen } from './features/account/LoginScreen';
       window.renderOnboarding = () => createRoot(document.getElementById('root'), {
         onUncaughtError: error => window.crashes.push({ name: error.name, message: error.message }),
       }).render(<OnboardingScreen initialName="Synthetic learner" nextPath="/" suggestedRole="college" />);
+      window.renderLogin = () => {
+        window.accountRoot = createRoot(document.getElementById('root'), {
+          onUncaughtError: error => window.crashes.push({ name: error.name, message: error.message }),
+        });
+        window.accountRoot.render(<LoginScreen nextPath="/" googleEnabled={false} emailEnabled={true} devLoginEnabled={false} />);
+      };
+      window.renderAccountOnboarding = () => window.accountRoot.render(<OnboardingScreen initialName="Synthetic learner" nextPath="/" suggestedRole="college" />);
     `,
     resolveDir: app,
     loader: "tsx",
@@ -38,8 +46,10 @@ const bundle = await build({
   plugins: [{
     name: "onboarding-boundaries",
     setup(builder) {
-      builder.onResolve({ filter: /^(next\/navigation|@heytutor\/tutor-core)$/ }, args => ({ path: args.path, namespace: "fixture" }));
-      builder.onLoad({ filter: /.*/, namespace: "fixture" }, ({ path }) => ({ contents: path === "next/navigation"
+      builder.onResolve({ filter: /^(next\/navigation|next-auth\/react|@heytutor\/tutor-core)$/ }, args => ({ path: args.path, namespace: "fixture" }));
+      builder.onLoad({ filter: /.*/, namespace: "fixture" }, ({ path }) => ({ contents: path === "next-auth/react"
+        ? "export const signIn = (...args) => window.signInFixture(...args);"
+        : path === "next/navigation"
         ? "export const useRouter = () => ({ replace: path => window.destination = path, refresh() {} });"
         : "export const DEFAULT_ACCENT = 'india', DEFAULT_AUDIO_LANGUAGE = 'en', DEFAULT_FAMILIARITY = 'normal';" }));
     },
@@ -116,5 +126,45 @@ for (const [engine, launcher] of engines) {
       await page.close();
       console.log(`onboarding ${engine}/${replacement}: selection, deselection and save passed`);
     }
+    const page = await browser.newPage();
+    page.setDefaultTimeout(5000);
+    const errors = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await page.route("**/*", route => route.abort());
+    await page.setContent('<div id="root"></div>');
+    await page.evaluate(() => {
+      window.crashes = [];
+      window.rejectEmail = true;
+      window.signInFixture = async () => {
+        if (window.rejectEmail) throw new TypeError("synthetic connection failure");
+        return { ok: true };
+      };
+    });
+    await page.addScriptTag({ content: bundle.outputFiles[0].text });
+    await page.evaluate(() => window.renderLogin());
+    await page.getByRole("textbox", { name: "Email", exact: true }).fill("learner@synthetic.invalid");
+    const email = page.getByRole("button", { name: "Email me a sign-in link", exact: true });
+    await email.click();
+    await page.getByRole("alert").filter({ hasText: "Could not send the sign-in email" }).waitFor();
+    assert.equal(await email.isEnabled(), true);
+    await page.evaluate(() => { window.rejectEmail = false; });
+    await email.click();
+    await page.getByRole("status").filter({ hasText: "Check your inbox" }).waitFor();
+    await page.evaluate(() => window.renderAccountOnboarding());
+    await page.locator('button[type="submit"]').click();
+    await page.getByRole("radio", { name: /under 13/i }).click();
+    await page.evaluate(() => {
+      window.fetch = async (_url, init) => {
+        window.refusal = JSON.parse(init.body);
+        throw new TypeError("synthetic connection failure");
+      };
+    });
+    await page.locator('button[type="submit"]').click();
+    await page.waitForFunction(() => window.destination === "/login?refused=1");
+    assert.deepEqual(await page.evaluate(() => window.refusal), { ageBand: "under_13" });
+    assert.deepEqual(await page.evaluate(() => window.crashes), []);
+    assert.deepEqual(errors, [], `${engine}: account network rejection is handled`);
+    await page.close();
+    console.log(`account ${engine}: email retry and refusal redirect passed`);
   } finally { await browser.close(); }
 }

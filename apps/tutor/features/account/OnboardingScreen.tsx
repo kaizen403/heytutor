@@ -103,6 +103,8 @@ export function OnboardingScreen({
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ageBand: "under_13" }),
+    }).catch(() => {
+      // A failed refusal write must still leave tutoring and show the age gate.
     }).finally(() => {
       router.replace("/login?refused=1");
     });
