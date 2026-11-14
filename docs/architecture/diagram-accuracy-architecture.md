@@ -82,6 +82,17 @@ applies, the turn is text-only. A required visual that ends text-only records
 `retry_required` as its status, and the lesson keeps teaching. Question words
 are never rendered as boxes, and a fallback cannot display derived claims.
 
+Strict selection keeps ordinary archetypes, family figures and last-resort
+figures suppressed. A complete numeric circular state may use `circular_source`
+only after an invalid planner result, with no fast representation, when the
+question reader binds the state, the grounded ProblemIR and solver verify the
+plan, and the entire engine program regenerates identically. Complete-document
+proofs, figure-consistency compilation, identical rendered primitives and shared
+save admission remain mandatory. The source program stays nonmetric and
+`qualitative_verified`; neither a source marker nor an invalid planner fragment
+can claim this provenance. Symbolic or incomplete authority does not enter this
+path. This does not enable the broad fallback rejected by the strict audit.
+
 ## Representation Tiers
 
 The selector commits exactly one of these results:

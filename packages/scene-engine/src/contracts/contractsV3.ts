@@ -5452,6 +5452,8 @@ export const FIGURE_SOURCES = [
   "chemistry_family",
   "matrix_source",
   "linear_source",
+  // Complete circular state regenerated from source, with a verified numeric audit.
+  "circular_source",
   "source_grounded",
   "last_resort",
   "text_only",
