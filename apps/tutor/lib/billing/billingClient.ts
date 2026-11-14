@@ -3,7 +3,7 @@ import { resolveApiUrl, parseDiagramStrictSubjects, type DiagramSubject } from "
 import type { CheckoutPlanId } from "./catalog";
 import { isBillingErrorCode } from "./errors";
 import { isOutOfCreditsCode } from "./studentCopy";
-import { patchEntitlementSnapshot, setEntitlementSnapshot, type Entitlement } from "./entitlementState";
+import { getEntitlementSnapshot, patchEntitlementSnapshot, setEntitlementSnapshot, type Entitlement } from "./entitlementState";
 import { openRazorpayCheckout, type RazorpayCheckout } from "./razorpayCheckout";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
 
@@ -258,24 +258,36 @@ async function beginTurnOnce(input: {
 }
 
 let entitlementInflight: Promise<{ ok: true; entitlement: Entitlement } | BeginTurnErr> | null = null;
+let entitlementReadGeneration = 0;
 
 export async function fetchEntitlement(
   signal?: AbortSignal,
 ): Promise<{ ok: true; entitlement: Entitlement } | BeginTurnErr> {
   if (entitlementInflight && !signal) return entitlementInflight;
+  const generation = ++entitlementReadGeneration;
+  const snapshotAtStart = getEntitlementSnapshot();
   const run = (async () => {
     const response = await fetch(resolveApiUrl("/api/billing/entitlement"), {
       credentials: "include",
       signal,
     });
-    const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     if (!response.ok) {
+      const payload: unknown = await response.json().catch(() => null);
       return {
         ok: false as const,
         status: response.status,
-        code: typeof payload.code === "string" ? payload.code : "autumn_unavailable",
-        remaining: remainingPctFromPayload(payload),
+        code: isRecord(payload) && typeof payload.code === "string" ? payload.code : "autumn_unavailable",
+        remaining: isRecord(payload) ? remainingPctFromPayload(payload) : null,
       };
+    }
+    // A truncated body is a failed refresh, never a successful free plan.
+    const payload: unknown = await response.json();
+    signal?.throwIfAborted();
+    if (!isRecord(payload) || typeof payload.planId !== "string" ||
+        typeof payload.staff !== "boolean" ||
+        !(payload.remainingPct === null || (typeof payload.remainingPct === "number" && Number.isFinite(payload.remainingPct))) ||
+        !(payload.nextResetAt === null || (typeof payload.nextResetAt === "number" && Number.isFinite(payload.nextResetAt)))) {
+      throw new Error("Invalid entitlement response");
     }
     const entitlement: Entitlement = {
       planId: typeof payload.planId === "string" ? payload.planId : "free",
@@ -283,7 +295,10 @@ export async function fetchEntitlement(
       nextResetAt: typeof payload.nextResetAt === "number" ? payload.nextResetAt : null,
       staff: payload.staff === true,
     };
-    setEntitlementSnapshot(entitlement);
+    // A newer read or lesson receipt owns the meter once it has updated it.
+    if (generation === entitlementReadGeneration && getEntitlementSnapshot() === snapshotAtStart) {
+      setEntitlementSnapshot(entitlement);
+    }
     return { ok: true as const, entitlement };
   })();
   if (!signal) {
