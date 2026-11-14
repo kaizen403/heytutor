@@ -197,6 +197,7 @@ export function useReplay({
           executeCommand,
           shouldCancel,
           lessonFigures: lessonFiguresRef?.current,
+          codeLessonController: codeLessonControllerRef?.current,
         });
         if (figure.changed && !figure.cancelled) {
           if (activeVerifiedDiagramRef) activeVerifiedDiagramRef.current = figure.diagram;

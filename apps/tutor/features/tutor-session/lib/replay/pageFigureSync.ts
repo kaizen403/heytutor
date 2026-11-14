@@ -25,6 +25,16 @@ import type { LessonFigureSequence } from "../scene/lessonFigureSequence";
 import { restoreLessonFigureViews, restoreLessonFigures } from "../scene/restoreLessonFigures";
 import { restoreReferencePictureFromTurn } from "../scene/restoreReferencePicture";
 import { restoreVerifiedDiagramFromTurn } from "../scene/restoreVerifiedDiagram";
+import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
+import { restoreDsaFrames, type DsaFrameController } from "../code-lesson/dsaFrames";
+
+/** A resume may be the first turn with authority for its page's walk-through. */
+export function restoreInstalledDsaFrames(
+  controller: { frames: DsaFrameController } | null | undefined,
+  turn: StoredTurn,
+): void {
+  if (controller) restoreDsaFrames(controller, turn, storedCodeLessonPlan(turn.sceneArtifacts, turn.question));
+}
 
 /**
  * What a continuation does to the zone: nothing, its own figure in, the
@@ -120,6 +130,7 @@ export async function syncStoredPageFigure(input: {
   executeCommand: FigureSwapExecuteCommand;
   shouldCancel: () => boolean;
   lessonFigures?: LessonFigureSequence | null;
+  codeLessonController?: { frames: DsaFrameController } | null;
   notes?: DoubtPageNotes | null;
 }): Promise<{ changed: false } | { changed: true; cancelled: boolean; diagram: VerifiedDiagram | null }> {
   // doubt-page-turn:begin
@@ -147,6 +158,7 @@ export async function syncStoredPageFigure(input: {
   if (change.kind === "install") {
     if (input.lessonFigures) restoreLessonFigures(input.lessonFigures, input.turns[change.sourceIndex]);
     const cleared = change.clearFirst ? await clearFigureZone(wb, layout, input.shouldCancel) : !input.shouldCancel();
+    if (cleared) restoreInstalledDsaFrames(input.codeLessonController, input.turns[change.sourceIndex]!);
     return { changed: true, cancelled: !cleared, diagram: cleared ? storedTurnFigureDiagram(input.turns[change.sourceIndex]) : null };
   }
   const source = change.sourceIndex === null ? undefined : input.turns[change.sourceIndex];

@@ -78,6 +78,7 @@ import {
   lessonPageRecord,
   planDoubtPage,
   resumePageRecord,
+  resumeTurnScene,
   revealedCodeText,
 } from "../../lib/turn/doubtTurn";
 import {
@@ -2348,6 +2349,7 @@ export function useQuestionHandler(
           visualStatus: sceneVisualStatus,
           sceneArtifacts: codeLesson && sceneArtifacts ? { ...sceneArtifacts, codeLesson } : sceneArtifacts,
         };
+        if (resume) page.turn.scene = resumeTurnScene(page.turn.scene, page.lessonQuestion);
       }
 
       // lesson-figures-plan:begin

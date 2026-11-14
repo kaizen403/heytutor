@@ -427,6 +427,7 @@ export function useLecturePlayer({
           executeCommand: executeRef.current,
           shouldCancel,
           lessonFigures: lessonFiguresRef.current,
+          codeLessonController: controllerRef.current,
         });
         if (figure.changed) {
           if (figure.cancelled) return false;

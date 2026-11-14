@@ -762,6 +762,7 @@ export function useBoardSession({
               executeCommand: executeCommandRef.current,
               shouldCancel: inkStale,
               lessonFigures: lessonFiguresRef?.current,
+              codeLessonController: codeLessonControllerRef?.current,
               // doubt-page-restore-sync:begin
               notes: restoreNotes,
               // doubt-page-restore-sync:end
