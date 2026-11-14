@@ -16,6 +16,7 @@ export interface UnitSummary {
   recorded: number;
   running: number;
   accepted: number;
+  figures?: number;
 }
 
 interface UnitSectionProps {
@@ -188,11 +189,7 @@ export function UnitSection({
               {summary.running} recording
             </span>
           ) : null}
-          <span
-            title={`${summary.accepted} of ${summary.total} topics accepted`}
-          >
-            {summary.accepted} accepted
-          </span>
+<span title="Saved engine figures across every question in this chapter">Figures drawn: {summary.figures ?? 0} of {summary.possible}</span>
           {deletableCount > 0 ? (
             <PlainButton
               variant="danger"

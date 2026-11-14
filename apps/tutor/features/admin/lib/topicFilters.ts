@@ -23,8 +23,8 @@ export const DEFAULT_TOPIC_FILTERS: TopicFilters = {
 export const STATUS_FILTER_OPTIONS: { id: StatusFilter; label: string }[] = [
   { id: "all", label: "Any status" },
   { id: "pending", label: "Not reviewed" },
-  { id: "accepted", label: "Accepted" },
-  { id: "rejected", label: "Rejected" },
+  { id: "accepted", label: "Has review" },
+  { id: "rejected", label: "Review skipped" },
   { id: "needs-improvement", label: "Needs work" },
 ];
 

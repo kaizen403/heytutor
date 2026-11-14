@@ -73,6 +73,9 @@ const pendingDetails = new Map<string, ReturnType<typeof deferred<Response>>>();
 const detailResponses = new Map<string, Response>();
 const deleteResponses = new Map<string, Response | Error>();
 let failNextBoardList = false;
+const incompleteBoardIds = new Set<string>();
+const inspectionFailureIds = new Set<string>();
+const discardedBoardIds: string[] = [];
 const boardIndex = new Map<string, string>();
 const timeoutHandlers: Array<() => void> = [];
 const originalFetch = globalThis.fetch;
@@ -123,6 +126,17 @@ globalThis.fetch = async (input, init) => {
     const detail = boardDetails.get(id) ?? { preview: "", turns: [] };
     return Response.json({ board: { id, preview: detail.preview }, turns: detail.turns });
   }
+  if (init?.method === "PATCH" && url.includes("/api/admin/playground/")) {
+    const id = url.split("/").at(-1)!;
+    const body = JSON.parse(String(init.body));
+    if (body.action === "complete" && inspectionFailureIds.has(id)) return Response.json({ error: "offline" }, { status: 503 });
+    if (body.action === "discard") discardedBoardIds.push(id);
+    return Response.json({ playground: {
+      topicId: question.topicId, difficulty: question.difficulty,
+      state: body.action === "discard" || incompleteBoardIds.has(id) ? "discarded" : "complete",
+      figure: "without-figure",
+    }, reason: incompleteBoardIds.has(id) ? "Narration audio is incomplete" : undefined });
+  }
   if (init?.method === "PATCH") return Response.json({ board: null });
   throw new Error(`Unexpected external request: ${url}`);
 };
@@ -133,6 +147,7 @@ async function tick() { await new Promise((resolve) => setTimeout(resolve, 5)); 
 async function verify() {
 try {
   let queue = render();
+  assert(queue.concurrency === 5, "the playground still defaults to five recordings");
   let staleReady = 0;
   let currentReady = 0;
   queue.enqueue([question], { onReady: () => { staleReady++; } });
@@ -166,6 +181,41 @@ try {
   queue.handleComplete(queue.jobs[0]!.id);
   await tick();
   assert(render().jobs[0]!.status === "complete", "current completion still works");
+
+  // A completion callback is insufficient when the persisted recording is partial.
+  queue.enqueue([question, question]);
+  const partialRequest = boardRequests.length - 2;
+  incompleteBoardIds.add("partial-audio");
+  boardRequests[partialRequest]!.resolve(boardResponse("partial-audio"));
+  boardRequests[partialRequest + 1]!.resolve(boardResponse("parallel-good"));
+  await tick();
+  queue = render();
+  for (const job of queue.jobs.filter(job => job.status === "running")) queue.handleComplete(job.id);
+  await tick();
+  queue = render();
+  assert(queue.jobs.find(job => job.boardId === "partial-audio")?.status === "failed", "partial audio cannot complete");
+  assert(queue.jobs.find(job => job.boardId === "parallel-good")?.status === "complete", "one failed parallel run must not discard its sibling");
+  assert(discardedBoardIds.includes("partial-audio") && deletedBoardIds.includes("partial-audio"), "partial board must be excluded durably and removed");
+  assert(!deletedBoardIds.includes("parallel-good"), "complete sibling must be preserved");
+
+  queue.enqueue([question]);
+  inspectionFailureIds.add("inspection-unavailable");
+  boardRequests.at(-1)!.resolve(boardResponse("inspection-unavailable"));
+  await tick();
+  queue = render();
+  queue.handleComplete(queue.jobs.at(-1)!.id);
+  await tick();
+  assert(render().jobs.at(-1)!.status === "failed", "an unverifiable result must not show complete");
+  assert(!deletedBoardIds.includes("inspection-unavailable"), "network uncertainty must not delete a possible complete lesson");
+
+  queue.enqueue([question]);
+  boardRequests.at(-1)!.resolve(boardResponse("stopped-attached"));
+  await tick();
+  queue = render();
+  queue.setHeldBoardId("stopped-attached");
+  queue.stopAll();
+  await tick();
+  assert(discardedBoardIds.includes("stopped-attached") && deletedBoardIds.includes("stopped-attached"), "stopping a watched run removes its partial recording");
 
   // A board create that never returns must time out and free its slot for a queued sibling.
   queue.setConcurrency(1);

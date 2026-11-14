@@ -5,12 +5,11 @@ import { resolveApiUrl } from "@heytutor/tutor-core";
 import { createBoardWithTitle, deleteBoardApi, fetchBoardDetail, fetchBoards, requestBoardTitle, updateBoard } from "@/lib/boards/boardsClient";
 import type { BoardEntry } from "@/lib/boards/types";
 import type { TutorPhase } from "@/features/tutor-session/types";
-import { finalizeBoardTitle } from "@/lib/boards/boardTitle";
 import {
   drainLectureJobs,
+  MAX_CONCURRENT_LECTURES,
   JOB_TIMEOUT_MS,
   makeLectureJobs,
-  MAX_CONCURRENT_LECTURES,
   nextQueuedJobs,
   shouldKeepHeadlessRuntime,
   type LectureJob,
@@ -24,33 +23,38 @@ import {
   forgetLectureBoard,
   parsePlaygroundBoardTitle,
   rememberLectureBoard,
+  readLectureBoardIndex,
 } from "../lib/playgroundBoards";
 import type { ProbeQuestion } from "../lib/probes";
+import { updatePlaygroundLecture } from "../lib/playgroundClient";
 
 type JobOutcome = { status: "complete" } | { status: "failed"; error: string };
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
-}
 
 async function adoptLegacyPlaygroundBoards(boards: BoardEntry[]): Promise<BoardEntry[]> {
+  const remembered = readLectureBoardIndex();
   const adopted: BoardEntry[] = [];
+  // Bounded work: ordinary student boards are never inspected or discarded.
   for (const board of boards) {
-    const parsed = parsePlaygroundBoardTitle(board.title);
-    if (!parsed) {
-      adopted.push(board);
-      continue;
+    const meta = board.playground ?? parsePlaygroundBoardTitle(board.title) ?? remembered.get(board.id);
+    if (!meta) { adopted.push(board); continue; }
+    let playground = board.playground;
+    try {
+      if (!playground || (playground.state === "complete" && playground.checkedUpdatedAt !== board.updatedAt) || (playground.state === "running" && Date.now() - board.createdAt > JOB_TIMEOUT_MS)) {
+        playground = (await updatePlaygroundLecture(board.id, {
+          action: "inspect", meta: { ...meta, state: "running" },
+        })).playground;
+      }
+      if (playground.state === "discarded") {
+        if (await deleteBoardApi(board.id)) forgetLectureBoard(board.id);
+        continue;
+      }
+      rememberLectureBoard(board.id, meta);
+      adopted.push({ ...board, playground });
+    } catch {
+      // Unknown is not complete. Retry on the next refresh without deleting it.
+      if (playground?.state === "complete" && playground.checkedUpdatedAt === board.updatedAt) adopted.push(board);
     }
-    rememberLectureBoard(board.id, parsed);
-    const named = board.preview.trim() ? finalizeBoardTitle(board.preview) : "";
-    if (!named) {
-      adopted.push(board);
-      continue;
-    }
-    const updated = await updateBoard(board.id, { title: named });
-    adopted.push(updated ?? board);
   }
   return adopted;
 }
@@ -63,6 +67,7 @@ export function useLectureQueue() {
   const [concurrency, setConcurrency] = useState(MAX_CONCURRENT_LECTURES);
 
   const jobsRef = useRef<LectureJob[]>([]);
+  const boardReadRevisionRef = useRef(0);
   const stopRef = useRef(false);
   const generationRef = useRef(0);
   const pumpingRef = useRef<number | null>(null);
@@ -109,15 +114,18 @@ export function useLectureQueue() {
   }, [syncJobs]);
 
   const refreshBoards = useCallback(async (generation?: number) => {
+    const revision = ++boardReadRevisionRef.current;
     const list = await fetchBoards();
     const adopted = await adoptLegacyPlaygroundBoards(list);
-    if (aliveRef.current && (generation === undefined || generation === generationRef.current)) {
+    if (aliveRef.current && revision === boardReadRevisionRef.current && (generation === undefined || generation === generationRef.current)) {
       setBoards(adopted);
     }
   }, []);
 
   useEffect(() => {
-    void refreshBoards();
+    void refreshBoards().catch(() => {});
+    const timer = window.setInterval(() => { void refreshBoards().catch(() => {}); }, 30_000);
+    return () => window.clearInterval(timer);
   }, [refreshBoards]);
 
   const isBusy = useMemo(
@@ -212,6 +220,21 @@ export function useLectureQueue() {
     }
   }, [refreshBoards]);
 
+  const discardPartialBoard = useCallback(async (boardId: string) => {
+    boardReadRevisionRef.current++;
+    if (aliveRef.current) {
+      setRuntimes(current => detachLectureRuntime(current, { boardId }));
+      setBoards(current => current.filter(board => board.id !== boardId));
+    }
+    try {
+      // Persist the exclusion first so a failed DELETE cannot revive a partial run.
+      await updatePlaygroundLecture(boardId, { action: "discard" });
+      if (await deleteBoardApi(boardId)) forgetLectureBoard(boardId);
+    } catch {
+      // Running/unverified records are excluded too. A later refresh retries cleanup.
+    }
+  }, []);
+
   const runJob = useCallback(
     async (job: LectureJob, generation: number) => {
       const isCurrent = () => aliveRef.current && generation === generationRef.current && !stopRef.current;
@@ -225,7 +248,9 @@ export function useLectureQueue() {
         settled.outcome = outcome;
         return outcome;
       });
-      const boardPromise = createBoardWithTitle(job.title).catch(() => null);
+      const boardPromise = createBoardWithTitle(job.title, {
+        topicId: job.topicId, difficulty: job.difficulty, probeId: job.probeId, state: "running",
+      }).catch(() => null);
       const first = await Promise.race([
         boardPromise.then((board) => ({ kind: "board" as const, board })),
         outcomePromise.then((outcome) => ({ kind: "outcome" as const, outcome })),
@@ -275,25 +300,45 @@ export function useLectureQueue() {
       readyByJobRef.current.delete(job.id);
       if (!isCurrent()) return;
 
-      const outcome = await outcomePromise;
-      const held = shouldKeepHeadlessRuntime(board.id, heldBoardIdRef.current);
-      if (isCurrent() && !held) {
-        setRuntimes((current) => isCurrent() ? detachLectureRuntime(current, { jobId: job.id, boardId: board.id }) : current);
-      }
-      await delay(100);
-      if (!isCurrent()) {
+      let outcome = await outcomePromise;
+      if (!isCurrent() || outcome.status === "failed") {
+        await discardPartialBoard(board.id);
+        if (isCurrent()) patchJob(job.id, {
+          status: "failed", error: outcome.status === "failed" ? outcome.error : "stopped",
+          endedAt: Date.now(),
+        });
         return;
       }
+      // The callback says playback ended. Only the persisted full recording can
+      // promote a job to complete; previews and in-memory audio cannot do so.
+      try {
+        const result = await updatePlaygroundLecture(board.id, { action: "complete" });
+        if (result.playground.state !== "complete") {
+          outcome = { status: "failed", error: result.reason ?? "Incomplete recording discarded" };
+        } else if (isCurrent()) {
+          boardReadRevisionRef.current++;
+          setBoards(current => [...current.filter(entry => entry.id !== board.id), { ...board, playground: result.playground }]);
+        }
+      } catch (error) {
+        // A failed inspection is not proof that saved media is partial. Keep it
+        // unlisted for a later inspection, rather than deleting a possible full lesson.
+        if (!isCurrent()) { await discardPartialBoard(board.id); return; }
+        setRuntimes(current => detachLectureRuntime(current, { boardId: board.id }));
+        patchJob(job.id, { status: "failed", error: error instanceof Error ? error.message : "Could not verify recording", endedAt: Date.now() });
+        return;
+      }
+      if (!isCurrent() || outcome.status === "failed") {
+        await discardPartialBoard(board.id);
+        if (isCurrent()) patchJob(job.id, { status: "failed", error: outcome.status === "failed" ? outcome.error : "stopped", endedAt: Date.now() });
+        return;
+      }
+      const held = shouldKeepHeadlessRuntime(board.id, heldBoardIdRef.current);
+      if (!held) setRuntimes(current => detachLectureRuntime(current, { jobId: job.id, boardId: board.id }));
+      patchJob(job.id, { status: "complete", error: undefined, endedAt: Date.now(), boardId: board.id });
+      await refreshBoards(generation).catch(() => {});
 
-      patchJob(job.id, {
-        status: outcome.status,
-        error: outcome.status === "failed" ? outcome.error : undefined,
-        endedAt: Date.now(),
-        boardId: board.id,
-      });
-      await refreshBoards(generation);
     },
-    [discardUnusedBoard, nameLectureBoard, patchJob, refreshBoards, waitForOutcome],
+    [discardPartialBoard, discardUnusedBoard, nameLectureBoard, patchJob, refreshBoards, waitForOutcome],
   );
 
   const pump = useCallback(async (generation: number) => {

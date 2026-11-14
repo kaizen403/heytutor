@@ -60,6 +60,7 @@ tsx scripts/verify/verify-lecture-queue-races.ts
 tsx scripts/verify/verify-board-empty-delete.ts
 tsx scripts/verify/verify-recording-audio-capture.ts
 tsx scripts/verify/verify-admin-playground.ts
+tsx scripts/verify/verify-playground-recordings.tsx
 tsx scripts/verify/verify-run-cost.ts
 tsx scripts/verify/verify-session-capabilities.ts
 tsx scripts/verify/verify-formula-emphasis.ts
