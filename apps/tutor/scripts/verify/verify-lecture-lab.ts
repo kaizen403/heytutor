@@ -339,12 +339,14 @@ assert(countJobsByStatus(drained).failed === 1, "failed count after drain is wro
 const recordings = indexPlaygroundRecordings([
   {
     id: "older",
+    playground: { topicId: "physics|1|least-count", difficulty: "easy", state: "complete" },
     title: playgroundBoardTitle("physics|1|least-count", "easy"),
     createdAt: 1,
     preview: "What is least count?",
   },
   {
     id: "newer",
+    playground: { topicId: "physics|1|least-count", difficulty: "easy", state: "complete" },
     title: playgroundBoardTitle("physics|1|least-count", "easy"),
     createdAt: 2,
     preview: "What is least count?",
@@ -369,6 +371,7 @@ assert(
     [
       {
         id: "human",
+        playground: { topicId: "physics|1|least-count", difficulty: "easy", state: "complete" },
         title: "Least count of a vernier",
         createdAt: 9,
         preview: "What is least count?",
@@ -457,11 +460,11 @@ assert(
   "failed jobs with no persisted turn are not watchable",
 );
 assert(
-  isLectureWatchable(
+  !isLectureWatchable(
     { status: "failed", boardId: "job-board" },
     { boardPreview: "What is least count?" },
   ),
-  "failed jobs that persisted a turn remain watchable",
+  "failed jobs with a persisted preview must not remain watchable",
 );
 assert(
   !isLectureWatchable(completeJob, { isRecording: true }),
@@ -529,6 +532,7 @@ const merged = mergePlaygroundRecordings(
   [
     {
       id: "empty-complete",
+      playground: { topicId: "physics|1|least-count", difficulty: "hard", state: "complete" },
       title: playgroundBoardTitle("physics|1|least-count", "hard"),
       createdAt: 4,
       preview: "",
