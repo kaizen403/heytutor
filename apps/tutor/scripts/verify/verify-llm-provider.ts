@@ -827,7 +827,13 @@ const routeChecks: [string, () => Promise<void>][] = [
     }
   }],
   ["photo schema failures open the circuit and the next question uses Fireworks", async () => {
-    for (const body of [null, [], {}, { choices: [] }, { choices: [{ message: [] }] }, { choices: [{ message: {} }] }]) {
+    for (const body of [null, [], {}, { choices: [] }, { choices: [{ message: [] }] }, { choices: [{ message: {} }] },
+      { choices: [{ message: { content: [{ type: "text", text: 42 }] } }] },
+      { choices: [{ message: { content: [null] } }] },
+      { choices: [{ message: { content: [{}] } }] },
+      { choices: [{ message: { content: [{ type: "image_url", text: "not a text response" }] } }] },
+      { choices: [{ message: { content: [{ type: "text", text: 42 }], refusal: "Synthetic refusal." } }] },
+    ]) {
       const trace = arrange(RELAY);
       const sent: Sent[] = [];
       installProvider(sent, () => Response.json(body));
@@ -842,6 +848,21 @@ const routeChecks: [string, () => Promise<void>][] = [
       assert.equal((await extraction.POST(photoRequest(next))).status, 502);
       assert.equal(sent.at(-1)!.url, FIREWORKS_URL, "the shared circuit protects the next photo request");
       assert.equal(sent.length, 4);
+    }
+  }],
+  ["valid OCR text and refusal content parts remain provider successes", async () => {
+    for (const content of [["NO_QUESTION"], [{ text: "NO_QUESTION" }], [{ type: "text", text: "NO_QUESTION" }],
+      [{ type: "output_text", text: "NO_QUESTION" }], [{ type: "refusal", refusal: "Synthetic refusal." }]]) {
+      const trace = arrange(RELAY);
+      const sent: Sent[] = [];
+      installProvider(sent, () => Response.json({ choices: [{ message: { content } }], usage: { prompt_tokens: 100, completion_tokens: 10 } }));
+      assert.equal((await extraction.POST(photoRequest(trace))).status, 422);
+      assert.equal(sent.length, 2, "a valid decline receives its existing funded second look");
+      assert.equal(provider.compatCircuit.openReason(), null);
+      const first = content[0];
+      const refusal = typeof first === "object" && first !== null && "type" in first && first.type === "refusal";
+      assert.equal(generations.at(-1)?.metadata?.decline, refusal ? "refusal" : "no_question");
+      assert.equal(reservations.size, 0);
     }
   }],
   ["a valid photo decline clears prior relay failures, and request errors never open it", async () => {
