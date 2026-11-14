@@ -84,8 +84,8 @@ export function classifyTurnFailure(input: TurnFailureInput): TurnFailureClassif
   if (input.visualStatus === "validated") return verdict(input.status === "complete" && taught === false ? "unverified" : "healthy");
 
   const uncommitted = input.visualStatus == null || (UNCOMMITTED_VISUAL_STATUSES as readonly string[]).includes(input.visualStatus);
+  const code = confirmedCode(telemetry.code) ?? confirmedCode(record(artifacts.degradation).reason);
   if (uncommitted) {
-    const code = confirmedCode(telemetry.code) ?? confirmedCode(record(artifacts.degradation).reason);
     // Only the server writes `referencePicture`, and only after rebuilding the
     // picture's ink from its record. The browser's own outcome is not evidence.
     const telemetryCode = confirmedCode(telemetry.code);
@@ -96,6 +96,14 @@ export function classifyTurnFailure(input: TurnFailureInput): TurnFailureClassif
     if (typeof record(artifacts.referencePicture).id === "string" && (answered(telemetryCode) || answeredRequest) && answered(degradationReason)) {
       return verdict("picture_shown", code ?? (input.visualStatus === "retry_required" ? "required_visual_unavailable" : null));
     }
+  }
+  // A separately required picture is not excused by an optional engine plan.
+  // A stored accepted picture above still answers the visual requirement.
+  const picture = record(artifacts.referencePictureOutcome);
+  if (picture.required === true && picture.attempted === true &&
+      (picture.status === "declined" || picture.status === "unavailable") && picture.reason !== "aborted" &&
+      !(input.status === "stopped" && taught === false)) return verdict("failed", "required_visual_unavailable");
+  if (uncommitted) {
     // The planner may skip a figure the plan did not require, or the engine
     // may have no figure tools for the subject. That taught lesson is the
     // text outcome, not a failed turn. A required figure stays a failure even
@@ -118,10 +126,6 @@ export function classifyTurnFailure(input: TurnFailureInput): TurnFailureClassif
     if (effective) return verdict("failed", effective);
   }
   if (input.visualStatus === "retry_required") return verdict("failed", "required_visual_unavailable");
-  const picture = record(artifacts.referencePictureOutcome);
-  if (picture.required === true && picture.attempted === true &&
-      (picture.status === "declined" || picture.status === "unavailable") && picture.reason !== "aborted" &&
-      !(input.status === "stopped" && taught === false)) return verdict("failed", "required_visual_unavailable");
   if (input.status === "complete" && taught === false) return verdict("unverified");
   if (continuation || plan.visualRequirement === "none" || artifacts.diagramResultStatus === "not_required") return verdict("healthy");
   if (input.status === "live") return verdict("pending");
