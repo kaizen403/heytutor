@@ -14,6 +14,9 @@ export function useNotesChat(boardId: string, enabled = true) {
   const [messages, setMessages] = useState<NotesChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyAttempt, setHistoryAttempt] = useState(0);
+  const messagesVersion = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const boardIdRef = useRef(boardId);
 
@@ -29,27 +32,45 @@ export function useNotesChat(boardId: string, enabled = true) {
     setThreadKey(`${boardId}:${enabled}`);
     setSending(false);
     setError(null);
+    setHistoryError(null);
     setMessages([]);
   }
 
   useEffect(() => {
     abortRef.current?.abort();
     abortRef.current = null;
-    if (!enabled) {
-      return;
-    }
-
-    let cancelled = false;
-    void fetchNotesChatMessages(boardId).then((loaded) => {
-      if (cancelled || boardIdRef.current !== boardId) return;
-      setMessages(loaded);
-    });
-
     return () => {
-      cancelled = true;
       abortRef.current?.abort();
     };
   }, [boardId, enabled]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const controller = new AbortController();
+    const version = messagesVersion.current;
+    let cancelled = false;
+    void fetchNotesChatMessages(boardId, controller.signal)
+      .then((loaded) => {
+        if (cancelled || boardIdRef.current !== boardId) return;
+        // A history read started before a new message must not replace that
+        // message or its streamed reply when the older request finishes.
+        if (messagesVersion.current === version) setMessages(loaded);
+      })
+      .catch(() => {
+        if (cancelled || controller.signal.aborted || boardIdRef.current !== boardId) return;
+        setHistoryError("Saved messages didn't load. Try again.");
+      });
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [boardId, enabled, historyAttempt]);
+
+  const reloadHistory = useCallback(() => {
+    if (!enabled || sending) return;
+    setHistoryError(null);
+    setHistoryAttempt((attempt) => attempt + 1);
+  }, [enabled, sending]);
 
   const send = useCallback(
     async (
@@ -66,6 +87,7 @@ export function useNotesChat(boardId: string, enabled = true) {
       abortRef.current = controller;
       setSending(true);
       setError(null);
+      messagesVersion.current += 1;
       let rawBuffer = "";
 
       const userMessage: NotesChatMessage = {
@@ -134,5 +156,5 @@ export function useNotesChat(boardId: string, enabled = true) {
     abortRef.current = null;
   }, []);
 
-  return { messages, sending, error, send, stop };
+  return { messages, sending, error, historyError, reloadHistory, send, stop };
 }

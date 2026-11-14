@@ -28,19 +28,30 @@ export function liveNotesPayload(turn: LessonTurnNotes | null | undefined): Note
   };
 }
 
-export async function fetchNotesChatMessages(boardId: string): Promise<NotesChatMessage[]> {
-  const res = await fetch(resolveApiUrl(`/api/boards/${boardId}/notes-chat`));
-  if (!res.ok) return [];
-  const data = (await res.json()) as { messages?: Array<NotesChatMessage & { tag?: unknown }> };
-  return (data.messages ?? [])
-    .filter((message) => message.role === "user" || message.role === "assistant")
-    .map((message) => ({
+export async function fetchNotesChatMessages(boardId: string, signal?: AbortSignal): Promise<NotesChatMessage[]> {
+  const res = await fetch(resolveApiUrl(`/api/boards/${boardId}/notes-chat`), { signal });
+  if (!res.ok) throw new Error(`notes history failed (${res.status})`);
+  const data: unknown = await res.json();
+  if (!data || typeof data !== "object" || !("messages" in data) || !Array.isArray(data.messages)) {
+    throw new Error("invalid notes history");
+  }
+  const messages: NotesChatMessage[] = [];
+  for (const message of data.messages) {
+    if (!message || typeof message !== "object") throw new Error("invalid notes history message");
+    if (message.role !== "user" && message.role !== "assistant") continue;
+    if (typeof message.id !== "string" || typeof message.content !== "string" ||
+        typeof message.createdAt !== "number" || !Number.isFinite(message.createdAt)) {
+      throw new Error("invalid notes history message");
+    }
+    messages.push({
       id: message.id,
       role: message.role,
       content: message.content,
       createdAt: message.createdAt,
       tag: parseNotesChatTag(message.tag),
-    }));
+    });
+  }
+  return messages;
 }
 
 export async function streamNotesChatMessage(input: {
