@@ -71,6 +71,8 @@ export interface FindPictureDeps {
   apiKey: string;
   spend?: PictureSpend;
   signal?: AbortSignal;
+  /** Source-bound semantic requirement, available before search/judging. */
+  onRequirement?: (required: boolean) => void;
   fetchImpl?: (input: string, init?: RequestInit) => Promise<Response>;
   imageProvider?: ImageProviderConfig | null;
   store?: Pick<typeof store, "readQueryCache" | "writeQueryCache" | "saveReferencePicture" | "findPictureBySourceKey">;
@@ -140,6 +142,8 @@ export async function findReferencePicture(question: string, subject: string | u
   const query = written.query;
   required = query?.required === true;
   if (!query) return decline("query_unreadable");
+  deps.signal?.throwIfAborted();
+  deps.onRequirement?.(required);
   steps.push(`query: ${query.mustShow} | ${query.queries.join(" ; ")}`);
   if (!query.wantsPicture) return decline(query.declineReason ?? "no_picture_wanted");
 

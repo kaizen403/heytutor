@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { failedTurnWhere } from "../../lib/admin/turnFilters";
+import { matches } from "./turnFailurePredicateFixture";
 import { readFileSync } from "node:fs";
 import { referencePictureAllowedForTurn } from "../../features/tutor-session/lib/scene/referencePicturePolicy";
 import { classifyTurnFailure } from "../../lib/obs/turnFailureClassification";
@@ -64,6 +66,57 @@ async function main() {
     "required" in answer && answer.required === true,
     "a declined explicit picture requirement must survive transport",
   );
+  // Exercise the real reader, including stalled bodies that ignore fetch's
+  // signal. Discovery must survive all error exits and release the reader.
+  for (const fault of ["client_timeout", "abort", "read", "malformed", "oversize", "frames", "eof", "server_timeout", "pipeline_error"]) {
+    let cancelled = false;
+    let body: ReadableStream<Uint8Array>;
+    const controller = new AbortController();
+    const encoder = new TextEncoder();
+    const keepAlive = setTimeout(() => {}, 1_000);
+    try {
+      const result = await requestReferencePicture({
+        question: "Show the organs", signal: controller.signal, timeoutMs: 20,
+        onRequirement: () => { if (fault === "abort") controller.abort(); },
+        fetchImpl: async (_url, init) => {
+          assert.equal(new Headers(init?.headers).get("accept"), "application/x-ndjson");
+          body = new ReadableStream({
+            start(stream) {
+              stream.enqueue(encoder.encode('{"type":"requirement","required":true}\n'));
+              if (fault === "read") queueMicrotask(() => queueMicrotask(() => stream.error(new Error("reset"))));
+              if (fault === "malformed") stream.enqueue(encoder.encode('not json\n'));
+              if (fault === "oversize") stream.enqueue(new Uint8Array(128 * 1024));
+              if (fault === "frames") stream.enqueue(encoder.encode('{"type":"requirement","required":false}\n'));
+              if (fault === "eof") stream.close();
+              if (fault === "server_timeout" || fault === "pipeline_error") {
+                stream.enqueue(encoder.encode(JSON.stringify({ type: "result", status: "declined", reason: fault }) + "\n"));
+              }
+            },
+            cancel() { cancelled = true; },
+          });
+          return new Response(body, { headers: { "content-type": "application/x-ndjson" } });
+        },
+      });
+      assert.equal(result.required, true, `${fault}: semantic requirement retained`);
+      assert.equal(result.status, fault === "server_timeout" || fault === "pipeline_error" ? "declined" : "unavailable");
+      assert.equal(result.reason, fault === "client_timeout" ? "deadline" : fault === "abort" ? "aborted" : fault === "server_timeout" || fault === "pipeline_error" ? fault : "transport");
+      assert.equal(body!.locked, false, `${fault}: reader released`);
+      if (fault !== "read" && fault !== "eof") assert(cancelled, `${fault}: body cancelled`);
+    } finally { clearTimeout(keepAlive); }
+  }
+  let httpCancelled = false;
+  const http = await requestReferencePicture({ question: "Explain the organs", fetchImpl: async () => new Response(new ReadableStream({ cancel() { httpCancelled = true; } }), { status: 503 }) });
+  assert.deepEqual(http, { status: "unavailable", reason: "http_503" }, "HTTP failure before semantic discovery must not guess a requirement");
+  assert(httpCancelled);
+  const beforeDiscovery = new AbortController(); beforeDiscovery.abort();
+  assert.deepEqual(await requestReferencePicture({ question: "Show the organs", signal: beforeDiscovery.signal,
+    fetchImpl: async () => { throw new Error("aborted request cannot dispatch"); },
+  }), { status: "unavailable", reason: "aborted" });
+  const splitFrames = new TextEncoder().encode('{"type":"requirement","required":true}\n{"type":"result","status":"declined","reason":"no_candidate_accepted","required":false}\n');
+  const split = await requestReferencePicture({ question: "Show the organs", fetchImpl: async () => new Response(new ReadableStream({
+    start(stream) { for (const byte of splitFrames) stream.enqueue(new Uint8Array([byte])); stream.close(); },
+  }), { headers: { "content-type": "application/x-ndjson; charset=utf-8" } }) });
+  assert.deepEqual(split, { status: "declined", reason: "no_candidate_accepted", required: true }, "split frames retain true even if final payload omits/disagrees with discovery");
   const segments = [
     {
       orderIndex: 0,
@@ -149,6 +202,49 @@ async function main() {
   const plan = createFallbackTurnPlanV3(
     "Explain the menstrual cycle and its parts with a diagram",
   );
+  for (const control of [
+    { progressRequired: true, finalDelayMs: 30_000, expected: "failed", reason: "wait_deadline" },
+    { progressRequired: false, finalDelayMs: 30_000, expected: "healthy", reason: "wait_deadline" },
+    { progressRequired: true, progressDelayMs: 30_000, finalDelayMs: 31_000, expected: "healthy", reason: "wait_deadline" },
+    { progressRequired: true, asLesson: true, finalDelayMs: 30_000, expected: "failed", reason: "wait_deadline" },
+    { progressRequired: true, finalDelayMs: 100, expected: "failed", reason: "no_candidate_accepted" },
+    { progressRequired: true, finalDelayMs: 100, readError: true, expected: "failed", reason: "transport" },
+    { progressRequired: true, finalDelayMs: 100, serverTimeout: true, expected: "failed", reason: "server_timeout" },
+    { progressRequired: true, finalDelayMs: 30_000, stopAtMs: 100, expected: "healthy", reason: "wait_in_progress" },
+    { progressRequired: true, finalDelayMs: 30_000, supersedeAtMs: 100, expected: "healthy", reason: "wait_in_progress" },
+  ]) {
+    const live = await scenario("ready", false, false, {
+      plan: { ...plan, visualRequirement: "optional" },
+      referencePictureTurn: {
+        ...control,
+        doubtTitle: "Doubt: Can you show me what the uterus and ovary look like?",
+        response: { status: "declined", reason: control.serverTimeout ? "server_timeout" : "no_candidate_accepted" },
+      },
+    });
+    assert("pictureScene" in live && live.pictureScene && live.pictureRows);
+    const status = control.stopAtMs || control.supersedeAtMs ? "stopped" : "complete";
+    // Doubts have no turn plan of their own. Continuation/optional inherited
+    // plans must never excuse this turn's independently required picture.
+    const artifacts = live.pictureScene.sceneArtifacts;
+    if (!control.asLesson) assert.equal(typeof artifacts === "object" && artifacts !== null && "turnPlan" in artifacts ? artifacts.turnPlan : null, null);
+    const saved = await canonicalizeTurnSceneMetadata({
+      ...live.pictureScene, question: "Doubt: show me the organs",
+      segments: live.pictureRows.map((row, orderIndex) => ({ ...row, orderIndex, durationMs: row.durationMs ?? undefined })),
+    }, { kind: control.asLesson ? "lesson" : "doubt" });
+    assert(saved.ok, saved.ok ? "" : saved.error);
+    const reopened = JSON.parse(JSON.stringify(saved.value));
+    const outcome = readReferencePictureOutcome(reopened.sceneArtifacts);
+    assert.equal(outcome?.reason, control.reason);
+    assert.equal(outcome?.required === true, control.progressRequired && !control.progressDelayMs);
+    assert.equal(classifyTurnFailure({ ...reopened, status }).classification, control.expected);
+    assert.equal(matches({ ...reopened, status }, failedTurnWhere()), control.expected === "failed", "saved/reopened outcome and admin SQL predicate agree");
+    assert.equal(live.pictureEvents.filter(event => event.name === "reference-picture-request").length, 1);
+    if (control.reason === "wait_deadline") {
+      const teachingAt = live.pictureEvents.find(event => event.name === "teaching-request")!.atMs;
+      const finalAt = live.pictureEvents.find(event => event.name === "reference-picture-final")!.atMs;
+      assert(teachingAt < finalAt, "real request stays in flight past UI deadline and teaching");
+    }
+  }
   // Synthetic server record; no private question, identity, stored id or image.
   const record = parseReferencePictureRecord({
     ...pictureFixtures.cases[0]!.record,
@@ -158,12 +254,14 @@ async function main() {
     parts: undefined,
   });
   assert(record);
-  for (const ready of [false, true]) {
+  for (const variant of ["declined", "shown_json", "shown_progress"] as const) {
+    const ready = variant !== "declined";
     const live = await scenario("ready", false, false, {
       plan,
       referencePictureTurn: {
         doubtTitle:
           "Doubt: Can you show me what the uterus and ovary look like?",
+        ...(variant === "shown_progress" ? { progressRequired: true, finalDelayMs: 100 } : {}),
         response: ready
           ? { status: "ready", picture: record, required: true }
           : {

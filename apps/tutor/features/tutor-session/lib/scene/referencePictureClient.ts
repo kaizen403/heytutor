@@ -29,6 +29,8 @@ export interface ReferencePictureRequest {
   signal?: AbortSignal;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
+  /** Semantic requirement only; it never grants authority to draw a picture. */
+  onRequirement?: (required: boolean) => void;
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -106,17 +108,84 @@ export function referencePictureResultFromResponse(body: unknown): ReferencePict
   return { status: "unavailable", reason: "invalid_response" };
 }
 
+/** At most two NDJSON frames; bounds apply to legacy JSON bodies too. */
+const MAX_RESPONSE_BYTES = 128 * 1024;
+
+async function readPictureResponse(response: Response, signal: AbortSignal, onRequirement: (required: boolean) => void): Promise<ReferencePictureResult> {
+  if (!response.body) throw new Error("missing body");
+  const reader = response.body.getReader();
+  const cancel = () => { void reader.cancel().catch(() => {}); };
+  signal.addEventListener("abort", cancel, { once: true });
+  const streaming = response.headers.get("content-type")?.split(";")[0]?.trim() === "application/x-ndjson";
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  let bytes = 0;
+  let buffer = "";
+  let frames = 0;
+  let discovered = false;
+  const frame = (line: string): ReferencePictureResult | null => {
+    if (++frames > 2) throw new Error("too many frames");
+    const value: unknown = JSON.parse(line);
+    if (!record(value)) throw new Error("invalid frame");
+    if (value.type === "requirement" && frames === 1 && typeof value.required === "boolean") {
+      discovered = true;
+      onRequirement(value.required);
+      return null;
+    }
+    if (value.type !== "result") throw new Error("invalid frame");
+    if (!discovered && typeof value.required === "boolean") onRequirement(value.required);
+    return referencePictureResultFromResponse(value);
+  };
+  try {
+    while (true) {
+      signal.throwIfAborted();
+      const { value, done } = await reader.read();
+      signal.throwIfAborted();
+      bytes += value?.byteLength ?? 0;
+      if (bytes > MAX_RESPONSE_BYTES) throw new Error("response too large");
+      buffer += decoder.decode(value, { stream: !done });
+      if (streaming) {
+        let newline: number;
+        while ((newline = buffer.indexOf("\n")) >= 0) {
+          const result = frame(buffer.slice(0, newline));
+          buffer = buffer.slice(newline + 1);
+          if (result) return result;
+        }
+      }
+      if (done) break;
+    }
+    if (streaming) {
+      const result = buffer ? frame(buffer) : null;
+      if (!result) throw new Error("missing result");
+      return result;
+    }
+    const body: unknown = JSON.parse(buffer);
+    if (record(body) && typeof body.required === "boolean") onRequirement(body.required);
+    return referencePictureResultFromResponse(body);
+  } finally {
+    signal.removeEventListener("abort", cancel);
+    // Includes parse failures, deadline and early final frames. Release both
+    // the response reader and any upstream work still attached to its body.
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
+
 export async function requestReferencePicture(input: ReferencePictureRequest): Promise<ReferencePictureResult> {
   const timeoutMs = input.timeoutMs ?? REFERENCE_PICTURE_CLIENT_TIMEOUT_MS;
   let timeout: AbortSignal | undefined;
+  let required = false;
+  const onRequirement = (value: boolean) => {
+    required ||= value;
+    input.onRequirement?.(value);
+  };
   try {
     timeout = AbortSignal.timeout(timeoutMs);
-    const signal = input.signal && typeof AbortSignal.any === "function" ? AbortSignal.any([input.signal, timeout]) : timeout;
+    const signal = input.signal ? AbortSignal.any([input.signal, timeout]) : timeout;
+    signal.throwIfAborted();
     const response = await (input.fetchImpl ?? fetch)(resolveApiUrl("/api/reference-picture"), {
       method: "POST",
       credentials: "include",
-      // The route charges this turn's lesson grant, found by its trace id.
-      headers: withTurnTraceHeaders({ "content-type": "application/json" }, {
+      headers: withTurnTraceHeaders({ "content-type": "application/json", accept: "application/x-ndjson" }, {
         traceId: input.traceId ?? undefined,
         sessionId: input.boardId ?? undefined,
       }),
@@ -131,11 +200,14 @@ export async function requestReferencePicture(input: ReferencePictureRequest): P
       await response.body?.cancel().catch(() => {});
       return { status: "unavailable", reason: `http_${response.status}` };
     }
-    return referencePictureResultFromResponse(await response.json());
+    const result = await readPictureResponse(response, signal, onRequirement);
+    signal.throwIfAborted();
+    return { ...result, ...(required ? { required: true } : {}) };
   } catch {
     return {
       status: "unavailable",
       reason: input.signal?.aborted ? "aborted" : timeout?.aborted ? "deadline" : "transport",
+      ...(required ? { required: true } : {}),
     };
   }
 }

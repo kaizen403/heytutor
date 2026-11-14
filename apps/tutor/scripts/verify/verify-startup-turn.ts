@@ -122,7 +122,7 @@ export interface FrozenStartupFixture {
   /** Replay recorded teaching through the real DSA planner/handler/queue. */
   recordedCodeLesson?: { plan: CodeLessonPlan; response: string; continuationResponses?: string[]; revealCommittedCode?: boolean };
   /** Only picture transports/assets are fake; the live doubt/reveal path runs. */
-  referencePictureTurn?: { response: unknown; doubtTitle: string; granted?: boolean };
+  referencePictureTurn?: { response: unknown; doubtTitle: string; granted?: boolean; progressRequired?: boolean; finalDelayMs?: number; progressDelayMs?: number; asLesson?: boolean; readError?: boolean; stopAtMs?: number; supersedeAtMs?: number };
   /** A language selected since the previous turn, applied by the real handler. */
   voiceKey?: TutorVoiceKey;
   /** Require the real Given-row request and committed WRITE path, not a no-givens prompt. */
@@ -269,7 +269,26 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     const headers = new Headers(init?.headers);
     if (fixture?.referencePictureTurn && url.endsWith("/api/reference-picture")) {
       record("reference-picture-request", JSON.parse(String(init?.body)));
-      return Response.json(fixture.referencePictureTurn.response);
+      const picture = fixture.referencePictureTurn;
+      if (picture.progressRequired !== undefined) {
+        let pictureResponseTimer: number;
+        let progressTimer: number | undefined;
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) {
+            const progress = () => controller.enqueue(encoder.encode(JSON.stringify({ type: "requirement", required: picture.progressRequired }) + "\n"));
+            if (picture.progressDelayMs) progressTimer = setTimer(progress, picture.progressDelayMs);
+            else progress();
+            pictureResponseTimer = setTimer(() => {
+              record("reference-picture-final");
+              if (picture.readError) { controller.error(new Error("synthetic connection reset")); return; }
+              controller.enqueue(encoder.encode(JSON.stringify({ type: "result", ...picture.response as object }) + "\n"));
+              controller.close();
+            }, picture.finalDelayMs ?? 0);
+          },
+          cancel() { timers.delete(pictureResponseTimer); if (progressTimer) timers.delete(progressTimer); record("reference-picture-reader-cancelled"); },
+        }), { headers: { "content-type": "application/x-ndjson" } });
+      }
+      return Response.json(picture.response);
     }
     if (fixture?.openingPrefetchEnabled !== undefined && (url.endsWith("/api/chat") || url.endsWith("/api/visual-need"))) {
       const kind = url.endsWith("/api/visual-need") ? "visual-need"
@@ -637,13 +656,13 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       dispatchedQuestion = action.text;
       record("teach-again-dispatch", action);
     }
-    const pictureDoubt = fixture?.referencePictureTurn ? {
+    const pictureDoubt = fixture?.referencePictureTurn && !fixture.referencePictureTurn.asLesson ? {
       title: fixture.referencePictureTurn.doubtTitle, prompt: fixture.referencePictureTurn.doubtTitle,
       lessonQuestion: question, afterReplay: false,
     } : undefined;
     const turn = handler.handleQuestion(pictureDoubt?.title ?? dispatchedQuestion, pictureDoubt ? { doubt: pictureDoubt } : resume ? { resume } : undefined)
       .catch((error: unknown) => {
-        if ((!recoveryMode && !mode.startsWith("opening-prefetch-stop")) || !isBenignTurnAbort(error)) throw error;
+        if ((!recoveryMode && !mode.startsWith("opening-prefetch-stop") && fixture?.referencePictureTurn?.stopAtMs === undefined && fixture?.referencePictureTurn?.supersedeAtMs === undefined) || !isBenignTurnAbort(error)) throw error;
         record("stopped-planning-abort");
       }).finally(() => { done = true; });
     await flush();
@@ -812,6 +831,25 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       return { mode, startup: startupProjection() };
     }
     if (fixture?.referencePictureTurn) {
+      const pictureControl = fixture.referencePictureTurn;
+      if (pictureControl.stopAtMs !== undefined || pictureControl.supersedeAtMs !== undefined) {
+        await advance(pictureControl.stopAtMs ?? pictureControl.supersedeAtMs!);
+        const ownedPage = lifecycle.boardPageRef.current;
+        const stopScene = structuredClone(ownedPage?.turn.scene);
+        if (pictureControl.stopAtMs !== undefined) renderControl().stopTurn({ keepVisibleBoard: true });
+        else {
+          lifecycle.turnGenerationRef.current++;
+          lifecycle.turnAbortRef.current?.abort();
+          lifecycle.boardPageRef.current = null;
+        }
+        await pump(() => done);
+        await turn;
+        const stoppedScene = JSON.stringify(ownedPage?.turn.scene);
+        await advance(60_000);
+        assert.equal(JSON.stringify(ownedPage?.turn.scene), stoppedScene, "late progress cannot mutate stopped/replaced page");
+        assert(events.some(event => event.name === "reference-picture-reader-cancelled"), "Stop/replacement cancels response reader");
+        return { mode, pictureEvents: events, pictureScene: stopScene, pictureRows: lifecycle.recordedSegmentsRef.current, pictureTeaching: teachingRequestBodies };
+      }
       await pump(() => streams.length === 1 || done);
       assert(!done, "picture follow-up reaches teaching");
       content(0, "[STEP]The uterus has a muscular wall.[WRITE:The uterus has a muscular wall.][/STEP]");
@@ -821,6 +859,9 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       await pump(() => lifecycle.pendingSegmentCountRef.current === 0);
       assert(!events.some(event => event.name === "turn-error"));
       assert.equal(lifecycle.turnActiveRef.current, false);
+      const completedScene = JSON.stringify(lifecycle.boardPageRef.current?.turn.scene);
+      await advance(60_000);
+      assert.equal(JSON.stringify(lifecycle.boardPageRef.current?.turn.scene), completedScene, "late picture cannot mutate a completed turn");
       assert.equal(timers.size, 0);
       return { mode, pictureEvents: events, pictureScene: lifecycle.boardPageRef.current?.turn.scene,
         pictureRows: lifecycle.recordedSegmentsRef.current, pictureTeaching: teachingRequestBodies };

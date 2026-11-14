@@ -1226,6 +1226,7 @@ export function useQuestionHandler(
         controller: AbortController;
         startedAt: number;
         speculative: boolean;
+        required: boolean;
       };
       // Asserted, not narrowed to null: the closures below assign both.
       let referencePicturePending = null as PendingReferencePicture | null;
@@ -1238,14 +1239,42 @@ export function useQuestionHandler(
         const abortWithTurn = () => controller.abort();
         if (abortController.signal.aborted) controller.abort();
         else abortController.signal.addEventListener("abort", abortWithTurn, { once: true });
-        const promise = requestReferencePicture({
+        // Install the owner before the client can deliver progress. The callback
+        // may update only this current, still-pending turn, never a late result.
+        const pending: PendingReferencePicture = {
+          promise: Promise.resolve({ status: "unavailable", reason: "not_started" }),
+          controller, startedAt: Date.now(), speculative, required: false,
+        };
+        referencePicturePending = pending;
+        pending.promise = requestReferencePicture({
           question,
           subject: diagramSubject,
           boardId: sessionId,
           traceId: turnTraceId,
           signal: controller.signal,
+          onRequirement: (required) => {
+            if (!isCurrentTurn() || controller.signal.aborted || referencePictureOutcome) return;
+            pending.required ||= required;
+            if (!pending.required) return;
+            const scene = page.turn.scene ?? {
+              sceneDocument: null, sceneEngineVersion: SCENE_ENGINE_VERSION,
+              validationReport: null, visualStatus: "text_only",
+              sceneArtifacts: null,
+            };
+            const prior = scene.sceneArtifacts;
+            const artifacts = typeof prior === "object" && prior !== null && !Array.isArray(prior) ? prior : {};
+            // Stop takes its snapshot directly from the page, including while
+            // planning or waiting. Retain progress there before the final result.
+            page.turn.scene = { ...scene, sceneArtifacts: {
+              ...artifacts,
+              referencePictureOutcome: {
+                attempted: true, status: "skipped", reason: "wait_in_progress",
+                ms: Date.now() - pending.startedAt, speculative: pending.speculative,
+                required: true,
+              },
+            } };
+          },
         }).finally(() => abortController.signal.removeEventListener("abort", abortWithTurn));
-        referencePicturePending = { promise, controller, startedAt: Date.now(), speculative };
         tel.mark("reference-picture-requested", { speculative, subject: diagramSubject });
       };
       // A verified figure won, or the turn left before teaching: stop paying.
@@ -1253,7 +1282,7 @@ export function useQuestionHandler(
         const pending = referencePicturePending;
         if (!pending || referencePictureOutcome) return;
         pending.controller.abort();
-        referencePictureOutcome = { attempted: true, status: "skipped", reason, ms: Date.now() - pending.startedAt, speculative: pending.speculative };
+        referencePictureOutcome = { attempted: true, status: "skipped", reason, ms: Date.now() - pending.startedAt, speculative: pending.speculative, ...(pending.required ? { required: true } : {}) };
       };
 
       if (codeLesson && !resume) {
@@ -2342,6 +2371,13 @@ export function useQuestionHandler(
         page.turnPlan = turnPlan;
         page.solverProjection = resume ? resume.solverProjection : problemAuthority?.projection ?? null;
         liveTurnSave().setResumeState(cancelRef, turnGeneration, lessonResumeState(page.solverProjection));
+        if (referencePicturePending?.required && !referencePictureOutcome && sceneArtifacts) {
+          sceneArtifacts = { ...sceneArtifacts, referencePictureOutcome: {
+            attempted: true, status: "skipped", reason: "wait_in_progress",
+            ms: Date.now() - referencePicturePending.startedAt,
+            speculative: referencePicturePending.speculative, required: true,
+          } };
+        }
         page.turn.scene = {
           sceneDocument: sceneV2Document,
           sceneEngineVersion: SCENE_ENGINE_VERSION,
@@ -2512,6 +2548,7 @@ export function useQuestionHandler(
             referencePictureOutcome: {
               attempted: true, status: "skipped", reason: "wait_in_progress",
               ms: Math.max(0, waitStartedAt - pending.startedAt), speculative: pending.speculative,
+              ...(pending.required ? { required: true } : {}),
             } satisfies ReferencePictureOutcome,
           },
         } : page.turn.scene;
@@ -2563,7 +2600,7 @@ export function useQuestionHandler(
           reason: picture ? null : failure!.reason,
           ms: Date.now() - pending.startedAt,
           speculative: pending.speculative,
-          ...(answer.required === true ? { required: true } : {}),
+          ...(pending.required || answer.required === true ? { required: true } : {}),
           ...(answer.status === "ready" && answer.cached ? { cached: true } : {}),
         };
         tel.mark("reference-picture", {

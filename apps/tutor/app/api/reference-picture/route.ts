@@ -66,6 +66,7 @@ export async function POST(request: Request): Promise<Response> {
   if (typeof body !== "object" || body === null || Array.isArray(body) || typeof input.question !== "string" || !input.question.trim() || input.question.length > 12_000) {
     return Response.json({ error: "invalid_input" }, { status: 400 });
   }
+  const question = input.question;
   const subject = typeof input.subject === "string" && SUBJECTS.has(input.subject) ? input.subject : undefined;
   const apiKey = process.env.FIREWORKS_API_KEY?.trim();
   if (!apiKey) return Response.json({ status: "declined", reason: "missing_key" });
@@ -89,31 +90,62 @@ export async function POST(request: Request): Promise<Response> {
     await reservation.cancelBeforeDispatch();
     return Response.json({ status: "declined", reason: "aborted" });
   }
+  const disconnected = new AbortController();
+  const signal = AbortSignal.any([request.signal, disconnected.signal, AbortSignal.timeout(50_000)]);
   const beforeRound = async (round: number | "generate"): Promise<boolean> => {
+    signal.throwIfAborted();
     if (round === 0) return true;
     funded += round === "generate" ? ceiling.generate + CALLS_PER_CANDIDATE * ceiling.judge : JUDGED_CANDIDATES * CALLS_PER_CANDIDATE * ceiling.judge;
     return (await reservation.ensureReserved(funded)) === null;
   };
   const startedAt = Date.now();
   const spend = createPictureSpend();
-  try {
-    // The client's 45 s timeout normally ends a request; this caps the server's
-    // own work even if a disconnect never reaches it.
-    const signal = AbortSignal.any([request.signal, AbortSignal.timeout(50_000)]);
-    const outcome = await findReferencePicture(input.question, subject, { apiKey, spend, signal, imageProvider: provider, beforeRound });
-    tutorDebug("llm", "reference picture", { status: outcome.status, ms: Date.now() - startedAt, steps: outcome.steps, usd: owed(spend, ceiling) });
-    // `steps` is the search and judge trail (Commons titles and the judge's
-    // reasons, no student text), kept for the lab and the analytics.
-    const steps = outcome.steps.slice(0, 40).map((step) => step.slice(0, 400));
-    const requirement = outcome.required === true ? { required: true } : {};
-    if (outcome.status === "ready") return Response.json({ status: "ready", picture: outcome.picture, cached: outcome.cached, steps, ...requirement });
-    return Response.json({ status: "declined", reason: outcome.reason, steps, ...requirement });
-  } catch (error) {
-    if (request.signal.aborted) return Response.json({ status: "declined", reason: "aborted" });
-    if (error instanceof Error && error.name === "TimeoutError") return Response.json({ status: "declined", reason: "server_timeout" });
-    console.warn("[reference-picture] failed", error instanceof Error ? error.message : error);
-    return Response.json({ status: "declined", reason: "pipeline_error" });
-  } finally {
-    await reservation.settle(owed(spend, ceiling));
-  }
+  // JSON remains the default for labs and older clients. Only opted-in callers
+  // receive two bounded frames: semantic requirement, then the final outcome.
+  let required = false;
+  const run = async (onRequirement?: (required: boolean) => void) => {
+    try {
+      const outcome = await findReferencePicture(question, subject, {
+        apiKey, spend, signal, imageProvider: provider, beforeRound,
+        onRequirement: (value) => { required ||= value; onRequirement?.(required); },
+      });
+      tutorDebug("llm", "reference picture", { status: outcome.status, ms: Date.now() - startedAt, steps: outcome.steps, usd: owed(spend, ceiling) });
+      const steps = outcome.steps.slice(0, 40).map((step) => step.slice(0, 400));
+      const requirement = required || outcome.required === true ? { required: true } : {};
+      if (outcome.status === "ready") return { status: "ready", picture: outcome.picture, cached: outcome.cached, steps, ...requirement };
+      return { status: "declined", reason: outcome.reason, steps, ...requirement };
+    } catch (error) {
+      const reason = request.signal.aborted || disconnected.signal.aborted ? "aborted"
+        : (signal.aborted && signal.reason?.name === "TimeoutError") || (error instanceof Error && error.name === "TimeoutError") ? "server_timeout" : "pipeline_error";
+      if (reason === "pipeline_error") console.warn("[reference-picture] failed", error instanceof Error ? error.message : error);
+      return { status: "declined", reason, ...(required ? { required: true } : {}) };
+    } finally {
+      await reservation.settle(owed(spend, ceiling));
+    }
+  };
+  if (request.headers.get("accept") !== "application/x-ndjson") return Response.json(await run());
+  const encoder = new TextEncoder();
+  let completion: Promise<void> | undefined;
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const send = (frame: object) => {
+        if (!disconnected.signal.aborted) controller.enqueue(encoder.encode(JSON.stringify(frame) + "\n"));
+      };
+      completion = (async () => {
+        try {
+          const result = await run((value) => send({ type: "requirement", required: value }));
+          send({ type: "result", ...result });
+          if (!disconnected.signal.aborted) controller.close();
+        } catch (error) {
+          if (!disconnected.signal.aborted) controller.error(error);
+        }
+      })();
+    },
+    cancel() { disconnected.abort(); return completion; },
+  });
+  return new Response(stream, { headers: {
+    "content-type": "application/x-ndjson",
+    "cache-control": "no-store, no-transform",
+    "x-accel-buffering": "no",
+  } });
 }

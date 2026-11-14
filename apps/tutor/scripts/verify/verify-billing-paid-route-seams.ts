@@ -91,6 +91,118 @@ const routes = [
   ["extract-question", load(resolve(appPath, "extract-question/route.ts")) as typeof import("../../app/api/extract-question/route")],
 ] as const;
 
+async function verifyReferencePictureProgress(): Promise<void> {
+  // Real route, semantic query and pipeline; only provider HTTP and the stored
+  // query cache are fixtures. Every dispatched paid call goes through the ledger.
+  let cacheMode: "declined" | "error" | "timeout" | "cancel" = "declined";
+  const cacheWait: { release?: () => void } = {};
+  const releaseQueryCache = () => {
+    assert(cacheWait.release, "semantic query reached the pending cache read");
+    cacheWait.release();
+  };
+  mock.module(resolve(root, "lib/reference-picture/pictureStore.ts"), { namedExports: {
+    queryKeyFor: () => "fixture-heart", pictureIdFor: () => "rp_0123456789abcdef01234567",
+    readQueryCache: async () => {
+      if (cacheMode === "cancel") return null;
+      await new Promise<void>(resolve => { cacheWait.release = resolve; });
+      if (cacheMode === "error") throw new Error("synthetic cache failure");
+      if (cacheMode === "timeout") throw new DOMException("synthetic server deadline", "TimeoutError");
+      return { status: "declined", reason: "no_candidate_accepted" };
+    },
+    writeQueryCache: async () => {}, findPictureBySourceKey: async () => null,
+    saveReferencePicture: async () => { throw new Error("cancelled work cannot store a picture"); },
+  } });
+  const env = { DIAGRAM_REFERENCE_PICTURE: "on", FIREWORKS_API_KEY: "fixture-only", REFERENCE_PICTURE_IMAGE_URL: "" };
+  const originalEnv = new Map(Object.keys(env).map(key => [key, process.env[key]]));
+  const originalFetch = globalThis.fetch;
+  const { default: sharp } = await import("sharp");
+  const png = await sharp({ create: { width: 300, height: 300, channels: 3, background: "white" } }).png().toBuffer();
+  try {
+    Object.assign(process.env, env);
+    const route = load(resolve(appPath, "reference-picture/route.ts")) as typeof import("../../app/api/reference-picture/route");
+    for (const test of [
+      { required: true, mode: "declined", stream: true },
+      { required: false, mode: "declined", stream: true },
+      { required: true, mode: "error", stream: true },
+      { required: true, mode: "timeout", stream: true },
+      { required: true, mode: "error", stream: false },
+      { required: true, mode: "cancel", stream: true },
+    ] as const) {
+      cacheMode = test.mode;
+      cacheWait.release = undefined;
+      resetTurnGrantsForTests();
+      allowPaidFixtures = true; remainingMillicents = 10_000;
+      assert(createLessonGrant({ userId: actor.userId, traceId: "original", usdMillicents: remainingMillicents }).ok, "funded picture grant");
+      reservations.length = 0; settlements.length = 0;
+      let queries = 0; let judges = 0; let aborted = 0;
+      let judgesStarted!: () => void;
+      const dispatched = new Promise<void>(resolve => { judgesStarted = resolve; });
+      globalThis.fetch = async (input, init) => {
+        const url = String(input);
+        if (url.includes("commons.wikimedia.org/w/api.php")) return Response.json({ query: { pages: [{ title: "File:Heart.svg", imageinfo: [{
+          thumburl: "https://upload.wikimedia.org/fixture.png", thumbwidth: 300, thumbheight: 300, mime: "image/png",
+          extmetadata: { LicenseShortName: { value: "CC0" } },
+        }] }] } });
+        if (url === "https://upload.wikimedia.org/fixture.png") return new Response(new Uint8Array(png), { headers: { "content-type": "image/png" } });
+        assert(url === "https://api.fireworks.ai/inference/v1/chat/completions", "only fixture providers may run");
+        if (String(init?.body).includes("wantsPicture")) {
+          queries++;
+          return Response.json({ choices: [{ message: { content: JSON.stringify({ wantsPicture: true, required: test.required, mustShow: "heart structure", queries: ["heart diagram"] }) } }], usage: { prompt_tokens: 100, completion_tokens: 20 } });
+        }
+        judges++;
+        if (judges === 2) judgesStarted();
+        return new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => {
+          aborted++; reject(init.signal!.reason);
+        }, { once: true }));
+      };
+      const responsePromise = route.POST(new Request("https://example.test/api/reference-picture", {
+        method: "POST", headers: { "content-type": "application/json", "x-heytutor-trace-id": "original", ...(test.stream ? { accept: "application/x-ndjson" } : {}) },
+        body: JSON.stringify({ question: "Show the structure of the heart" }),
+      }));
+      if (!test.stream) {
+        // Legacy callers still get JSON with requirement retained after a throw.
+        for (let i = 0; i < 100 && !cacheWait.release; i++) await new Promise<void>(resolve => setImmediate(resolve));
+        releaseQueryCache();
+        const response = await responsePromise;
+        const result = await response.json();
+        assert(result.required === true && result.reason === "pipeline_error", "legacy JSON preserves post-discovery errors");
+      } else {
+        const response = await responsePromise;
+        assert(response.headers.get("content-type") === "application/x-ndjson", "opt-in progress transport");
+        const reader = response.body!.getReader();
+        const first = await reader.read();
+        const progress = JSON.parse(new TextDecoder().decode(first.value));
+        assert(progress.type === "requirement" && progress.required === test.required, "semantic requirement arrives before search settles");
+        assert(settlements.length === 0, "progress never prematurely settles paid work");
+        if (test.mode === "cancel") {
+          let guard: ReturnType<typeof setTimeout> | undefined;
+          await Promise.race([dispatched, new Promise<never>((_resolve, reject) => {
+            guard = setTimeout(() => reject(new Error(`picture judges never dispatched: queries=${queries}, judges=${judges}`)), 2_000);
+          })]).finally(() => clearTimeout(guard));
+          await reader.cancel(); reader.releaseLock();
+          assert(judges === 2 && aborted === 2, "reader cancellation stops both dispatched judge calls");
+        } else {
+          releaseQueryCache();
+          const final = JSON.parse(new TextDecoder().decode((await reader.read()).value));
+          assert(final.type === "result" && final.status === "declined", "normal final frame");
+          assert((final.required === true) === test.required, "requirement survives final status");
+          assert(final.reason === (test.mode === "error" ? "pipeline_error" : test.mode === "timeout" ? "server_timeout" : "cached_no_candidate_accepted"), "post-discovery outcome reason");
+          await reader.cancel(); reader.releaseLock();
+        }
+      }
+      assert(queries === 1, "progress never dispatches another semantic query");
+      assert(reservations.length === 1 && settlements.length === 1, "exactly one reservation and settlement");
+      assert((settlements[0]!.actualMillicents ?? 0) > 0, "dispatched query is charged");
+      if (test.mode === "cancel") assert((settlements[0]!.actualMillicents ?? 0) > 1, "aborted judges retain dispatched ceilings");
+    }
+    console.log("✓ actual picture POST covers early requirements, JSON compatibility, post-discovery server errors, reader cancellation and paid settlement");
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [key, value] of originalEnv) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+    resetTurnGrantsForTests();
+  }
+}
+
 async function verifyChatPlannerPriority(): Promise<number> {
   // Every provider request is served by the fetch fixture below. Disabling the
   // exporter also prevents inherited local Langfuse credentials doing work.
@@ -313,6 +425,7 @@ async function main(): Promise<void> {
       assert(foreign.status === 402,
         `${name}: account credit cannot authorize another account's trace`);
     }
+    await verifyReferencePictureProgress();
     const chatScenarios = await verifyChatPlannerPriority();
     console.log(`✓ ${chatScenarios} actual chat POST scenarios cover planner tier scoping, retry reservations, returned-tier/unknown-usage settlement, and teaching/client isolation`);
   } finally {
