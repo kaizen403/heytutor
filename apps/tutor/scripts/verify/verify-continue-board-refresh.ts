@@ -70,7 +70,7 @@ function fixture(options: { holdCheckpoint?: boolean; holdOwnerProbe?: Promise<"
       if (cmd.type === "TYPE") controller.revealBlockInstant(cmd.semanticRef?.entityId ?? "", cmd.shownChars);
       else if (cmd.type === "WRITE") paints.push(cmd.text ?? "");
     },
-  } as never) as { storedTurnsRef: { current: StoredTurn[] }; refreshBoardFromTurns?: (boardId: string, turns: readonly StoredTurn[], current: () => boolean) => Promise<boolean>; settleBoardRestore: () => Promise<void> };
+  } as never) as { storedTurnsRef: { current: StoredTurn[] }; refreshBoardFromTurns?: (boardId: string, turns: readonly StoredTurn[], current: () => boolean) => Promise<boolean>; settleBoardRestore: () => Promise<void>; waitForBoardRestore: () => Promise<void> };
   const params = { ...shared, sessionId: boardId, phase: "idle", isReplaying: false, boardLoaded: true, enableKeyboardControls: false,
     boardPageRef: pageRef, boardShowsStoppedReplayRef: ref(false), refreshBoardFromTurns: board.refreshBoardFromTurns,
     pendingQuestionRef: ref(null), autoSubmitDoneRef: ref(null), phaseRef: ref("idle"), turnActiveRef: ref(false), pendingSegmentCountRef: ref(0), turnGenerationRef: ref(1),
@@ -244,11 +244,15 @@ async function main() {
     await held.control.restorePausedLesson(held.board.storedTurnsRef.current);
     const retryHeld = [...timers.values()].at(-1); assert(retryHeld); timers.clear(); held.setDetail({ turns: [turn(6)] }); held.holdPaint(paint.promise); retryHeld(); await tick();
     held.control.flushPausedLesson(); assert.equal(held.asked.length, 0); assert(!held.offers.at(-1));
-    paint.resolve(); await tick(); assert(held.offers.at(-1)); assert.equal(held.controller.getState().revealedChars[block.id], 6);
+    let notesReady = false;
+    const notesWait = held.board.waitForBoardRestore().then(() => { notesReady = true; });
+    await tick(); assert.equal(notesReady, false, "notes capture must wait for the saved strokes");
+    paint.resolve(); await notesWait; await tick(); assert.equal(notesReady, true); assert(held.offers.at(-1)); assert.equal(held.controller.getState().revealedChars[block.id], 6);
     const broken = fixture();
     const initialBroken = broken.effects.find(effect => effect.toString().includes("restoreBoardFromApiRef.current(sessionId")); assert(initialBroken); initialBroken(); await tick();
     await broken.control.restorePausedLesson(broken.board.storedTurnsRef.current); const retryBroken = [...timers.values()].at(-1); assert(retryBroken); timers.clear(); broken.setDetail({ turns: [turn(6)] }); broken.failPaint(); retryBroken(); await tick();
     assert(!broken.offers.at(-1), "failed hydration never publishes Continue");
+    await assert.rejects(broken.board.waitForBoardRestore(), /restore all lecture notes/, "a failed restoration must not export partial slides");
     // Record-equivalent native empty resume: null resumeState, fallback plan, eleven untimed rows.
     const empty = fixture(); await mountAndRetry(empty, timers, [plainTurn(11)]);
     const finish = defer<void>(); empty.handler.current = async (_q, options) => {

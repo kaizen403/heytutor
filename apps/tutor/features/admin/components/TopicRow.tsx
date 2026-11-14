@@ -15,9 +15,12 @@ import type { ItemStatus } from "../lib/progressStorage";
 import { Checkbox } from "./Checkbox";
 import { CostChip } from "./CostChip";
 import { DifficultyCell } from "./DifficultyCell";
-import { StatusBadge } from "./StatusBadge";
+import { QuestionTags } from "./QuestionTags";
+import type { PlaygroundLecture } from "@/lib/admin/playgroundLecture";
 
 export interface TopicRowProps {
+  /** Coverage of the newest complete recordings, independent of live actions. */
+  figures: number;
   item: SyllabusItem;
   probes: readonly ProbeQuestion[];
   states: Record<ProbeDifficulty, DifficultyState>;
@@ -26,6 +29,8 @@ export interface TopicRowProps {
   costsByBoardId: Partial<
     Record<string, Pick<RunCostSessionRow, "llmUsd" | "ttsUsd" | "totalUsd">>
   >;
+  lecturesByBoardId?: ReadonlyMap<string, PlaygroundLecture>;
+  onReview?: (difficulty: ProbeDifficulty) => void;
   checked: boolean;
   status: ItemStatus;
   selecting: boolean;
@@ -40,13 +45,15 @@ export interface TopicRowProps {
 }
 
 export function TopicRow({
+  figures,
   item,
   probes,
   states,
   boardIds,
   costsByBoardId,
+  lecturesByBoardId,
+  onReview,
   checked,
-  status,
   selecting,
   selectedIds,
   expanded,
@@ -124,9 +131,7 @@ export function TopicRow({
           ))}
         </div>
 
-        <div className="flex shrink-0 justify-end">
-          <StatusBadge status={status} />
-        </div>
+        <span className="text-xs tabular-nums text-soft" title="Saved engine figures; reference pictures are separate">Figures drawn: {figures} of {probes.length}</span>
 
         <button
           type="button"
@@ -184,6 +189,7 @@ export function TopicRow({
                   {difficulty}
                 </span>
 
+                <div className="min-w-[min(100%,14rem)] flex-1 space-y-2">
                 <p
                   data-probe-question={probe ? probe.id : undefined}
                   className={cn(
@@ -193,6 +199,8 @@ export function TopicRow({
                 >
                   {probe ? probe.question : "No question fixture yet"}
                 </p>
+                {probe ? <QuestionTags lecture={lecturesByBoardId?.get(boardId ?? "")} cost={boardId ? costsByBoardId[boardId] : undefined} running={isRunning} /> : null}
+                </div>
 
                 <div className="flex flex-wrap items-center gap-1">
                   {isRecorded || isRunning ? (
@@ -224,6 +232,7 @@ export function TopicRow({
                         <ScrollText className="h-3 w-3" />
                         Notes
                       </PlainButton>
+                      <PlainButton onClick={() => onReview?.(difficulty)}>Review</PlainButton>
                       <PlainButton
                         variant="danger"
                         className="w-7 px-0"
