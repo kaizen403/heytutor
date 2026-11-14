@@ -3,6 +3,7 @@
  * Text-only is reserved for definition stems with no spatial setup.
  */
 import "./verify-mechanics-source-reading.ts";
+import { writePhysicsProbeReport, type PhysicsProbeRecord } from "./physicsProbeReport.ts";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +19,7 @@ const TEXT_ONLY_IDS = new Set([
 ]);
 
 const failures: string[] = [];
+const records: PhysicsProbeRecord[] = [];
 
 // Uniform circular motion is admitted by the turn plan, not by wording
 // (coordinator decision, 4 Oct 2026). Its probes run with a plan that names
@@ -54,6 +56,9 @@ for (const unit of [2, 3] as const) {
     const primitives = synthesized?.renderScene.primitives.length ?? 0;
     const mode = synthesized?.document.visualDecision.mode ?? "none";
     const expectScene = !TEXT_ONLY_IDS.has(item.id);
+    records.push({ ...item, families: capabilities.families,
+      outcome: !expectScene ? "text_only" : synthesized && mode === "scene" && primitives > 0 ? "scene" : "missing_scene",
+      family: synthesized?.family, tier: synthesized?.tier });
 
     if (expectScene) {
       if (!requires) {
@@ -72,6 +77,8 @@ for (const unit of [2, 3] as const) {
     }
   }
 }
+
+writePhysicsProbeReport("verify-mechanics-probe-visuals", records);
 
 if (failures.length > 0) {
   throw new Error(`mechanics probe visuals failed (${failures.length}):\n${failures.join("\n")}`);
