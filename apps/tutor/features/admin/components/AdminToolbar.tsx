@@ -6,7 +6,6 @@ import {
   ChevronsDownUp,
   ChevronsUpDown,
   Download,
-  RotateCcw,
   Search,
   X,
 } from "lucide-react";
@@ -36,10 +35,10 @@ interface AdminToolbarProps {
   topicCounts: Record<SyllabusSubject, number>;
   stats: {
     total: number;
-    checked: number;
-    accepted: number;
-    rejected: number;
-    needsImprovement: number;
+    reviewed: number;
+    withFigure: number;
+    withoutFigure: number;
+    skipped: number;
   };
   filters: TopicFilters;
   onFiltersChange: (filters: TopicFilters) => void;
@@ -54,7 +53,6 @@ interface AdminToolbarProps {
   onExpandAll: () => void;
   onCollapseAll: () => void;
   onExport: () => void;
-  onReset: () => void;
 }
 
 export function AdminToolbar({
@@ -75,7 +73,6 @@ export function AdminToolbar({
   onExpandAll,
   onCollapseAll,
   onExport,
-  onReset,
 }: AdminToolbarProps) {
   const active = filtersAreActive(filters);
 
@@ -94,7 +91,7 @@ export function AdminToolbar({
             Test playground
           </h1>
           <p className="mt-1 text-sm text-soft">
-            Record syllabus questions, watch lectures, and review each topic.
+            Record syllabus questions, watch lectures, and review each question.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -102,10 +99,7 @@ export function AdminToolbar({
             <Download className="h-3.5 w-3.5" aria-hidden />
             Export progress
           </SiteButton>
-          <SiteButton variant="ghost" size="sm" onClick={onReset}>
-            <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-            Reset progress
-          </SiteButton>
+
         </div>
       </div>
 
@@ -115,27 +109,27 @@ export function AdminToolbar({
       >
         <span>
           <strong className="mr-1 text-sm font-semibold tabular-nums text-frost">
-            {stats.checked}/{stats.total}
+            {stats.reviewed}/{stats.total}
           </strong>{" "}
           reviewed
         </span>
         <span>
           <strong className="mr-1 text-sm font-semibold tabular-nums text-sky-300">
-            {stats.accepted}
+            {stats.withFigure}
           </strong>{" "}
-          accepted
+          with figure
         </span>
         <span>
           <strong className="mr-1 text-sm font-semibold tabular-nums text-danger">
-            {stats.rejected}
+            {stats.withoutFigure}
           </strong>{" "}
-          rejected
+          without figure
         </span>
         <span>
           <strong className="mr-1 text-sm font-semibold tabular-nums text-frost">
-            {stats.needsImprovement}
+            {stats.skipped}
           </strong>{" "}
-          need work
+          skipped reviews
         </span>
       </div>
 

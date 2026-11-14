@@ -1,3 +1,5 @@
+import { parsePlaygroundLecture } from "@/lib/admin/playgroundLecture";
+import { requireAdminRequest } from "@/lib/auth/requireAdmin";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { ensureUser, getUserId } from "@/lib/auth";
@@ -34,7 +36,9 @@ export async function GET(request: Request) {
       id: row.id,
       title: row.title,
       preview: row.preview,
+      playground: parsePlaygroundLecture(row.playground),
       createdAt: row.createdAt.getTime(),
+      updatedAt: row.updatedAt.getTime(),
       pinnedAt: row.pinnedAt?.getTime() ?? null,
       archivedAt: row.archivedAt?.getTime() ?? null,
       visibility: row.visibility,
@@ -50,7 +54,7 @@ export async function POST(request: Request) {
 
   await ensureUser(userId);
 
-  let body: { id?: string; title?: string } = {};
+  let body: { id?: string; title?: string; playground?: unknown } = {};
   try {
     body = await readBoundedJson(request, 16 * 1024);
   } catch (error) {
@@ -63,6 +67,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid board id or title" }, { status: 400 });
   }
 
+  const playground = body.playground === undefined ? null : parsePlaygroundLecture(body.playground);
+  if (body.playground !== undefined) {
+    const denied = await requireAdminRequest();
+    if (denied) return denied;
+    if (!playground) return NextResponse.json({ error: "invalid playground question" }, { status: 400 });
+  }
   const id = body.id ?? crypto.randomUUID();
   const title = body.title?.trim() || "new board";
   // Students' new boards go on Community. Staff and lab boards stay private
@@ -79,7 +89,7 @@ export async function POST(request: Request) {
     if (await tx.board.count({ where: { userId } }) >= MAX_ACCOUNT_BOARDS) {
       throw new StorageQuotaError("board storage quota exceeded", 429);
     }
-    return tx.board.create({ data: { id, userId, title, preview: "", visibility: staff ? "private" : "public" } });
+    return tx.board.create({ data: { id, userId, title, preview: "", ...(playground ? { playground: { topicId: playground.topicId, difficulty: playground.difficulty, ...(playground.probeId ? { probeId: playground.probeId } : {}), state: "running" } } : {}), visibility: staff || playground ? "private" : "public" } });
   })
     .catch((error: unknown) => {
       if (error instanceof StorageQuotaError) { quotaError = error; return null; }
@@ -123,7 +133,9 @@ export async function POST(request: Request) {
       id: row.id,
       title: row.title,
       preview: row.preview,
+      playground: parsePlaygroundLecture(row.playground),
       createdAt: row.createdAt.getTime(),
+      updatedAt: row.updatedAt.getTime(),
       pinnedAt: row.pinnedAt?.getTime() ?? null,
       archivedAt: row.archivedAt?.getTime() ?? null,
       visibility: row.visibility,
