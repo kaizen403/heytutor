@@ -71,6 +71,41 @@ check("failed shared read releases its slot for retry", async () => {
   globalThis.fetch = async () => Response.json(baseline);
   assert.equal((await fetchEntitlement()).ok, true);
 });
+check("a failed newer read cannot suppress a successful paid refresh", async () => {
+  const free = { ...baseline, planId: "free", remainingPct: 0 };
+  setEntitlementSnapshot(free);
+  let finish: (response: Response) => void = () => {};
+  globalThis.fetch = async () => new Promise((resolve) => { finish = resolve; });
+  const paid = refreshPaidEntitlement();
+  globalThis.fetch = async () => new Response("unavailable", { status: 503 });
+  assert.equal((await fetchEntitlement(new AbortController().signal)).ok, false);
+  finish(Response.json(baseline));
+  assert.equal(await paid, true);
+  assert.deepEqual(getEntitlementSnapshot(), baseline);
+});
+check("a newer successful read may supersede an older successful read", async () => {
+  setEntitlementSnapshot(stale);
+  const finishes: Array<(response: Response) => void> = [];
+  globalThis.fetch = async () => new Promise((resolve) => finishes.push(resolve));
+  const first = fetchEntitlement(new AbortController().signal);
+  const second = fetchEntitlement(new AbortController().signal);
+  finishes[0]!(Response.json({ ...baseline, remainingPct: 90 })); await first;
+  assert.equal(getEntitlementSnapshot()?.remainingPct, 90, "a pending read has not earned publication authority");
+  finishes[1]!(Response.json(baseline)); await second;
+  assert.deepEqual(getEntitlementSnapshot(), baseline);
+});
+check("a lesson receipt between successful reads still owns the meter", async () => {
+  setEntitlementSnapshot(stale);
+  const finishes: Array<(response: Response) => void> = [];
+  globalThis.fetch = async () => new Promise((resolve) => finishes.push(resolve));
+  const first = fetchEntitlement(new AbortController().signal);
+  const second = fetchEntitlement(new AbortController().signal);
+  finishes[0]!(Response.json(baseline)); await first;
+  const lesson = { ...baseline, remainingPct: 65 };
+  setEntitlementSnapshot(lesson);
+  finishes[1]!(Response.json({ ...baseline, remainingPct: 90 })); await second;
+  assert.equal(getEntitlementSnapshot(), lesson);
+});
 check("successful read publishes usage and unlimited staff", async () => {
   for (const value of [baseline, { planId: "free", remainingPct: null, nextResetAt: null, staff: true }]) {
     setEntitlementSnapshot(null);

@@ -259,6 +259,7 @@ async function beginTurnOnce(input: {
 
 let entitlementInflight: Promise<{ ok: true; entitlement: Entitlement } | BeginTurnErr> | null = null;
 let entitlementReadGeneration = 0;
+let publishedEntitlementRead: { generation: number; snapshot: Entitlement } | null = null;
 
 export async function fetchEntitlement(
   signal?: AbortSignal,
@@ -295,8 +296,13 @@ export async function fetchEntitlement(
       nextResetAt: typeof payload.nextResetAt === "number" ? payload.nextResetAt : null,
       staff: payload.staff === true,
     };
-    // A newer read or lesson receipt owns the meter once it has updated it.
-    if (generation === entitlementReadGeneration && getEntitlementSnapshot() === snapshotAtStart) {
+    // Only a successful read acquires publication authority. A newer pending
+    // or failed request cannot suppress a valid paid refresh; a lesson receipt
+    // still takes precedence over every read that started before that receipt.
+    const current = getEntitlementSnapshot();
+    if (generation > (publishedEntitlementRead?.generation ?? 0) &&
+        (current === snapshotAtStart || current === publishedEntitlementRead?.snapshot)) {
+      publishedEntitlementRead = { generation, snapshot: entitlement };
       setEntitlementSnapshot(entitlement);
     }
     return { ok: true as const, entitlement };
