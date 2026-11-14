@@ -1,0 +1,2 @@
+tsx scripts/verify/verify-lesson-source-routing.ts
+tsx scripts/verify/verify-code-scene-save-parity.ts

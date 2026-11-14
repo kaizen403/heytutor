@@ -814,7 +814,8 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       assert.equal(lifecycle.turnActiveRef.current, false);
       assert.equal(lifecycle.phaseRef.current, "idle");
       assert.equal(timers.size, 0);
-      return { mode, recordedCodeEvents: events, recordedCodeTeachingRequests: teachingRequestBodies };
+      return { mode, recordedCodeEvents: events, recordedCodeTeachingRequests: teachingRequestBodies,
+        recordedCodeScene: lifecycle.boardPageRef.current?.turn.scene, recordedCodeRows: lifecycle.recordedSegmentsRef.current };
     }
     if (earlyMode) {
       const opening = buildEarlyLessonOpeningSegment();

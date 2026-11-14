@@ -722,7 +722,7 @@ export function useBoardSession({
 
           // A DSA turn's TYPE commands reveal blocks of this plan; committing
           // it first also brings the code panel back for the restored board.
-          const codeLesson = continuesPage ? null : storedCodeLessonPlan(turn.sceneArtifacts);
+          const codeLesson = continuesPage ? null : storedCodeLessonPlan(turn.sceneArtifacts, turn.question);
           if (!continuesPage) {
             restoredCodePlanKey = codeLesson ? JSON.stringify(codeLesson) : null;
             restoredCodeComplete = false;

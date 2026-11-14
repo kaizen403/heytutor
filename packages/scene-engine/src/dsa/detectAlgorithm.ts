@@ -109,10 +109,16 @@ const PROBLEM_SHAPE: readonly RegExp[] = [
 
 /**
  * Does this read like a coding problem even though it names no algorithm?
- * Two independent structural markers is the bar — one alone ("given a
- * triangle...") is ordinary maths phrasing.
+ * Two structural markers also need a programming operation or concrete I/O.
+ * Lecture prose can contain both "Example:" and "target market", and a
+ * maths exercise can contain both "given a" and "Example:". Neither asks
+ * for a program. A return instruction names its computational operand, or
+ * paired Input/Output carries a concrete value/assignment.
  */
 export function looksLikeCodingProblem(question: string): boolean {
+  const computation = /\breturn\s+(?:the\s+|an?\s+|all\s+|any\s+)?(?:true|false|indices|index|maximum|minimum|number|length|sum|count|result|array|string|list|root|head|value|total|smallest|largest|kth)\b/i.test(question);
+  const concreteIO = /\binput\s*:\s*(?:[a-zA-Z_]\w*\s*=|\[|["'\d-])[\s\S]*\boutput\s*:\s*\S/i.test(question);
+  if (!computation && !concreteIO) return false;
   let hits = 0;
   for (const pattern of PROBLEM_SHAPE) {
     if (pattern.test(question)) hits += 1;

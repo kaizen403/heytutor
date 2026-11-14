@@ -137,6 +137,7 @@ import { LectureMarkupBuffer } from "../../lib/turn/lectureCueRepair";
 import { createStreamedFocusFold } from "../../lib/turn/streamedFocusFold";
 import { restoreVerifiedPresentationFromTurn } from "../../lib/scene/restoreVerifiedDiagram";
 import { requestReferencePicture, type ReferencePictureResult } from "../../lib/scene/referencePictureClient";
+import { liveSceneSaveFailure } from "@/lib/scene/sceneSaveAdmission";
 import {
   buildReferencePicturePresentation,
   isReferencePictureDiagram,
@@ -1094,6 +1095,25 @@ export function useQuestionHandler(
           dsaProofAssertions = [];
           representationReason = "dsa_hint_unsupported";
         }
+        // The code lane must pass the same source/size/proof admission as the
+        // standard lane before any ink is presented. Otherwise the live board
+        // can claim validated/dsa_trace while save deliberately removes it.
+        const saveFailure = sceneV2Document && representationTier
+          ? liveSceneSaveFailure({ document: sceneV2Document as SceneDocument, question, turnPlan, tier: representationTier })
+          : null;
+        if (saveFailure) {
+          sceneVisualStatus = resolveSelectedVisualStatus(turnPlan?.visualRequirement ?? "optional", false);
+          sceneV2Document = null;
+          sceneV2RenderScene = null;
+          sceneV2Report = null;
+          dsaFrameSet = null;
+          dsaProofAssertions = [];
+          representationTier = null;
+          representationNonMetric = false;
+          figureSource = "text_only";
+          representationReason = "code_scene_save_refused";
+          tutorDebug("planner", "code figure would fail the lecture save", { reason: saveFailure });
+        }
         sceneArtifacts = {
           schemaVersion: "scene-artifacts/v3",
           turnPlan,
@@ -1108,7 +1128,7 @@ export function useQuestionHandler(
           candidates: [],
           selectedCandidateId: null,
           selectionReason: representationReason ?? "code_lesson",
-          diagramResultStatus: sceneVisualStatus === "validated" ? "ready" : "text_only",
+          diagramResultStatus: sceneVisualStatus === "validated" ? "ready" : sceneVisualStatus === "retry_required" ? "retry_required" : "text_only",
           proofObligations: dsaProofAssertions.map((assertion) => ({
             id: assertion.id,
             predicate: assertion.predicate,

@@ -413,7 +413,7 @@ export function useLectureExport({
             // its own controller and verified figure.
             if (!hasStartedTurn || !storedTurnContinuesBoard(turn)) {
               const controller = codeLessonControllerRef.current!;
-              const plan = storedCodeLessonPlan(turn.sceneArtifacts);
+              const plan = storedCodeLessonPlan(turn.sceneArtifacts, turn.question);
               if (plan) controller.commit(plan);
               else controller.reset();
               restoreDsaFrames(controller, turn, plan);

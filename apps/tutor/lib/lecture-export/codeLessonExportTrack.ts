@@ -35,7 +35,7 @@ export function buildCodeLessonExportTrack(
   turn: StoredTurn,
   cues: ReplayCue[],
 ): CodeLessonExportTrack | null {
-  const plan = storedCodeLessonPlan(turn.sceneArtifacts);
+  const plan = storedCodeLessonPlan(turn.sceneArtifacts, turn.question);
   if (!plan) return null;
 
   const blocks: CodeLessonBlockTiming[] = [];

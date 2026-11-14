@@ -206,7 +206,7 @@ export function useReplay({
         return;
       }
       const controller = codeLessonControllerRef?.current;
-      const plan = turn ? storedCodeLessonPlan(turn.sceneArtifacts) : null;
+      const plan = turn ? storedCodeLessonPlan(turn.sceneArtifacts, turn.question) : null;
       if (controller) {
         if (plan) controller.commit(plan);
         else controller.reset();
@@ -929,7 +929,7 @@ export function useReplay({
     const codeTurn = codePlan && codePlanKey
       ? pageTurnsEndingAt(storedTurns, lastVisibleTurnIndex).reverse().find((turn) =>
           storedTurnPageQuestion(turn).trim() === codePlan.question.trim() &&
-          JSON.stringify(storedCodeLessonPlan(turn.sceneArtifacts)) === codePlanKey)
+          JSON.stringify(storedCodeLessonPlan(turn.sceneArtifacts, turn.question)) === codePlanKey)
       : null;
     const capturedCode = codeTurn && codeState && codePlan
       ? { turnId: codeTurn.id, plan: codePlan, revealedChars: { ...codeState.revealedChars } }
