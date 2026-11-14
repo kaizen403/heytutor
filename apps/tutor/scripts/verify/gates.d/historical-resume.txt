@@ -1,0 +1,2 @@
+# Synthetic protocol fixtures by default; HISTORICAL_LANGFUSE_DIR enables private replay.
+tsx scripts/verify/verify-historical-resume.ts
