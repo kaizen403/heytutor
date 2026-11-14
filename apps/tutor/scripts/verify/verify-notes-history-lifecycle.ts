@@ -136,7 +136,23 @@ async function main() {
     assert.equal(current!.sending, false);
     assert.equal(current!.messages.length, 1, "Stop keeps the user's message and discards an ignored-abort reply");
     assert.equal(current!.messages[0]?.content, "Current board question");
+
+    await render("saved-before-stop");
+    const stoppedHistory = requests.length - 1;
+    let stoppedSend: Promise<void> = Promise.resolve();
+    await act(async () => { stoppedSend = current!.send("Stopped question", null, false); await drain(); });
+    const stoppedIds = postedIds!;
+    await act(async () => { current!.stop(); posts[2]!.resolve(answer()); await stoppedSend; await drain(); });
+    await reply(stoppedHistory, Response.json({ messages: [
+      message("Earlier saved answer"),
+      { ...message("Stopped question"), id: stoppedIds.user, role: "user" },
+      { ...message("A fresh answer."), id: stoppedIds.assistant },
+    ] }));
+    assert.deepEqual(current!.messages.map(message => message.content), ["Earlier saved answer", "Stopped question"],
+      "history keeps unrelated saved messages but cannot resurrect a reply discarded by Stop");
     deferPosts = false;
+    await act(async () => { await current!.send("A new question after Stop", null, false); await drain(); });
+    assert(current!.messages.some(message => message.content === "A fresh answer."), "a new reply with the same text has a new identity and remains eligible");
 
     const beforeDisabled = requests.length;
     await render("disabled", false);

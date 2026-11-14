@@ -148,8 +148,8 @@ const db = {
     create: async ({ data }: { data: Omit<ChatRow, "id" | "createdAt"> & { id?: string } }) => {
       if (data.role === "assistant") { assistantStarted?.release(); await assistantWait?.promise; }
       assert(boardExists && userExists, "a persisted notes row must retain both FK owners");
-      if (data.id && chatRows.some(row => row.id === data.id)) throw new Error("unique message id");
-      const row = { ...data, id: data.id ?? crypto.randomUUID(), createdAt: new Date() };
+      if (data.id && chatRows.some(row => row.id.toLowerCase() === data.id!.toLowerCase())) throw new Error("unique message id");
+      const row = { ...data, id: data.id?.toLowerCase() ?? crypto.randomUUID(), createdAt: new Date() };
       chatRows.push(row); return row;
     },
   },
@@ -376,6 +376,16 @@ async function main() {
       assert.equal(response.status, 400);
       assert.equal(providerCalls, 0); assert.equal(reservedBytes, 0n); assert.equal(charged, 0);
     }
+  });
+  await check("UUID case aliases refuse before storage or paid generation", async () => {
+    const id = "123e4567-e89b-42d3-a456-426614174000";
+    const response = await notes.POST(request({ message: "Explain this step.", messageIds: { user: id, assistant: id.toUpperCase() } }), context());
+    if (response.ok) {
+      answer("A short answer", { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 });
+      await response.text().catch(() => undefined); await tick();
+    }
+    assert.equal(response.status, 400);
+    assert.equal(providerCalls, 0); assert.equal(charged, 0); assert.equal(reservedBytes, 0n);
   });
   await check("notes upstream read errors release only unused reply storage and settle paid usage", async () => {
     const response = await notes.POST(request(), context());

@@ -200,11 +200,11 @@ async function postNotesChat(request: Request, context: RouteContext, actor: Spe
   let userMessageId: string = crypto.randomUUID();
   let assistantMessageId: string = crypto.randomUUID();
   if (ids !== undefined) {
-    if (!isRecord(ids) || !isMessageId(ids.user) || !isMessageId(ids.assistant) || ids.user === ids.assistant) {
+    if (!isRecord(ids) || !isMessageId(ids.user) || !isMessageId(ids.assistant) || ids.user.toLowerCase() === ids.assistant.toLowerCase()) {
       return NextResponse.json({ error: "invalid message identities" }, { status: 400 });
     }
-    userMessageId = ids.user;
-    assistantMessageId = ids.assistant;
+    userMessageId = ids.user.toLowerCase();
+    assistantMessageId = ids.assistant.toLowerCase();
   }
   if (request.signal.aborted) {
     return NextResponse.json({ error: "request canceled" }, { status: 499 });
