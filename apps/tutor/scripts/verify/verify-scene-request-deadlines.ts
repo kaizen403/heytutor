@@ -22,8 +22,14 @@ mock.module(resolve(billing, "actor.ts"), { namedExports: { requireSpendActor: a
 mock.module(resolve(billing, "ledger.ts"), { namedExports: {
   loadPeriodBalance: async () => ({ remainingMillicents: 3500, remainingPct: 100, planId: "free" }),
   cacheUsageOnUser: async () => undefined,
-  reservePeriodUsage: async (input: { millicents: number }) => {
+  reservePeriodUsage: async (input: { millicents: number; reservationId?: string }) => {
     if (reservationDelay) await new Promise<void>(resolve => setTimeout(resolve, reservationDelay));
+    if (input.reservationId) {
+      const existing = reservations.find(receipt => receipt.id === input.reservationId);
+      assert(existing, "a retry may extend only its own existing receipt");
+      existing.millicents += input.millicents;
+      return { id: existing.id, amountMillicents: existing.millicents, remainingMillicents: 3500, planId: "free" };
+    }
     const receipt = { id: "fixture-receipt", millicents: input.millicents };
     reservations.push(receipt);
     return { id: receipt.id, amountMillicents: input.millicents, remainingMillicents: 3500, planId: "free" };
