@@ -153,6 +153,10 @@ export function looksLikeCodingProblem(question: string): boolean {
   const stringData = concreteIO ||
     /^\s*(?:[a-zA-Z_]\w*\s*=\s*)?["'[]/.test(afterType) ||
     /\b(?:characters?|letters?|digits?|vowels?|consonants?|substrings?|subsequences?|palindromes?|anagrams?|uppercase|lowercase|alphanumeric|binary|unicode|ascii)\b/i.test(question) ||
+    // Removing textual separators is a data operation even without an
+    // example, return clause, or member access. The operation and its operand
+    // are both required; physical spacing alone supplies no such evidence.
+    /\b(?:remove|replace|filter)\s+(?:(?:all|any|the|leading|trailing|and|repeated)\s+)*(?:spaces?|white[ -]?space|tabs?|newlines?|punctuation)\b/i.test(question) ||
     /\b(?:time|space)\s+complexity\b|\bO\(\s*(?:n|1|log\s*n)/i.test(question) ||
     boundExpression ||
     /\breturn\s+\S/i.test(question) ||

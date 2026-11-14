@@ -70,6 +70,10 @@ async function verifyComputationalAdmissions() {
     "Given a compressed string value, determine value.length.",
     "Given a compressed string value, determine `value.length`.",
     "Given a compressed string value, determine its prefix. Time complexity must be linear.",
+    "Given a string text, remove all spaces.",
+    "Given a string, remove leading and trailing whitespace.",
+    "Given a string `text`, replace tabs with spaces.",
+    "Given a compressed string text, remove all punctuation.",
     ...["`value`", "**value**", "*value*", "_value_", "__value__", "$value$"].map(binding =>
       `Given an integer ${binding}, calculate its digit count.`,
     ),
@@ -96,6 +100,8 @@ async function verifyComputationalAdmissions() {
     "Given a string s, calculate its fundamental frequency in terms of L and T. Constraints: L > 0.",
     "Given a vibrating string, determine its fundamental frequency in terms of length and tension. Source: https://example.com/physics.",
     "Given a vibrating string s, calculate its frequency. Read https://s.example/physics.",
+    "Given a vibrating string, calculate the spacing between its nodes.",
+    "Given a string stretched between two walls, remove the attached mass and find the spacing between nodes.",
   ];
   try {
     for (const question of [...questions, ...nonCoding]) {
