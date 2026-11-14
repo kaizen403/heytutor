@@ -118,9 +118,14 @@ export function ensureBypassGrant(input: {
   userId: string;
   traceId: string;
   planId?: string;
+  /** Auxiliary work on an authorized lesson must not reopen its chat slot. */
+  reserveSlot?: boolean;
 }): TurnGrant | null {
   const existing = prune(input.userId);
   if (existing?.skipGates) {
+    if (input.reserveSlot === false && existing.allowedTraceIds.has(input.traceId)) {
+      return existing;
+    }
     if (existing.bypassFollowOnTraceIds.has(input.traceId)) {
       if (!existing.activeBypassTraces.has(existing.bypassFollowOnRoots.get(input.traceId)!)) return null;
     } else if (!reserveBypassTrace(existing, input.traceId)) return null;

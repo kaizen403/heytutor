@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card";
 import type { AdminUserBoard } from "@/lib/admin/types";
 import { cn } from "@/lib/utils";
 import { CostChip } from "../components/CostChip";
@@ -13,7 +14,7 @@ function StatePill({ board }: { board: AdminUserBoard }) {
   }
   if (board.pinned) {
     return (
-      <span className="type-accent-xs ml-1.5 rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-sky-300">
+      <span className="type-accent-xs ml-1.5 rounded-full border border-border bg-secondary px-2 py-0.5 text-foreground">
         pinned
       </span>
     );
@@ -27,17 +28,22 @@ export function UserBoards({ boards }: { boards: AdminUserBoard[] }) {
       <h2 className="type-accent-xs text-faint">
         Boards · newest {boards.length} of this user&rsquo;s boards
       </h2>
-      <div className="glass rounded-xl px-3 py-2.5">
+      <Card className="gap-0 rounded-lg p-4 shadow-none">
         <ul className="divide-y divide-stroke">
           {boards.map((board) => (
-            <li key={board.boardId} className="flex items-baseline justify-between gap-3 py-1.5">
+            <li
+              key={board.boardId}
+              className="flex items-baseline justify-between gap-3 py-1.5"
+            >
               <div className="min-w-0">
                 <p className="truncate text-xs text-frost">
                   {board.title}
                   <StatePill board={board} />
                 </p>
                 <p className="type-accent-xs mt-0.5 truncate text-faint">
-                  {board.preview ? truncateText(board.preview, 72) : "no questions yet"}
+                  {board.preview
+                    ? truncateText(board.preview, 72)
+                    : "no questions yet"}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-3 text-right">
@@ -45,7 +51,11 @@ export function UserBoards({ boards }: { boards: AdminUserBoard[] }) {
                   cost={
                     board.totalUsd == null
                       ? undefined
-                      : { llmUsd: board.llmUsd ?? 0, ttsUsd: board.ttsUsd ?? 0, totalUsd: board.totalUsd }
+                      : {
+                          llmUsd: board.llmUsd ?? 0,
+                          ttsUsd: board.ttsUsd ?? 0,
+                          totalUsd: board.totalUsd,
+                        }
                   }
                 />
                 <p className={cn("type-accent-xs tabular-nums text-frost")}>
@@ -61,7 +71,7 @@ export function UserBoards({ boards }: { boards: AdminUserBoard[] }) {
             <li className="type-accent-xs py-2 text-faint">No boards yet.</li>
           ) : null}
         </ul>
-      </div>
+      </Card>
     </section>
   );
 }

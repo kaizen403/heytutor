@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatCount } from "../lib/format";
 
@@ -17,16 +18,21 @@ interface BarListProps {
 }
 
 const BAR_CLASS: Record<BarTone, string> = {
-  sky: "bg-sky-500/70",
+  sky: "bg-foreground/70",
   danger: "bg-danger/70",
   muted: "bg-frost/40",
 };
 
 /** Labeled distribution rows with proportional bars, in the RunCostBox style. */
-export function BarList({ title, entries, emptyLabel = "Nothing yet", note }: BarListProps) {
+export function BarList({
+  title,
+  entries,
+  emptyLabel = "Nothing yet",
+  note,
+}: BarListProps) {
   const max = Math.max(...entries.map((entry) => entry.count), 1);
   return (
-    <div className="glass rounded-xl px-3 py-2.5">
+    <Card className="gap-0 rounded-lg p-4 shadow-none">
       <div className="flex items-baseline justify-between gap-3">
         <p className="type-accent-xs text-faint">{title}</p>
         {note ? <p className="type-accent-xs text-faint">{note}</p> : null}
@@ -38,16 +44,24 @@ export function BarList({ title, entries, emptyLabel = "Nothing yet", note }: Ba
           {entries.map((entry) => (
             <li key={entry.label} className="space-y-1">
               <div className="flex items-baseline justify-between gap-3">
-                <p className="type-accent-xs min-w-0 truncate text-soft">{entry.label}</p>
+                <p className="type-accent-xs min-w-0 truncate text-soft">
+                  {entry.label}
+                </p>
                 <p className="type-accent-xs shrink-0 tabular-nums text-frost">
                   {formatCount(entry.count)}
                 </p>
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-ink-700">
                 <div
-                  className={cn("h-full rounded-full", BAR_CLASS[entry.tone ?? "sky"])}
+                  className={cn(
+                    "h-full rounded-full",
+                    BAR_CLASS[entry.tone ?? "sky"],
+                  )}
                   style={{
-                    width: entry.count <= 0 ? "0%" : `${Math.max(6, Math.round((entry.count / max) * 100))}%`,
+                    width:
+                      entry.count <= 0
+                        ? "0%"
+                        : `${Math.max(6, Math.round((entry.count / max) * 100))}%`,
                   }}
                 />
               </div>
@@ -55,6 +69,6 @@ export function BarList({ title, entries, emptyLabel = "Nothing yet", note }: Ba
           ))}
         </ul>
       )}
-    </div>
+    </Card>
   );
 }

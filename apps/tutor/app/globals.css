@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./admin/admin.css";
 
 /* ═══════════════════════════════════════════════════════════════════════
    ACCELUTE — "Graphite"
@@ -162,8 +163,8 @@
   --color-foreground: var(--foreground);
   --color-surface: var(--wb-surface);
   --color-raised: var(--wb-raised);
-  --color-accent: var(--wb-accent);
-  --color-border: var(--wb-border);
+  --color-accent: var(--accent, var(--wb-accent));
+  --color-border: var(--border, var(--wb-border));
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-display: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;

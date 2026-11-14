@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card";
 import type {
   AdminUserRow,
   AdminUserSettings,
@@ -13,7 +14,10 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1">
       <dt className={LABEL_CLASS}>{label}</dt>
-      <dd className={`${VALUE_CLASS} min-w-0 truncate text-right`} title={value}>
+      <dd
+        className={`${VALUE_CLASS} min-w-0 truncate text-right`}
+        title={value}
+      >
         {value}
       </dd>
     </div>
@@ -31,31 +35,41 @@ export function UserProfileCard({
 }) {
   return (
     <div className="grid gap-3 md:grid-cols-2">
-      <div className="glass rounded-xl px-3 py-2.5">
+      <Card className="gap-0 rounded-lg p-4 shadow-none">
         <p className="type-accent-xs text-faint">Profile</p>
         <dl className="mt-1 divide-y divide-stroke/60">
           <Row label="User id" value={user.userId} />
-          <Row label="Email" value={user.email ?? "anonymous (cookie identity)"} />
+          <Row
+            label="Email"
+            value={user.email ?? "anonymous (cookie identity)"}
+          />
           <Row label="Name" value={user.name ?? ""} />
           <Row label="Joined" value={formatRelativeTime(user.createdAt)} />
           <Row
             label="Onboarding"
-            value={user.onboardingCompletedAt ? formatRelativeTime(user.onboardingCompletedAt) : "not completed"}
+            value={
+              user.onboardingCompletedAt
+                ? formatRelativeTime(user.onboardingCompletedAt)
+                : "not completed"
+            }
           />
           <Row label="Exam goal" value={user.examGoal ?? ""} />
           <Row label="Class year" value={user.classYear ?? ""} />
           <Row label="Learner role" value={user.learnerRole ?? ""} />
           <Row label="Subjects" value={user.subjects.join(", ")} />
         </dl>
-      </div>
+      </Card>
 
       <div className="space-y-3">
-        <div className="glass rounded-xl px-3 py-2.5">
+        <Card className="gap-0 rounded-lg p-4 shadow-none">
           <p className="type-accent-xs text-faint">Settings</p>
           {settings ? (
             <dl className="mt-1 divide-y divide-stroke/60">
               <Row label="Fast mode" value={settings.fastMode ? "on" : "off"} />
-              <Row label="Narration" value={settings.narrationEnabled ? "on" : "off"} />
+              <Row
+                label="Narration"
+                value={settings.narrationEnabled ? "on" : "off"}
+              />
               <Row label="Audio language" value={settings.audioLanguage} />
               <Row label="Accent" value={settings.accent} />
               <Row label="UI language" value={settings.uiLanguage} />
@@ -63,12 +77,16 @@ export function UserProfileCard({
               <Row label="Teaching note" value={settings.teachingNote} />
             </dl>
           ) : (
-            <p className="type-accent-xs mt-2 text-faint">No settings row yet.</p>
+            <p className="type-accent-xs mt-2 text-faint">
+              No settings row yet.
+            </p>
           )}
-        </div>
+        </Card>
 
-        <div className="glass rounded-xl px-3 py-2.5">
-          <p className="type-accent-xs text-faint">Spend by period · AI + voice</p>
+        <Card className="gap-0 rounded-lg p-4 shadow-none">
+          <p className="type-accent-xs text-faint">
+            Spend by period · AI + voice
+          </p>
           {spend.length > 0 ? (
             <dl className="mt-1 divide-y divide-stroke/60">
               {spend.map((entry) => (
@@ -84,9 +102,11 @@ export function UserProfileCard({
               ))}
             </dl>
           ) : (
-            <p className="type-accent-xs mt-2 text-faint">No billing rows yet.</p>
+            <p className="type-accent-xs mt-2 text-faint">
+              No billing rows yet.
+            </p>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

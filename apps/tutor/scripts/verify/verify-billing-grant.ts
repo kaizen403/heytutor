@@ -25,6 +25,16 @@ const root = resolve(import.meta.dirname, "../..");
 const headers = load(resolve(root, "../../packages/tutor-core/src/llm/traceHeaders.ts")) as typeof import("../../../../packages/tutor-core/src/llm/traceHeaders");
 mock.module(resolve(root, "../../packages/tutor-core/src/index.ts"), { namedExports: headers });
 const traces = new Map<string, { traceId: string; userId: string; expiresAt: Date }>();
+const requestActor = {
+  userId: "staff-audio", email: "staff@example.test", staff: true,
+  lectureLab: false, skipAutumn: true, skipGates: true,
+};
+mock.module(resolve(root, "lib/billing/actor.ts"), {
+  namedExports: {
+    requireSpendActor: async () => requestActor,
+    isSpendActor: (value: unknown) => !(value instanceof Response),
+  },
+});
 mock.module(resolve(root, "lib/db/prisma.ts"), {
   namedExports: { prisma: {
     user: { findUnique: async ({ where }: { where: { id: string } }) => ({ id: where.id, planId: "free" }) },
@@ -38,7 +48,7 @@ mock.module(resolve(root, "lib/db/prisma.ts"), {
     },
   } },
 });
-const { authorizePaidCreditTrace, beginTurnForActor, createInUseRelease, holdGrantUntilStreamEnds, releaseInUseWhenClientLeaves } =
+const { authorizePaidCreditTrace, beginTurnForActor, createInUseRelease, holdGrantUntilStreamEnds, releaseInUseWhenClientLeaves, requireLessonGrant } =
   load(resolve(root, "lib/billing/gate.ts")) as typeof import("../../lib/billing/gate");
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -142,6 +152,40 @@ const staffActor = {
   skipAutumn: true,
   skipGates: true,
 };
+// Real admission path: narration ends before its remaining audio / picture
+// requests arrive. Those requests must not leave five zero-use reservations
+// behind and reject both subsequent batches before any provider dispatch.
+for (let batch = 0; batch < 3; batch++) {
+  for (let i = 0; i < 5; i++) {
+    const traceId = `recording-${batch}-${i}`;
+    const turn = await beginTurnForActor(requestActor, { traceId, kind: "lesson" });
+    assert(!(turn instanceof Response), `recording batch ${batch + 1} must start without a stale-slot 429`);
+    markGrantInUse(turn.grant, 1, traceId);
+    markGrantInUse(turn.grant, -1, traceId);
+    for (const path of ["tts/stream", "reference-picture", "visual-need"]) {
+      const gated = await requireLessonGrant(new Request(`https://example.test/api/${path}`, {
+        headers: { "x-heytutor-trace-id": traceId },
+      }));
+      assert(!(gated instanceof Response), "remaining authorized lesson work stays admitted");
+    }
+    assert(!turn.grant.activeBypassTraces.has(traceId),
+      "audio / policy admission after chat EOF must not leak a recording slot");
+  }
+}
+for (let i = 0; i < 5; i++) {
+  const turn = await beginTurnForActor(requestActor, { traceId: `current-${i}`, kind: "lesson" });
+  assert(!(turn instanceof Response), "five fresh recordings can reserve slots after previous batches");
+}
+const oldRequest = () => new Request("https://example.test/api/chat", {
+  headers: { "x-heytutor-trace-id": "recording-0-0" },
+});
+const resumedChat = await requireLessonGrant(oldRequest(), { reserveBypassSlot: true });
+assert(resumedChat instanceof Response && resumedChat.status === 429,
+  "an old authorized chat still cannot become a sixth recording");
+const tailAudio = await requireLessonGrant(oldRequest());
+assert(!(tailAudio instanceof Response) && tailAudio.grant.activeBypassTraces.size === 5,
+  "remaining authorized audio does not take a sixth slot or evict a current recording");
+resetTurnGrantsForTests();
 const [firstStaffTurn, secondStaffTurn] = await Promise.all([
   beginTurnForActor(staffActor, { traceId: "staff-1", kind: "lesson" }),
   beginTurnForActor(staffActor, { traceId: "staff-2", kind: "lesson" }),

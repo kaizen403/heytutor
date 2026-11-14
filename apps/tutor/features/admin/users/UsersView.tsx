@@ -1,10 +1,13 @@
 "use client";
 
+import { Input } from "@/components/ui/input";
+
 import { useEffect, useMemo, useState } from "react";
-import { Download, Users, X } from "lucide-react";
-import { SiteButton } from "@/components/ui/site-button";
+import { Download, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { UserSort, UsersPagePayload } from "@/lib/admin/types";
 import { AdminPageHeader } from "../shared/components/AdminPageHeader";
+import { AdminTableSkeleton } from "../shared/components/AdminTableSkeleton";
 import { EmptyState } from "../shared/components/EmptyState";
 import { FilterSelect } from "../shared/components/FilterSelect";
 import { Pagination } from "../shared/components/Pagination";
@@ -50,7 +53,8 @@ export function UsersView() {
     return `/api/admin/users?${params.toString()}`;
   }, [query, sort, page]);
 
-  const { data, loading, error, refresh } = useAdminQuery<UsersPagePayload>(url);
+  const { data, loading, error, refresh } =
+    useAdminQuery<UsersPagePayload>(url);
 
   const onSortChange = (next: string) => {
     setSort(next as UserSort);
@@ -61,7 +65,16 @@ export function UsersView() {
     if (!data) return;
     downloadCsv(
       `heytutor-users-page${data.page}.csv`,
-      ["user id", "name", "email", "turns", "boards", "messages", "last turn", "spend usd"],
+      [
+        "user id",
+        "name",
+        "email",
+        "turns",
+        "boards",
+        "messages",
+        "last turn",
+        "spend usd",
+      ],
       data.users.map((user) => [
         user.userId,
         user.name ?? "",
@@ -70,7 +83,9 @@ export function UsersView() {
         user.boards,
         user.chatMessages,
         user.lastTurnAt ?? "",
-        user.spendMillicents == null ? "" : formatMillicentsUsd(user.spendMillicents),
+        user.spendMillicents == null
+          ? ""
+          : formatMillicentsUsd(user.spendMillicents),
       ]),
     );
   };
@@ -86,28 +101,36 @@ export function UsersView() {
             ? `${data.total} user${data.total === 1 ? "" : "s"} · spend period ${data.period}`
             : "Everyone using the app, what they are asking, and how much they run."
         }
-        icon={<Users className="h-4 w-4" strokeWidth={1.75} aria-hidden />}
         actions={
           <>
-            {loading ? <span className="type-accent-xs text-faint">Loading…</span> : null}
-            {error ? <span className="type-accent-xs text-danger">Could not load</span> : null}
-            <SiteButton variant="ghost" size="sm" onClick={exportCsv} disabled={!data}>
+            {loading ? (
+              <span className="type-accent-xs text-faint">Loading…</span>
+            ) : null}
+            {error ? (
+              <span className="type-accent-xs text-danger">Could not load</span>
+            ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportCsv}
+              disabled={!data}
+            >
               <Download className="h-3.5 w-3.5" aria-hidden />
               Export page
-            </SiteButton>
+            </Button>
           </>
         }
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[16rem] flex-1">
-          <input
+        <div className="relative min-w-0 basis-64 flex-1">
+          <Input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search name, email, or user id…"
             aria-label="Search users"
-            className="h-9 w-full rounded-lg border border-stroke bg-ink-900 px-3 text-xs text-frost outline-none transition-colors placeholder:text-faint hover:border-sky-500/50 focus-visible:ring-2 focus-visible:ring-sky-500"
+            className="bg-background pr-9"
           />
           {search ? (
             <button
@@ -127,8 +150,8 @@ export function UsersView() {
           ariaLabel="Sort users"
         />
         {hasFilters ? (
-          <SiteButton
-            variant="ghost"
+          <Button
+            variant="outline"
             size="sm"
             onClick={() => {
               setSearch("");
@@ -137,7 +160,7 @@ export function UsersView() {
             }}
           >
             Clear
-          </SiteButton>
+          </Button>
         ) : null}
       </div>
 
@@ -157,8 +180,8 @@ export function UsersView() {
           description="Nothing in the table matches this search."
           action={
             hasFilters ? (
-              <SiteButton
-                variant="ghost"
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => {
                   setSearch("");
@@ -166,26 +189,28 @@ export function UsersView() {
                 }}
               >
                 Clear search
-              </SiteButton>
+              </Button>
             ) : undefined
           }
         />
       ) : error ? (
         <EmptyState
-          title={error === "unauthorized" ? "Admins only" : "Could not load users"}
+          title={
+            error === "unauthorized" ? "Admins only" : "Could not load users"
+          }
           description={
             error === "unauthorized"
               ? "Sign in with a staff account to manage users."
               : "The users API did not answer. Try refreshing."
           }
           action={
-            <SiteButton variant="ghost" size="sm" onClick={refresh}>
+            <Button variant="outline" size="sm" onClick={refresh}>
               Try again
-            </SiteButton>
+            </Button>
           }
         />
       ) : (
-        <EmptyState title="Loading users…" />
+        <AdminTableSkeleton label="Loading users…" />
       )}
     </div>
   );

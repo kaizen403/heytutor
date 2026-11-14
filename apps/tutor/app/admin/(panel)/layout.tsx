@@ -17,7 +17,11 @@ export const metadata: Metadata = {
  * this route group on purpose — it uses its own wide workspace and navigation,
  * so it must not inherit this nav.
  */
-export default async function AdminPanelLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminPanelLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   if (!isAuthDisabled()) {
     const session = await auth();
     if (!(await isAdminEmail(session?.user?.email))) {
@@ -26,9 +30,14 @@ export default async function AdminPanelLayout({ children }: { children: React.R
   }
 
   return (
-    <div className="site-theme fx-aurora-soft min-h-screen">
+    <div className="min-h-screen">
       <AdminNav />
-      <main className="relative z-10 mx-auto w-full max-w-6xl px-4 pb-12 pt-5">{children}</main>
+      <main
+        id="admin-content"
+        className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-10"
+      >
+        {children}
+      </main>
     </div>
   );
 }

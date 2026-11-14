@@ -1,3 +1,11 @@
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import type { AdminTurnRow } from "@/lib/admin/types";
@@ -7,8 +15,8 @@ import { OutcomePill } from "../shared/components/OutcomePill";
 import { formatRelativeTime, truncateText } from "../shared/lib/format";
 import { RatingLog } from "./RatingLog";
 
-const CELL = "px-3 py-2 align-middle";
-const HEAD = "type-accent-xs px-3 py-2 text-left text-faint";
+const CELL = "px-4 py-3 align-middle";
+const HEAD = "px-4 text-left text-xs font-medium text-muted-foreground";
 
 function tierLabel(tier: AdminTurnRow["tier"]): string {
   if (tier === "exact_verified") return "exact";
@@ -19,86 +27,111 @@ function tierLabel(tier: AdminTurnRow["tier"]): string {
 
 export function TurnsTable({ turns }: { turns: AdminTurnRow[] }) {
   return (
-    <div className="glass overflow-x-auto rounded-xl">
-      <table className="w-full min-w-[52rem] border-collapse">
-        <thead>
-          <tr className="border-b border-stroke">
-            <th className={HEAD}>Question</th>
-            <th className={HEAD}>Outcome</th>
-            <th className={HEAD}>User</th>
-            <th className={HEAD}>When</th>
-            <th className={cn(HEAD, "text-right")}>Cost (USD)</th>
-            <th className={cn(HEAD, "text-right")}>Trace</th>
-          </tr>
-        </thead>
-        <tbody>
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <Table className="w-full min-w-[52rem] border-collapse">
+        <TableHeader>
+          <TableRow className="border-b border-stroke">
+            <TableHead className={HEAD}>Question</TableHead>
+            <TableHead className={HEAD}>Outcome</TableHead>
+            <TableHead className={HEAD}>User</TableHead>
+            <TableHead className={HEAD}>When</TableHead>
+            <TableHead className={cn(HEAD, "text-right")}>Cost (USD)</TableHead>
+            <TableHead className={cn(HEAD, "text-right")}>Trace</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {turns.map((turn) => (
-            <tr
+            <TableRow
               key={turn.turnId}
               className="border-b border-stroke/60 transition-colors last:border-b-0 hover:bg-white/[0.03]"
             >
-              <td className={CELL}>
-                <p className="max-w-[24rem] truncate text-xs text-frost" title={turn.question}>
+              <TableCell className={CELL}>
+                <p
+                  className="max-w-[24rem] truncate text-xs text-frost"
+                  title={turn.question}
+                >
                   {truncateText(turn.question, 90)}
                 </p>
                 <RatingLog ratings={turn.ratings} />
                 {turn.degradationReason ? (
                   <p className="type-accent-xs mt-0.5 text-danger">
                     {turn.degradationReason.replaceAll("_", " ")}
-                    {turn.issueCodes.length > 0 ? ` · ${turn.issueCodes.join(", ")}` : ""}
-                    {turn.candidateCount != null ? ` · ${turn.candidateCount} candidates` : ""}
+                    {turn.issueCodes.length > 0
+                      ? ` · ${turn.issueCodes.join(", ")}`
+                      : ""}
+                    {turn.candidateCount != null
+                      ? ` · ${turn.candidateCount} candidates`
+                      : ""}
                   </p>
                 ) : null}
-              </td>
-              <td className={CELL}>
+              </TableCell>
+              <TableCell className={CELL}>
                 <OutcomePill outcome={turn.outcome} />
-                <p className="type-accent-xs mt-0.5 text-faint">{tierLabel(turn.tier)}</p>
-              </td>
-              <td className={CELL}>
+                <p className="type-accent-xs mt-0.5 text-faint">
+                  {tierLabel(turn.tier)}
+                </p>
+              </TableCell>
+              <TableCell className={CELL}>
                 <Link
                   href={`/admin/users/${turn.userId}`}
                   className="type-accent-xs block max-w-[10rem] truncate text-soft transition-colors hover:text-frost"
                 >
                   {turn.userLabel}
                 </Link>
-                <p className="type-accent-xs mt-0.5 max-w-[10rem] truncate text-faint" title={turn.boardTitle}>
+                <p
+                  className="type-accent-xs mt-0.5 max-w-[10rem] truncate text-faint"
+                  title={turn.boardTitle}
+                >
                   {truncateText(turn.boardTitle, 18)}
                 </p>
-              </td>
-              <td className={CELL}>
-                <p className="type-accent-xs text-soft">{formatRelativeTime(turn.createdAt)}</p>
+              </TableCell>
+              <TableCell className={CELL}>
+                <p className="type-accent-xs text-soft">
+                  {formatRelativeTime(turn.createdAt)}
+                </p>
                 <p className="type-accent-xs mt-0.5 text-faint">
                   {turn.sceneEngineVersion ?? "no engine version"}
                 </p>
-              </td>
-              <td className={cn(CELL, "text-right")}>
+              </TableCell>
+              <TableCell className={cn(CELL, "text-right")}>
                 {turn.totalUsd != null ? (
                   <div className="type-accent-xs flex flex-col items-end gap-0.5 whitespace-nowrap tabular-nums">
-                    <span className="text-sky-300">{formatUsd(turn.totalUsd)}</span>
-                    <span className="text-soft">AI {turn.llmUsd != null ? formatUsd(turn.llmUsd) : "—"}</span>
-                    <span className="text-soft">Voice {turn.ttsUsd != null ? formatUsd(turn.ttsUsd) : "—"}</span>
+                    <span className="text-foreground">
+                      {formatUsd(turn.totalUsd)}
+                    </span>
+                    <span className="text-soft">
+                      AI {turn.llmUsd != null ? formatUsd(turn.llmUsd) : "—"}
+                    </span>
+                    <span className="text-soft">
+                      Voice {turn.ttsUsd != null ? formatUsd(turn.ttsUsd) : "—"}
+                    </span>
                   </div>
                 ) : (
-                  <span className="type-accent-xs text-faint" title="No cost data is available for this turn. Refresh to check again.">
+                  <span
+                    className="type-accent-xs text-faint"
+                    title="No cost data is available for this turn. Refresh to check again."
+                  >
                     Unavailable
                   </span>
                 )}
-              </td>
-              <td className={cn(CELL, "text-right")}>
+              </TableCell>
+              <TableCell className={cn(CELL, "text-right")}>
                 <div className="flex flex-col items-end gap-1">
                   {turn.sentryUrl ? (
                     <a
                       href={turn.sentryUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex flex-col items-end type-accent-xs text-sky-300 transition-colors hover:text-sky-200"
+                      className="inline-flex flex-col items-end type-accent-xs text-foreground transition-colors hover:text-foreground"
                       title={`Sentry event ${turn.sentryEventId}`}
                     >
                       <span className="inline-flex items-center gap-1">
                         View in Sentry
                         <ExternalLink className="h-3 w-3" aria-hidden />
                       </span>
-                      <span className="font-mono text-faint">{turn.sentryEventId}</span>
+                      <span className="font-mono text-faint">
+                        {turn.sentryEventId}
+                      </span>
                     </a>
                   ) : null}
                   {turn.traceUrl ? (
@@ -106,7 +139,7 @@ export function TurnsTable({ turns }: { turns: AdminTurnRow[] }) {
                       href={turn.traceUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 type-accent-xs text-sky-300 transition-colors hover:text-sky-200"
+                      className="inline-flex items-center gap-1 type-accent-xs text-foreground transition-colors hover:text-foreground"
                       title="Open the Langfuse trace"
                     >
                       Langfuse
@@ -116,11 +149,11 @@ export function TurnsTable({ turns }: { turns: AdminTurnRow[] }) {
                     <span className="type-accent-xs text-faint">—</span>
                   ) : null}
                 </div>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }
