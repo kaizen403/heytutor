@@ -17,7 +17,7 @@ const requireApp = createRequire(path.join(app, "package.json"));
 const runnerPath = path.join(app, "features/tutor-session/hooks/turn/useSegmentRunner.ts");
 const savePath = path.join(app, "features/tutor-session/lib/turn/liveTurnSave.ts");
 const clientPath = fileURLToPath(new URL("../../../../packages/tutor-core/src/tts/streamingSpeechClient.ts", import.meta.url));
-const boundedCases = ["whitespace", "control", "control-string", "continuous", "stalled", "size", "stop", "replace"]
+const boundedCases = ["whitespace", "control", "control-string", "malformed", "malformed-nested", "malformed-key", "continuous", "stalled", "size", "stop", "replace"]
   .flatMap(kind => [`runner-http-drip-${kind}`, `runner-http-prefetch-drip-${kind}`]);
 const cases = [...boundedCases, "runner-http-split-json", "runner-http-prefetch-split-json", "http-drip-unclaimed", "http-drip-retry-time", "http-drip-retry-size", "runner-http-context-interrupted", "runner-http-context-stop", "runner-http-context-stale", "runner-http-context-pause", "runner-http-download-context", "runner-http-prefetch-download", "runner-http-prefetch-stop", "runner-http-downloading", "runner-http-slow-download", "runner-http-stalled-download", "runner-http-download-pause", "runner-http-download-stop", "runner-http-download-gesture", "recover", "healthy", "start", "capture", "ws-capture", "stall-all", "partial", "pause", "cancel", "capture-cancel", "successor", "runner-positive", "runner-zero", "runner-intro", "runner-stop", "runner-stale", "runner-healthy", "runner-slow", "capture-cancel-http", "healthy-pause", "prefetch-cancel", "ws-prefetch-cancel", "ended-zero", "runner-error", "cancel-retry", "ws-no-final", "ws-no-final-healthy", "runner-ws-positive", "runner-ws-healthy", "ws-no-final-webaudio", "ws-no-final-webaudio-healthy", "gesture-delay", "gesture-zero-repeated", "relay-final-skip", "relay-final-error", "relay-final-close", "relay-final-pause", "relay-final-stop", "relay-final-successor", "relay-final-zero", "relay-final-decode-error", "relay-final-media-error", "relay-unfinished-skip", "relay-old-close-owner", "relay-prefetch-pump-race", "browser-paused-resume", "browser-paused-wedged"];
 const noop = () => {};
@@ -199,6 +199,9 @@ async function main() {
           emit('{"audio_base64":"', 10);
           for (let i = 0; i < 25; i++) emit("A".repeat(1024 * 1024), 20 + i * 20);
         } else {
+          if (dripKind === "malformed-nested") emit('{"metadata":[true nope],"audio_base64":"', 1_000);
+          if (dripKind === "malformed-key") emit('{"audio_base64"::"', 1_000);
+          if (dripKind === "malformed") emit('{"audio_base64" invalid :"', 1_000);
           if (["continuous", "stalled", "stop", "replace"].includes(dripKind)) emit('data: {"alignment":{},"audio_base64":"', 1_000);
           for (let i = 0; i < 26; i++) {
             if (dripKind === "stalled" && i > 0) break;
@@ -213,7 +216,7 @@ async function main() {
       // Alternate audio key, SSE prefix, preceding nested metadata/control
       // strings, a key split across reads, and a value split across reads.
       const audio = chunk.audio_base64;
-      const prefix = 'data: {"metadata":{"audio":"ignored"},"message":"audio_base64", "aud';
+      const prefix = 'data: {"metadata":{"audio":"ignored","values":[true,false,null,1.5,{"text":"\\u0041"}]},"message":"audio_base64", "aud';
       const pieces = [prefix, 'io":"' + audio.slice(0, 64), audio.slice(64, 70_000), audio.slice(70_000, 140_000),
         audio.slice(140_000, 210_000), audio.slice(210_000) + '","alignment":' + JSON.stringify(chunk.alignment) + '}\n'];
       return new Response(new ReadableStream<Uint8Array>({ start(controller) {
@@ -481,7 +484,7 @@ async function main() {
           assert.equal(drawn.length, 0); assert.equal(params.recordedSegmentsRef.current.length, 0);
           assert.equal(captured, dripKind === "replace" ? 1 : 0);
         } else {
-          const noAudioTraffic = ["whitespace", "control", "control-string"].includes(dripKind);
+          const noAudioTraffic = ["whitespace", "control", "control-string", "malformed", "malformed-nested", "malformed-key"].includes(dripKind);
           await advance(noAudioTraffic || dripKind === "size" ? 7_000 : dripKind === "stalled" ? 16_000 : 62_000);
           assert(telemetry.includes("tts-browser-recovery"), "network wait ends by its bound");
           await advance(5_000);

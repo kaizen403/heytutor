@@ -10,52 +10,72 @@ export class HttpTtsDownloadError extends Error {}
  * a growing base64 string, and quoted control text cannot masquerade as a key.
  */
 function audioStringProgress() {
-  let prefix = "", depth = 0, invalid = false, inString = false, escaped = false;
-  let key = "", readingKey = false, expectKey = false, expectValue = false;
-  let audioKey = false, readingAudio = false;
+  type Frame = { kind: "object" | "array"; state: "keyOrEnd" | "key" | "colon" | "valueOrEnd" | "value" | "commaOrEnd"; audioKey?: boolean };
+  let prefix = "", invalid = false, inString = false, escaped = false;
+  let key = "", readingKey = false, readingAudio = false, scalar = "", unicode = 0;
+  const stack: Frame[] = [];
   return (text: string): boolean => {
     let progressed = false;
     for (const char of text) {
       if (char === "\n") {
-        prefix = ""; depth = 0; invalid = inString = escaped = false;
-        key = ""; readingKey = expectKey = expectValue = audioKey = readingAudio = false;
+        prefix = key = scalar = ""; stack.length = 0; unicode = 0;
+        invalid = inString = escaped = readingKey = readingAudio = false;
         continue;
       }
       if (invalid) continue;
-      if (depth === 0) {
-        if (char === "{" && /^\s*(?:data:\s*)?$/.test(prefix)) { depth = 1; expectKey = true; }
+      if (stack.length === 0) {
+        if (char === "{" && /^\s*(?:data:\s*)?$/.test(prefix)) stack.push({ kind: "object", state: "keyOrEnd" });
         else { prefix += char; if (prefix.length > 64) invalid = true; }
         continue;
       }
+      const frame = stack.at(-1)!;
       if (inString) {
-        if (escaped) { escaped = false; readingAudio = false; continue; }
+        if (unicode > 0) { if (!/[0-9a-f]/i.test(char)) invalid = true; unicode--; continue; }
+        if (escaped) {
+          escaped = false; readingAudio = false;
+          if (readingKey) key += "?"; // Escaped keys cannot impersonate an audio key.
+          if (char === "u") unicode = 4;
+          else if (!'"\\/bfnrt'.includes(char)) invalid = true;
+          continue;
+        }
         if (char === "\\") { escaped = true; continue; }
         if (char === '"') {
           inString = false;
-          if (readingKey) audioKey = key === "audio" || key === "audio_base64";
+          frame.state = readingKey ? "colon" : "commaOrEnd";
+          if (readingKey) frame.audioKey = key === "audio" || key === "audio_base64";
           readingKey = readingAudio = false;
-        } else if (readingKey) {
-          if (key.length < 16) key += char;
-        } else if (readingAudio) {
+        } else if (char.charCodeAt(0) < 32) invalid = true;
+        else if (readingKey) { if (key.length < 16) key += char; }
+        else if (readingAudio) {
           if (/[A-Za-z0-9+/=]/.test(char)) progressed = true;
           else readingAudio = false;
         }
         continue;
       }
-      if (char === '"') {
+      if (scalar) {
+        if (!/[\s,}\]]/.test(char)) { scalar += char; if (scalar.length > 64) invalid = true; continue; }
+        // Validate the value preceding the next key, including nested metadata.
+        try { JSON.parse(scalar); } catch { invalid = true; continue; }
+        scalar = ""; frame.state = "commaOrEnd";
+      }
+      if (/\s/.test(char)) continue;
+      if (char === '"' && ["keyOrEnd", "key", "value", "valueOrEnd"].includes(frame.state)) {
         inString = true; key = "";
-        readingKey = depth === 1 && expectKey;
-        readingAudio = depth === 1 && expectValue && audioKey;
-        expectKey = expectValue = false;
-      } else if (char === "{" || char === "[") {
-        depth++; expectValue = false;
-      } else if (char === "}" || char === "]") {
-        depth--; if (depth === 0) invalid = true;
-      } else if (depth === 1 && char === ",") {
-        expectKey = true; expectValue = audioKey = false;
-      } else if (depth === 1 && char === ":") {
-        expectValue = true;
-      } else if (!/\s/.test(char)) expectValue = false;
+        readingKey = frame.state === "keyOrEnd" || frame.state === "key";
+        readingAudio = !readingKey && stack.length === 1 && frame.audioKey === true;
+      } else if ((char === "}" && frame.kind === "object" && ["keyOrEnd", "commaOrEnd"].includes(frame.state)) ||
+                 (char === "]" && frame.kind === "array" && ["valueOrEnd", "commaOrEnd"].includes(frame.state))) {
+        stack.pop(); if (stack.length === 0) invalid = true;
+      } else if (char === ":" && frame.state === "colon") frame.state = "value";
+      else if (char === "," && frame.state === "commaOrEnd") {
+        frame.state = frame.kind === "object" ? "key" : "value"; frame.audioKey = false;
+      } else if (frame.state === "value" || frame.state === "valueOrEnd") {
+        if (char === "{" || char === "[") {
+          frame.state = "commaOrEnd";
+          stack.push({ kind: char === "{" ? "object" : "array", state: char === "{" ? "keyOrEnd" : "valueOrEnd" });
+        } else if (/[tfn0-9-]/.test(char)) scalar = char;
+        else invalid = true;
+      } else invalid = true;
     }
     return progressed;
   };

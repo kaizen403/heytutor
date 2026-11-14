@@ -32,7 +32,7 @@ export interface SpeakSegmentOptions {
    * The relay holds this sentence's complete audio and is sending it. On a
    * slow link a whole sentence can take seconds to arrive, so this is the
    * signal that the provider voice is coming and is not stalled. HTTP also
-   * emits it for positive body reads, renewing the download inactivity wait.
+   * emits it for growth inside an audio JSON string, renewing the inactivity wait.
    * It never means playback started or that a complete clip can be saved.
    */
   onAudioInTransit?: () => void;
