@@ -1,2 +1,3 @@
 tsx scripts/verify/verify-recovery-physics-maths.ts
 tsx scripts/verify/verify-recovery-weak-wave-cue.ts
+tsx scripts/verify/verify-recovery-contact-binding.ts

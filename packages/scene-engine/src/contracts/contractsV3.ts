@@ -4216,13 +4216,30 @@ function validateSemanticVectorGeometry(
     const verifyDirectionRelation = (
       entity: SceneDocument["entities"][number],
       predicate: "parallel" | "perpendicular",
+      boundSupportId?: string,
     ) => {
+      if (!boundSupportId) {
+        const explicit = [...new Set([
+          ...document.assertions.filter(proof => proof.predicate === predicate && proof.expected !== false),
+          ...document.relations.filter(relation => relation.predicate === predicate && relation.value !== false),
+        ].flatMap(proof => proof.entities.length === 2 && proof.entities.includes(entity.id)
+          ? proof.entities.filter(id => id !== entity.id && document.entities.some(target =>
+            target.id === id && ["segment", "line", "ray", "circle", "arc", "polyline"].includes(target.kind)))
+          : []))];
+        // A declared proof target owns the relation. Incidence at another
+        // support cannot change that target, or hide conflicting bindings.
+        if (explicit.length) {
+          explicit.forEach(id => verifyDirectionRelation(entity, predicate, id));
+          if (explicit.some(id => id === surface.id ||
+            contactIsOnSupport(entity.id, id, document, constructions))) return;
+        }
+      }
       const first = directionForEntity(entity.id, constructions);
       // A force at a proven circular contact belongs to that curve, rather
       // than the separate straight approach elsewhere in the same figure.
-      const circular = circularContactTangent(entity.id, document, constructions);
-      const supportId = circular?.id ?? surface.id;
-      const second = circular?.direction ?? directionForEntity(surface.id, constructions);
+      const circular = circularContactTangent(entity.id, document, constructions, boundSupportId);
+      const supportId = boundSupportId ?? circular?.id ?? surface.id;
+      const second = circular?.direction ?? directionForEntity(supportId, constructions);
       if (!first || !second) return;
       const firstSpace = coordinateSpaceForEntity(entity.id, constructions);
       const secondSpace = coordinateSpaceForEntity(supportId, constructions);
@@ -4478,17 +4495,41 @@ function coordinateSpaceForEntity(
   return spaces.every((space) => space === spaces[0]) ? spaces[0]! : "mixed";
 }
 
+/** An angle to a remote path is not evidence that path supports the body. */
+function contactIsOnSupport(
+  vectorId: string, supportId: string, document: SceneDocument,
+  constructions: Map<string, SceneDocument["constructions"][number]>,
+): boolean {
+  if (circularContactTangent(vectorId, document, constructions, supportId)) return true;
+  const originId = constructions.get(vectorId)?.inputs.start;
+  const origin = typeof originId === "string" ? pointForEntity(originId, constructions) : null;
+  const support = constructions.get(supportId);
+  const anchorId = support && firstStringValue(support.inputs, ["start", "point", "origin"]);
+  const anchor = anchorId ? pointForEntity(anchorId, constructions) : null;
+  const direction = directionForEntity(supportId, constructions);
+  if (!origin || !anchor || !direction) return false;
+  const length = Math.hypot(direction.x, direction.y);
+  if (length <= 1e-9) return false;
+  const dx = origin.x - anchor.x, dy = origin.y - anchor.y;
+  if (Math.abs(dx * direction.y - dy * direction.x) / length > 1e-6 * Math.max(1, length)) return false;
+  const t = (dx * direction.x + dy * direction.y) / (length * length);
+  return support?.operator === "segment" ? t >= -1e-6 && t <= 1 + 1e-6
+    : support?.operator === "ray" ? t >= -1e-6 : support?.operator === "line";
+}
+
 /** Unique circular support incident to this vector's actual origin. */
 function circularContactTangent(
   vectorId: string,
   document: SceneDocument,
   constructions: Map<string, SceneDocument["constructions"][number]>,
+  boundSupportId?: string,
 ): { id: string; direction: { x: number; y: number } } | null {
   const start = constructions.get(vectorId)?.inputs.start;
   const contact = typeof start === "string" ? pointForEntity(start, constructions) : null;
   if (!contact) return null;
   const matches = document.entities.flatMap(entity => {
-    if (entity.kind !== "circle" || !/\b(?:track|path|loop)\b/i.test(`${entity.id} ${entity.role}`)) return [];
+    if (entity.kind !== "circle" || (boundSupportId ? entity.id !== boundSupportId
+      : !/\b(?:track|path|loop)\b/i.test(`${entity.id} ${entity.role}`))) return [];
     const producer = constructions.get(entity.id);
     if (producer?.operator !== "circle" || typeof producer.inputs.center !== "string") return [];
     if (coordinateSpaceForEntity(entity.id, constructions) !== coordinateSpaceForEntity(vectorId, constructions)) return [];
