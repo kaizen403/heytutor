@@ -153,8 +153,25 @@ assert(reload({ ...stopped, segments: [{ ...stopped.segments[0]!, narration: "Th
 const turnPlan = { schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [],
   qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
 assert(reload({ ...stopped, sceneArtifacts: { turnPlan } }), "a completed authoritative plan survives an old opening marker");
-const codeLesson = getMockCodeLessonPlan("Explain LeetCode 20 Valid Parentheses");
-assert(reload({ ...stopped, sceneArtifacts: { codeLesson } }), "DSA authority never becomes an opening restart");
+const codeQuestion = "Explain LeetCode 20 Valid Parentheses";
+const codeLesson = getMockCodeLessonPlan(codeQuestion);
+const codeTurn: StoredTurn = { ...stopped, question: codeQuestion, sceneArtifacts: { codeLesson } };
+const codeRecovery = lessonRecoveryFromStoredTurns([codeTurn], { boardId: "opening-only-board", ownerState: "inactive" });
+assert.equal(codeRecovery?.kind, "continue", "source-matched DSA authority never becomes an opening restart");
+assert(reload(codeTurn)?.codeLesson, "Continue must restore code authority, not merely retain unmarked speech");
+if (codeRecovery?.kind === "continue") {
+  assert.equal(codeRecovery.request.lessonQuestion, codeQuestion);
+  assert.equal(codeRecovery.request.figureDrawn, false, "a code plan alone cannot earn a figure");
+}
+for (const [name, turn] of [
+  ["copied coding plan on a physics question", { ...stopped, sceneArtifacts: { codeLesson } }],
+  ["copied plan on another coding question", { ...codeTurn, question: "Explain binary search" }],
+  ["schema-valid plan without programming intent", { ...stopped, sceneArtifacts: { codeLesson: getMockCodeLessonPlan(question) } }],
+] as const) {
+  assert.equal(reload(turn), null, `${name} cannot authorize Continue past an unfinished opening`);
+  assert.equal(lessonRecoveryFromStoredTurns([turn], { boardId: "opening-only-board", ownerState: "inactive" })?.kind,
+    "restart", `${name} must keep the explicit fresh-planning recovery`);
+}
 assert(reload({ ...stopped, segments: [{ ...stopped.segments[0]!, command: serializeSegmentCommands([
   { type: "DRAW_LINE", params: [500, 200, 700, 300], charPosition: 0, narrationBefore: "" },
 ], { trustedDiagramGeometry: true }) }] }), "actual trusted figure ink remains substantive");
