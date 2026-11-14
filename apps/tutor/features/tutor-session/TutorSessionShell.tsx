@@ -206,7 +206,7 @@ export type TutorSessionExportApi = {
   replayLecture: () => boolean;
   /** Saved board pages as images. Meaningful once `boardReady` is true. */
   collectNotesSlides: () => Promise<string[]>;
-  /** Restore has finished, so `collectNotesSlides` reads the saved pages. */
+  /** Board data is loaded; `collectNotesSlides` also waits for every saved stroke. */
   boardReady: boolean;
   /** The restored board has at least one saved turn. */
   hasSavedTurns: boolean;
@@ -928,6 +928,7 @@ export function TutorSessionShell({
     revokeUnreferencedReplayBlobUrls,
     persistTurnForReplay,
     settleBoardRestore,
+    waitForBoardRestore,
     refreshBoardFromTurns,
     saveStatus,
     retrySave,
@@ -1303,6 +1304,11 @@ export function TutorSessionShell({
     settleBoardRestore,
   });
 
+  const collectRestoredNotesSlides = useCallback(async () => {
+    await waitForBoardRestore();
+    return collectNotesSlides();
+  }, [waitForBoardRestore, collectNotesSlides]);
+
   const pauseForRewind = useCallback(() => pauseTurn("rewind"), [pauseTurn]);
   const {
     rewindBoardRef,
@@ -1360,7 +1366,7 @@ export function TutorSessionShell({
     // turn included.
     getLiveTurn,
     hasLiveTurn,
-    collectNotesSlides,
+    collectNotesSlides: collectRestoredNotesSlides,
     title: boards.find((board) => board.id === sessionId)?.title ?? "",
   });
 
@@ -1752,7 +1758,7 @@ export function TutorSessionShell({
       lectureExportProgress,
       lectureExportError,
       replayLecture: startLectureReplay,
-      collectNotesSlides,
+      collectNotesSlides: collectRestoredNotesSlides,
       boardReady: boardLoaded,
       hasSavedTurns: storedTurnsCount > 0,
       downloadNotesPdf,
@@ -1774,7 +1780,7 @@ export function TutorSessionShell({
     lectureExportProgress,
     lectureExportError,
     startLectureReplay,
-    collectNotesSlides,
+    collectRestoredNotesSlides,
     boardLoaded,
     storedTurnsCount,
     downloadNotesPdf,

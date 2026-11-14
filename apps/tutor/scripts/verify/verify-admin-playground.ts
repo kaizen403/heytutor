@@ -236,7 +236,7 @@ const runCostBox = readFileSync(join(__dirname, "../../features/admin/components
 const playgroundPage = readFileSync(join(__dirname, "../../app/admin/playground/page.tsx"), "utf8");
 assert(toolbar.includes('href="/admin"') && toolbar.includes("Test playground"), "playground header must offer a clear way back to admin");
 assert(toolbar.includes('aria-label="Browse syllabus"') && toolbar.includes('aria-label="Find and select questions"'), "subject choice and question filters must remain discoverable");
-assert(toolbar.includes("Export progress") && toolbar.includes("Reset progress"), "progress export and reset must remain available");
+assert(toolbar.includes("Export progress") && playground.includes("<QuestionReviewDialog"), "saved question reviews must remain exportable and editable");
 assert(playgroundPage.includes("<AdminPlayground tree={tree} probes={probes} />"), "playground route must keep the existing syllabus and probes");
 assert(playground.includes('aria-label="Recording activity and costs"') && playground.includes("<RunBar") && playground.includes("<RunCostBox"), "run controls and cost report must stay together");
 assert(playground.includes("queue.enqueue(questions, {") && playground.includes("queue.startAgain({"), "bulk recording and rerun must preserve queue behavior while single questions can teach live");

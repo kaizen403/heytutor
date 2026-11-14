@@ -32,6 +32,7 @@ interface WatchDrawerProps {
   onIntentChange: (intent: WatchIntent) => void;
   /** Leave the board and open the slides overlay for this lecture. */
   onOpenNotes: () => void;
+  onReview?: () => void;
   onClose: () => void;
   onDelete?: (boardId: string) => void;
   /** The recording finished. Only a finished lecture gets the playback bar. */
@@ -47,6 +48,7 @@ export function WatchDrawer({
   liveStatus,
   onIntentChange,
   onOpenNotes,
+  onReview,
   onClose,
   onDelete,
   lectureComplete = true,
@@ -68,6 +70,7 @@ export function WatchDrawer({
       liveStatus={liveStatus}
       onIntentChange={onIntentChange}
       onOpenNotes={onOpenNotes}
+      onReview={onReview}
       onClose={onClose}
       onDelete={onDelete}
       lectureComplete={lectureComplete}
@@ -116,6 +119,7 @@ function WatchDrawerFrame({
   liveStatus,
   onIntentChange,
   onOpenNotes,
+  onReview,
   onClose,
   onDelete,
   lectureComplete,
@@ -235,6 +239,7 @@ function WatchDrawerFrame({
         ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        {onReview && (!isLive || liveStatus === "complete") ? <SiteButton variant="ghost" size="sm" onClick={onReview}>Review</SiteButton> : null}
         {isLive && liveStatus === "complete" ? (
           <SiteButton
             variant="ice"

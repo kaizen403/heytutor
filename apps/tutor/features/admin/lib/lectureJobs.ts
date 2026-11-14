@@ -112,7 +112,7 @@ export function countJobsByStatus(jobs: LectureJob[]): Record<LectureJobStatus, 
 /**
  * Finished lectures are watchable from the jobs list via `boardId`.
  * Complete jobs stay watchable even if the board preview has not caught up.
- * Failed jobs are watchable only when a turn actually persisted.
+ * Failed jobs are discarded, including any persisted partial turn.
  */
 export function isLectureWatchable(
   job: Pick<LectureJob, "status" | "boardId">,
@@ -126,9 +126,6 @@ export function isLectureWatchable(
   }
   if (job.status === "complete") {
     return true;
-  }
-  if (job.status === "failed") {
-    return Boolean(options.boardPreview?.trim());
   }
   return false;
 }
