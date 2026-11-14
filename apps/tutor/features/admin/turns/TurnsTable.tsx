@@ -28,7 +28,16 @@ function tierLabel(tier: AdminTurnRow["tier"]): string {
 export function TurnsTable({ turns }: { turns: AdminTurnRow[] }) {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
-      <Table className="w-full min-w-[52rem] border-collapse">
+      <Table
+        className="w-full min-w-[52rem] border-collapse"
+        containerProps={{
+          role: "region",
+          "aria-label": "Lecture turn log",
+          tabIndex: 0,
+          className:
+            "focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-ring",
+        }}
+      >
         <TableHeader>
           <TableRow className="border-b border-stroke">
             <TableHead className={HEAD}>Question</TableHead>
@@ -45,9 +54,11 @@ export function TurnsTable({ turns }: { turns: AdminTurnRow[] }) {
               key={turn.turnId}
               className="border-b border-stroke/60 transition-colors last:border-b-0 hover:bg-white/[0.03]"
             >
-              <TableCell className={CELL}>
+              <TableCell
+                className={cn(CELL, "whitespace-normal wrap-anywhere")}
+              >
                 <p
-                  className="max-w-[24rem] truncate text-xs text-frost"
+                  className="max-w-[24rem] line-clamp-2 text-xs text-frost"
                   title={turn.question}
                 >
                   {truncateText(turn.question, 90)}
@@ -129,7 +140,7 @@ export function TurnsTable({ turns }: { turns: AdminTurnRow[] }) {
                         View in Sentry
                         <ExternalLink className="h-3 w-3" aria-hidden />
                       </span>
-                      <span className="font-mono text-faint">
+                      <span className="max-w-28 truncate font-mono text-faint">
                         {turn.sentryEventId}
                       </span>
                     </a>
