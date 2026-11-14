@@ -3,6 +3,18 @@ import type { RenderPrimitive, SceneDocument } from "../types";
 
 type View = { x: number; y: number; width: number; height: number };
 
+/** Screen endpoints are rounded to 0.01 px. Each direction component can
+ * therefore differ from its exact value by 0.01 px (two endpoint errors).
+ * Bound the resulting cross-product error; this is a display overlap test,
+ * never a tolerance for proving a physical angle or moving an angle arm.
+ */
+function parallelAfterRounding(dx: number, dy: number, ox: number, oy: number): boolean {
+  const componentError = 0.01;
+  const crossError = componentError * (Math.abs(dx) + Math.abs(dy) + Math.abs(ox) + Math.abs(oy))
+    + 2 * componentError ** 2;
+  return Math.abs(dx * oy - dy * ox) <= crossError;
+}
+
 /** Two named free arrows may share a physical origin and direction. Translate
  * only their display shafts, retaining their lengths/senses and a dashed
  * witness to the exact origin. Never translate rays, derived physical states,
@@ -22,8 +34,13 @@ export function separateSharedOriginVectors(document: SceneDocument, primitives:
   for (const annotation of document.annotations) {
     if ((annotation.kind === "label" || annotation.kind === "callout") && (annotation.text?.trim() || annotation.quantityId) && annotation.targetIds[0]) named.add(annotation.targetIds[0]);
   }
-  const eligible = (p: RenderPrimitive) => producers.get(p.entityId)?.operator === "vector" &&
-    !referenced.has(p.entityId) && named.has(p.entityId);
+  const eligible = (p: RenderPrimitive) => {
+    const producer = producers.get(p.entityId);
+    return producer?.operator === "vector" &&
+      // A witness to the origin cannot preserve a bound tip's incidence.
+      !["end", "to", "b"].some(key => producer.inputs[key] !== undefined) &&
+      !referenced.has(p.entityId) && named.has(p.entityId);
+  };
   for (let i = 1; i < arrows.length; i++) {
     const arrow = arrows[i]!;
     if (!eligible(arrow)) continue;
@@ -37,7 +54,7 @@ export function separateSharedOriginVectors(document: SceneDocument, primitives:
       const [c, d] = other.points as [typeof a, typeof a];
       const ox = d.x - c.x, oy = d.y - c.y;
       return Math.hypot(c.x - a.x, c.y - a.y) < 0.01 &&
-        Math.abs(dx * oy - dy * ox) <= 1e-6 * length * Math.hypot(ox, oy) && dx * ox + dy * oy > 0;
+        parallelAfterRounding(dx, dy, ox, oy) && dx * ox + dy * oy > 0;
     });
     if (!overlaps) continue;
     for (const lane of [14, -14, 28, -28, 42, -42]) {
@@ -51,7 +68,7 @@ export function separateSharedOriginVectors(document: SceneDocument, primitives:
         if (other === arrow) return false;
         const [c, d] = other.points as [typeof a, typeof a];
         const ox = d.x - c.x, oy = d.y - c.y;
-        if (Math.abs(dx * oy - dy * ox) > 1e-6 * length * Math.hypot(ox, oy)) return false;
+        if (!parallelAfterRounding(dx, dy, ox, oy)) return false;
         const gap = Math.abs(dx * (c.y - points[0]!.y) - dy * (c.x - points[0]!.x)) / length;
         return gap < 8;
       });
