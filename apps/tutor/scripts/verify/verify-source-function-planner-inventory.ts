@@ -1,6 +1,6 @@
 /** Compilation alone cannot let a planner replace requested function graphs. */
 import assert from "node:assert/strict";
-import { buildLinearSourceDocument, compileSceneDocument, mathExpressionsEquivalent, tierForForeignDocument, type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { buildLinearSourceDocument, compileSceneDocument, mathExpressionsEquivalent, parseMathExpression, tierForForeignDocument, type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { selectVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
 import { selectProductionScene, validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { sceneSaveAdmissionFailure } from "../../lib/scene/sceneSaveAdmission";
@@ -242,7 +242,7 @@ async function main() {
   const normalProof = compileSceneDocument(noAxesNormal, { sourceFunctionChecks: [{ entityId: "normal", expression: "x^2", adjunct: { role: "normal", at: 0 }, equation: { lhs: "x", rhs: "0" } }] });
   assert(normalBefore.ok && normalProof.ok);
   assert.deepEqual(normalProof.renderScene, normalBefore.renderScene, "normal proofs never draw their private witnesses");
-  for (const label of ["2*x=0", "0=x", "x=sin(0)", "e*x=0"]) {
+  for (const label of ["2*x=0", "2x=0", "2(x)=0", "2x+0y=0", "2e-3x=0", "0=x", "x=sin(0)", "e*x=0"]) {
     const doc = structuredClone(noAxesNormal);
     doc.entities.find(entity => entity.id === "normal")!.label = label;
     await admitted(normalSource, doc);
@@ -292,6 +292,7 @@ async function main() {
     ["Sketch y=exp(x) and its tangent at x=1.", "exp(x)", 1, Math.E, ["y=e*x", "pi*y=pi*e*x", "y=exp(1)*x"]],
     ["Sketch y=sin(pi*x) and its tangent at x=0.", "sin(pi*x)", 0, Math.PI, ["y=pi*x"]],
     ["Sketch y=sin(x) and its tangent at x=0.", "sin(x)", 0, 1, ["y=cos(0)*x"]],
+    ["Sketch y=2*exp(x) and its tangent at x=1.", "2*exp(x)", 1, 2 * Math.E, ["y=2e*x", "y=2exp(1)x", "y=2e(x)"]],
   ] as const) {
     const doc = graph(source, [expression], [`y=${expression}`], false);
     doc.entities.push({ id: "tangent", kind: "line", role: "source tangent", label: labels[0] });
@@ -315,6 +316,22 @@ async function main() {
         "constant-expression support cannot license false, nonlinear or undefined tangent equations");
     }
   }
+  const implicitTangentSource = "Sketch y=x^2 and its tangent at x=1.";
+  const implicitTangent = graph(implicitTangentSource, ["x^2"], ["y=x^2"], false);
+  implicitTangent.entities.push({ id: "tangent", kind: "line", role: "source tangent", label: "y=2x-1" });
+  implicitTangent.constructions.push({ id: "make_tangent", operator: "line", inputs: { start: [0, -1], end: [2, 3] }, outputs: ["tangent"] });
+  implicitTangent.requiredEntityIds.push("tangent"); implicitTangent.revealGroups[0]!.entityIds.push("tangent");
+  for (const label of ["y=2x-1", "2x-y=1", "2(x)-1=y", "(2)x-1=y", "y=2(x-.5)", "y=2e0x-1", "y/2=x-.5"]) {
+    implicitTangent.entities.find(entity => entity.id === "tangent")!.label = label;
+    await admitted(implicitTangentSource, implicitTangent);
+  }
+  for (const label of ["y=2x+1", "y=2x*x-1", "y=2unknown*x", "y=2/(x-x)"]) {
+    const bad = structuredClone(implicitTangent);
+    bad.entities.find(entity => entity.id === "tangent")!.label = label;
+    assert.match(sceneSaveAdmissionFailure({ question: implicitTangentSource, document: bad, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/,
+      "implicit multiplication must retain affine, identifier and domain guards");
+  }
+  assert.throws(() => parseMathExpression("2x"), "executable curve bodies still require explicit multiplication");
   console.log("planner function inventory: production selection, exact selection, all-tier/no-plan save, native curves and JSON reopen controls passed");
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -282,11 +282,23 @@ export function parseMathExpression2D(source: string): ParsedMathExpression2D {
   };
 }
 
-/** Read affine coefficients analytically in the same bounded expression language.
- * Functions are allowed only on constant arguments, never fitted from samples. */
+/** Read affine coefficients analytically, allowing Cartesian label products such
+ * as 2x and 2(x-1). Functions require constant arguments; no sample fitting. */
 export function parseAffineMathExpression2D(source: string): { x: number; y: number; constant: number } {
   if (typeof source !== "string" || !source.trim() || source.length > MAX_EXPRESSION_LENGTH) throw new Error("affine expression must be nonempty and within the expression length limit");
-  const root = new Parser(tokenize(normalizePlainMathSource(source).trim()), new Set<VariableName>(["x", "y"])).parse();
+  // Preserve scientific literals and whole identifiers from the shared lexer.
+  // Only this label reader admits adjacent atoms; executable curves stay strict.
+  const tokens: Token[] = [];
+  for (const token of tokenize(normalizePlainMathSource(source).trim())) {
+    const previous = tokens.at(-1);
+    const endsAtom = previous?.kind === "number" || previous?.kind === "rightParen" ||
+      previous?.kind === "identifier" && ["x", "y", "pi", "e"].includes(previous.value);
+    const startsAtom = token.kind === "number" || token.kind === "identifier" || token.kind === "leftParen";
+    if (endsAtom && startsAtom) tokens.push({ kind: "operator", value: "*", position: token.position });
+    tokens.push(token);
+    if (tokens.length - (token.kind === "end" ? 1 : 0) > MAX_TOKENS) throw new Error(`affine expression exceeds ${MAX_TOKENS} tokens after implicit products`);
+  }
+  const root = new Parser(tokens, new Set<VariableName>(["x", "y"])).parse();
   type Affine = { x: number; y: number; constant: number };
   const coefficients = (x: number, y: number, constant: number): Affine => ({
     x: checked(x, "affine x coefficient"), y: checked(y, "affine y coefficient"), constant: checked(constant, "affine constant"),
