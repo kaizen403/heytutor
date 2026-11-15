@@ -20,6 +20,7 @@ process.env.CARTESIA_STT_API_KEY = "paid-abuse-test-key";
 process.env.STT_PROVIDER = "cartesia";
 process.env.TTS_PROVIDER = "cartesia";
 process.env.AI_GATEWAY_API_KEY = "paid-abuse-test-key";
+process.env.HOME_SUGGESTION_AI_GENERATION = "on";
 process.env.BILLING_PROVIDER = "";
 process.env.AUTUMN_ENABLED = "0";
 globalThis.fetch = async () => {
@@ -536,6 +537,32 @@ const checks: [string, () => Promise<void>][] = [
         "pro",
         "a paid account is not silently reduced to the free allowance",
       );
+    },
+  ],
+  [
+    "home suggestions default to fixed cards without spending student allowances",
+    async () => {
+      const trace = arrange();
+      delete process.env.HOME_SUGGESTION_AI_GENERATION;
+      globalThis.fetch = async () => {
+        providerCalls += 1;
+        throw new Error("Fixed cards must not call a provider");
+      };
+      try {
+        const read = await suggestions.GET();
+        assert.equal(read.status, 200);
+        const cards = await read.json();
+        assert.equal(cards.source, "fallback");
+        assert.equal(cards.needsRefresh, false);
+        assert(cards.suggestions.length > 0);
+        const refresh = await suggestions.POST(restRequest("home-suggestions", trace, {}));
+        assert.equal(refresh.status, 200);
+        assert.equal((await refresh.json()).generated, false);
+        assert.equal(providerCalls, 0);
+        assert.equal(spent, 0, "fixed suggestions must not consume lesson allowances");
+      } finally {
+        process.env.HOME_SUGGESTION_AI_GENERATION = "on";
+      }
     },
   ],
   [

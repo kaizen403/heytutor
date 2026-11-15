@@ -85,7 +85,8 @@ export async function GET(): Promise<Response> {
   const { subjects, enabled, recentTurns, cache } = await context(userId);
   if (!enabled) return json({ suggestions: [], needsRefresh: false });
   const latestTurnId = recentTurns[0]?.id ?? null;
-  const packs = readSuggestionPacks(cache.packs);
+  const aiGenerationEnabled = process.env.HOME_SUGGESTION_AI_GENERATION === "on";
+  const packs = aiGenerationEnabled ? readSuggestionPacks(cache.packs) : null;
   const advanced = await prisma.homeSuggestionCache.update({
     where: { userId },
     data: { cursor: { increment: 1 } },
@@ -98,7 +99,7 @@ export async function GET(): Promise<Response> {
   return json({
     suggestions,
     source: packs ? "ai" : "fallback",
-    needsRefresh: needsSuggestionGeneration({
+    needsRefresh: aiGenerationEnabled && needsSuggestionGeneration({
       packs,
       cursor: advanced.cursor,
       sourceTurnId: cache.sourceTurnId,
@@ -138,6 +139,10 @@ export async function POST(request: Request): Promise<Response> {
   }
   const { subjects, enabled, recentTurns, cache } = await context(actor.userId);
   if (!enabled) return json({ suggestions: [], generated: false });
+  // Fixed cards remain the default; refreshes must not silently spend lesson allowances.
+  if (process.env.HOME_SUGGESTION_AI_GENERATION !== "on") {
+    return json({ suggestions: fallbackHomeSuggestions(subjects, cache.cursor), generated: false });
+  }
   const latestTurnId = recentTurns[0]?.id ?? null;
   const oldPacks = readSuggestionPacks(cache.packs);
   const fallback = oldPacks
