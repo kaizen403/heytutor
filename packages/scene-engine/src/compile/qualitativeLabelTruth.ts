@@ -25,7 +25,7 @@ const COORDINATE_PAIR = /\(\s*[+\-−]?\d+(?:\.\d+)?\s*,\s*[+\-−]?\d+(?:\.\d+)
 /** The display factor the archetype graphs write ("(0.25)*(x^2)"): the curve is drawn k times its true height. */
 const DISPLAY_SCALED = /^\s*\(\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*\)\s*\*\s*\(.*\)\s*$/;
 
-function equationOf(text: string): { lhs: string; rhs: string } | null {
+export function readCartesianEquationLabel(text: string): { lhs: string; rhs: string } | null {
   // Allow a leading element name ("L: y = 2x + 1", "L₁ : ...").
   const body = text.replace(/^\s*[A-Za-z][A-Za-z0-9₀-₉_′']{0,3}\s*:\s*/, "").replace(/−/g, "-").trim()
     // Function notation names the ordinate: "f(x) = x²" is y = x². A built-in
@@ -184,7 +184,7 @@ export function validateQualitativeLabelTruth(document: SceneDocument, geometry:
     if (!xyFrame || typeof text !== "string") return;
     // Only judge notation the checker reads: LaTeX and other markup is skipped, never refused.
     if (/[\\{}]/.test(text)) return;
-    const equation = equationOf(text);
+    const equation = readCartesianEquationLabel(text);
     if (!equation) return;
     const entity = document.entities.find((candidate) => candidate.id === ownerId);
     if (!entity || !CURVE_KINDS.has(entity.kind)) return;
