@@ -146,6 +146,19 @@ async function main() {
   const radicalNormalDocument = graph(radicalNormal, ["sqrt(2)*x^2", "-x/(2*sqrt(2))+sqrt(2)+1/(2*sqrt(2))"], ["y=sqrt(2)*x^2", "N"]);
   radicalNormalDocument.annotations.push({ id: "normal_equation", kind: "callout", targetIds: ["curve_1"], text: "y=-x/(2*sqrt(2))+sqrt(2)+1/(2*sqrt(2))" });
   await admitted(radicalNormal, radicalNormalDocument);
+  for (const offset of [100000000, 1000000000]) {
+    const source = `Sketch y=x^2+sqrt(2)*x+${offset} and its tangent at x=0.`;
+    const tangent = graph(source, [`x^2+sqrt(2)*x+${offset}`, `sqrt(2)*x+${offset}`], ["C", "T"]);
+    tangent.constructions[0]!.inputs.yMin = offset - 5; tangent.constructions[0]!.inputs.yMax = offset + 10;
+    tangent.annotations.push({ id: "source_equation", kind: "callout", targetIds: ["curve_0"], text: `y=x^2+sqrt(2)*x+${offset}` }, { id: "tangent_equation", kind: "callout", targetIds: ["curve_1"], text: `y=sqrt(2)*x+${offset}` });
+    await admitted(source, tangent);
+  }
+  for (const constant of ["asin(cos(1e-8))"]) {
+    const source = `Sketch y=(1+${constant})*x^2 and its tangent at x=1.`;
+    const tangent = graph(source, [`(1+${constant})*x^2`, `2*(1+${constant})*x-(1+${constant})`], ["C", "T"]);
+    tangent.annotations.push({ id: "source_equation", kind: "callout", targetIds: ["curve_0"], text: `y=(1+${constant})*x^2` }, { id: "tangent_equation", kind: "callout", targetIds: ["curve_1"], text: `y=2*(1+${constant})*x-(1+${constant})` });
+    await admitted(source, tangent);
+  }
   const degree16Source = "Plot y=x^16/sqrt(2)+1.";
   const degree16 = graph(degree16Source, ["1+x^16/sqrt(2)"], ["C"]);
   degree16.constructions[0]!.inputs.xMin = -1; degree16.constructions[0]!.inputs.xMax = 1;
