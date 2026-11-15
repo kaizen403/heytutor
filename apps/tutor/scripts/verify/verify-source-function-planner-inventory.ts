@@ -146,6 +146,12 @@ async function main() {
   const radicalNormalDocument = graph(radicalNormal, ["sqrt(2)*x^2", "-x/(2*sqrt(2))+sqrt(2)+1/(2*sqrt(2))"], ["y=sqrt(2)*x^2", "N"]);
   radicalNormalDocument.annotations.push({ id: "normal_equation", kind: "callout", targetIds: ["curve_1"], text: "y=-x/(2*sqrt(2))+sqrt(2)+1/(2*sqrt(2))" });
   await admitted(radicalNormal, radicalNormalDocument);
+  const degree16Source = "Plot y=x^16/sqrt(2)+1.";
+  const degree16 = graph(degree16Source, ["1+x^16/sqrt(2)"], ["C"]);
+  degree16.constructions[0]!.inputs.xMin = -1; degree16.constructions[0]!.inputs.xMax = 1;
+  degree16.constructions[1]!.inputs.xMin = -1; degree16.constructions[1]!.inputs.xMax = 1;
+  degree16.annotations.push({ id: "curve_equation", kind: "callout", targetIds: ["curve_0"], text: "y=x^16/sqrt(2)+1" });
+  await admitted(degree16Source, degree16);
   const scientificWrong = graph("Plot y=x+1e-3.", ["x+e-3"], ["y=x+1e-3"], false);
   assert.match(sceneSaveAdmissionFailure({ question: "Plot y=x+1e-3.", document: scientificWrong, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "scientific literals cannot become Euler-constant products");
   const eulerWrong = graph("Plot y=x+2 e + 1.", ["x+20"], ["y=x+2 e + 1"], false);
@@ -168,6 +174,12 @@ async function main() {
   assert(lineBefore.ok && lineProof.ok);
   assert.deepEqual(lineProof.renderScene, lineBefore.renderScene, "source witnesses never become drawn or stored marks");
   await admitted(lineSource, line);
+  const precisionLine = structuredClone(line);
+  precisionLine.constructions[0]!.inputs = { x: 0, y: 0 }; precisionLine.constructions[1]!.inputs = { x: 1, y: 1 };
+  precisionLine.entities.find(entity => entity.id === "ab")!.label = "T";
+  assert(compileSceneDocument(precisionLine).ok);
+  assert(!compileSceneDocument(precisionLine, { sourceFunctionChecks: [{ entityId: "ab", expression: "x", adjunct: { role: "tangent", at: 1e12 }, equation: { lhs: "y", rhs: "sqrt(1.0000000000000001)*x" } }] }).ok, "coefficient uncertainty is checked at the actual source point");
+
   const segmentLine = structuredClone(line);
   segmentLine.entities.find(entity => entity.id === "ab")!.kind = "segment";
   segmentLine.constructions[2]!.operator = "segment";
@@ -242,6 +254,21 @@ async function main() {
       const saved = await canonicalizeTurnSceneMetadata({ question: source, sceneDocument: doc, visualStatus: "validated", sceneArtifacts: { schemaVersion: "scene-artifacts/v3", turnPlan: retainedPlan, representationTier: tier, nonMetric: tier !== "exact_verified", diagramResultStatus: "ready" }, segments: [] });
       assert(!saved.ok, "a conflicting equation cannot be persisted in any tier or without a plan");
       assert(!admitStoredScene({ sceneDocument: JSON.parse(JSON.stringify(doc)), sceneQuestion: source, turnPlan: retainedPlan, submittedTier: tier }).ok, "a previously persisted conflicting equation cannot reopen");
+    }
+  }
+  for (const equation of ["y=x/(1+sqrt(1-1.0000000000000000001))-0.25", "y=x/(1+acos(1.0000000000000000001))-0.25", "y=1e-12*x/(sqrt(1.0000000000000001)-1+1e-12)-0.25"]) {
+    const source = "Sketch y=x^2 and its tangent at x=0.5.";
+    const doc = graph(source, ["x^2", "x-0.25"], ["y=x^2", "T"]);
+    doc.annotations.push({ id: "tangent_equation", kind: "callout", targetIds: ["curve_1"], text: equation });
+    assert(compileSceneDocument(doc, { figureConsistency: true }).ok, "the historical numeric gap reaches source admission");
+    const ownPlan = { ...segmentPlan, question: source };
+    assert(!validateProductionSceneCandidate({ question: source, turnPlan: ownPlan, candidate: { ...doc } }).valid, "invalid domains and unproved cancellation cannot authorize a tangent label");
+    const selected = selectProductionScene({ question: source, turnPlan: ownPlan, problemIR: null, candidate: { ...doc }, policy: { preferPlanner: true, allowedFigureSources: ["planner"] } });
+    assert.notEqual(selected.visualStatus, "validated");
+    for (const retainedPlan of [ownPlan, null]) for (const tier of ["exact_verified", "qualitative_verified", "question_representation"] as const) {
+      const saved = await canonicalizeTurnSceneMetadata({ question: source, sceneDocument: doc, visualStatus: "validated", sceneArtifacts: { schemaVersion: "scene-artifacts/v3", turnPlan: retainedPlan, representationTier: tier, nonMetric: tier !== "exact_verified", diagramResultStatus: "ready" }, segments: [] });
+      assert(!saved.ok);
+      assert(!admitStoredScene({ sceneDocument: JSON.parse(JSON.stringify(doc)), sceneQuestion: source, turnPlan: retainedPlan, submittedTier: tier }).ok);
     }
   }
   console.log("planner function inventory: production selection, exact selection, all-tier/no-plan save, native curves and JSON reopen controls passed");

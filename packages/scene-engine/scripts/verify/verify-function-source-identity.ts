@@ -21,6 +21,13 @@ assert(radicalLine, "finite constant coefficients retain an affine proof");
 assert(Math.abs(radicalLine.x + radicalLine.y * Math.sqrt(2) + radicalLine.constant) < 1e-12);
 assert(cartesianLineCoefficients("y", "x/(2*sqrt(2))+sqrt(2)"));
 assert.equal(cartesianLineCoefficients("y", "sqrt(-1)*x"), null);
+for (const expression of ["x/(1+sqrt(1-1.0000000000000000001))", "x/(1+acos(1.0000000000000000001))", "1e-12*x/(sqrt(1.0000000000000001)-1+1e-12)"]) assert.equal(cartesianLineCoefficients("y", expression), null, "reciprocals retain nested exact domains and conditioning");
+assert(mathExpressionsEquivalent("x^16/sqrt(2)+1", "1+x^16/sqrt(2)"), "whole quotient identity retains the degree16 boundary");
+assert(mathExpressionsEquivalent("(x+1)/sqrt(2)", "x/sqrt(2)+1/sqrt(2)"));
+assert(mathExpressionsEquivalent("x/sqrt(2)", "x*(1/sqrt(2))"));
+for (const [lhs, rhs] of [["y", "sin(1e-320)*x"], ["y", "sin(pi)*x"], ["sqrt(2)*y", "5e-324*x"], ["sqrt(1e-320)*y", "sqrt(1e-320)*x"]]) assert(cartesianLineCoefficients(lhs!, rhs!), "small coefficients retain their absolute error proof");
+assert.equal(cartesianLineCoefficients("sin(0)*y", "sin(0)*x"), null, "a zero factor cannot certify a line");
+
 assert(cartesianLineCoefficients("1e-300*y", "1e-300*sqrt(2)*x"), "constant coefficients normalize before conversion");
 assert.equal(cartesianLineCoefficients("x", "(sqrt(2.0000000000000000001)-sqrt(2))*y^2"), null, "rounded equal constants cannot erase nonlinear terms");
 assert.equal(cartesianLineCoefficients("y", "x/(sqrt(2.0000000000000000001)-sqrt(2))"), null, "rounded zero denominators refuse");

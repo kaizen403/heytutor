@@ -500,10 +500,31 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
         const relation = cartesianLineCoefficients(check.equation.lhs, check.equation.rhs);
         if (!relation) throw new Error("Adjunct label is not a complete affine relation");
         const { x: a, y: b, constant: c } = relation;
-        const norm = Math.hypot(a, b), slope = fn.derivative(x);
+        const uncertainty = relation.uncertainty ?? { x: 0, y: 0, constant: 0 };
+        const norm = Math.hypot(a, b) - Math.hypot(uncertainty.x, uncertainty.y), slope = fn.derivative(x);
         const direction = check.adjunct?.role === "normal" ? { x: -slope, y: 1 } : { x: 1, y: slope };
-        if (Math.abs(a * x + b * y + c) / norm > 1e-6 ||
-            Math.abs(a * direction.x + b * direction.y) / (norm * Math.hypot(direction.x, direction.y)) > 1e-6) throw new Error("Adjunct label disagrees with the source line");
+        // Error-free product/sum residuals avoid inventing a large error for
+        // exact cancellation at large coordinates. Coefficient enclosures still
+        // bound every uncertainty introduced by constant evaluation.
+        const residualBound = (u: number, v: number, offset: number) => {
+          const product = (left: number, right: number) => {
+            const value = left * right, split = 134217729;
+            const l = split * left, lh = l - (l - left), ll = left - lh;
+            const r = split * right, rh = r - (r - right), rl = right - rh;
+            return { value, error: ((lh * rh - value) + lh * rl + ll * rh) + ll * rl };
+          };
+          const sum = (left: number, right: number) => {
+            const value = left + right, part = value - left;
+            return { value, error: (left - (value - part)) + (right - part) };
+          };
+          const first = product(a, u), second = product(b, v), pair = sum(first.value, second.value), total = sum(pair.value, offset);
+          const correction = first.error + second.error + pair.error + total.error;
+          return Math.abs(total.value + correction) + 8 * Number.EPSILON * (Math.abs(total.value) + Math.abs(first.error) + Math.abs(second.error) + Math.abs(pair.error) + Math.abs(total.error)) + 16 * Number.MIN_VALUE;
+        };
+        const pointError = (uncertainty.x * Math.abs(x) + uncertainty.y * Math.abs(y) + uncertainty.constant) * (1 + 8 * Number.EPSILON);
+        const directionError = (uncertainty.x * Math.abs(direction.x) + uncertainty.y * Math.abs(direction.y)) * (1 + 8 * Number.EPSILON);
+        if (norm <= 0 || (residualBound(x, y, c) + pointError) / norm > 1e-6 ||
+            (residualBound(direction.x, direction.y, 0) + directionError) / (norm * Math.hypot(direction.x, direction.y)) > 1e-6) throw new Error("Adjunct label disagrees with the source line or lacks numeric precision");
       }
       // Proof-only witnesses stay in a private map. No witness is added to
       // the document, render geometry, reveal groups or stored commands.
