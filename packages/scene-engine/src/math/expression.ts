@@ -282,6 +282,49 @@ export function parseMathExpression2D(source: string): ParsedMathExpression2D {
   };
 }
 
+/** Read affine coefficients analytically in the same bounded expression language.
+ * Functions are allowed only on constant arguments, never fitted from samples. */
+export function parseAffineMathExpression2D(source: string): { x: number; y: number; constant: number } {
+  if (typeof source !== "string" || !source.trim() || source.length > MAX_EXPRESSION_LENGTH) throw new Error("affine expression must be nonempty and within the expression length limit");
+  const root = new Parser(tokenize(normalizePlainMathSource(source).trim()), new Set<VariableName>(["x", "y"])).parse();
+  type Affine = { x: number; y: number; constant: number };
+  const coefficients = (x: number, y: number, constant: number): Affine => ({
+    x: checked(x, "affine x coefficient"), y: checked(y, "affine y coefficient"), constant: checked(constant, "affine constant"),
+  });
+  const scalar = (value: Affine) => value.x === 0 && value.y === 0;
+  const scale = (value: Affine, factor: number) => coefficients(value.x * factor, value.y * factor, value.constant * factor);
+  let remaining = MAX_EVALUATION_STEPS;
+  const read = (node: ExpressionNode): Affine => {
+    chargeExpressionSteps(1);
+    if (--remaining < 0) throw new Error("affine expression exceeded the operation budget");
+    if (node.kind === "number") return coefficients(0, 0, node.value);
+    if (node.kind === "variable") return coefficients(node.name === "x" ? 1 : 0, node.name === "y" ? 1 : 0, 0);
+    if (node.kind === "unary") return scale(read(node.value), node.operator === "-" ? -1 : 1);
+    if (node.kind === "function") {
+      const argument = read(node.argument);
+      if (!scalar(argument)) throw new Error("a function of a variable is not proved affine");
+      return coefficients(0, 0, FUNCTIONS[node.name](argument.constant));
+    }
+    const left = read(node.left), right = read(node.right);
+    if (node.operator === "+" || node.operator === "-") {
+      const sign = node.operator === "-" ? -1 : 1;
+      return coefficients(left.x + sign * right.x, left.y + sign * right.y, left.constant + sign * right.constant);
+    }
+    if (node.operator === "*") {
+      if (scalar(left)) return scale(right, left.constant);
+      if (scalar(right)) return scale(left, right.constant);
+    } else if (node.operator === "/" && scalar(right) && right.constant !== 0) {
+      return scale(left, 1 / right.constant);
+    } else if (node.operator === "^" && scalar(right)) {
+      if (right.constant === 0) return coefficients(0, 0, 1);
+      if (right.constant === 1) return left;
+      if (scalar(left)) return coefficients(0, 0, left.constant ** right.constant);
+    }
+    throw new Error("expression is not proved affine");
+  };
+  return read(root);
+}
+
 export function evaluateMathExpression(source: string, x: number): number {
   return parseMathExpression(source).evaluate(x);
 }

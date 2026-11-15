@@ -1,7 +1,5 @@
 import type { RenderPoint } from "../types";
-import { exactRationalToNumber } from "../math/exactRational";
-import { mathExpressionsEquivalent } from "../math/expression";
-import { parseLinearAffine } from "../math/linearRegion";
+import { mathExpressionsEquivalent, parseAffineMathExpression2D } from "../math/expression";
 import type { ConicDefinition } from "./conicGeometry";
 
 /** Prove the complete conic, not a fit to its sampled display points. */
@@ -19,8 +17,8 @@ export function conicMatchesSourceFunction(conic: ConicDefinition, expression: s
 
 /** The caller proves affine geometry; two endpoints then prove its whole equation. */
 export function lineMatchesCartesianEquation(points: readonly RenderPoint[], equation: { lhs: string; rhs: string }): boolean {
-  const affine = parseLinearAffine(`(${equation.lhs})-(${equation.rhs})`);
-  const a = exactRationalToNumber(affine.a), b = exactRationalToNumber(affine.b), c = exactRationalToNumber(affine.constant);
+  const affine = parseAffineMathExpression2D(`(${equation.lhs})-(${equation.rhs})`);
+  const a = affine.x, b = affine.y, c = affine.constant;
   const norm = Math.hypot(a, b);
   if (!Number.isFinite(norm) || norm === 0 || !Number.isFinite(c) || points.length < 2) return false;
   return [points[0]!, points.at(-1)!].every(point => {

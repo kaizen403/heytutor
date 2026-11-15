@@ -121,13 +121,13 @@ async function main() {
   falseYield.source.diagramYieldPolicy = "verified_parts";
   for (const entity of falseYield.entities) delete entity.label;
   assert.match(sceneSaveAdmissionFailure({ question: wrongPlan.question, document: falseYield, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "a yield flag cannot establish curve truth");
-  async function admitted(source: string, doc: SceneDocument, decision?: ReturnType<typeof tierForForeignDocument>) {
+  async function admitted(source: string, doc: SceneDocument, decision?: ReturnType<typeof tierForForeignDocument>, yieldPolicy?: "verified_parts") {
     const ownPlan = { ...segmentPlan, question: source };
     const { tier, nonMetric } = decision ?? { tier: "qualitative_verified" as const, nonMetric: true };
     if (decision) doc = { ...doc, source: { ...doc.source, representationTier: tier, nonMetric } };
-    const validation = validateProductionSceneCandidate({ question: source, turnPlan: ownPlan, candidate: { ...doc } });
+    const validation = validateProductionSceneCandidate({ question: source, turnPlan: ownPlan, candidate: { ...doc }, yieldPolicy });
     assert(validation.valid, `${source}: ${JSON.stringify(validation.errors)}`);
-    const live = selectProductionScene({ question: source, turnPlan: ownPlan, problemIR: null, candidate: { ...doc }, policy: { preferPlanner: true, allowedFigureSources: ["planner"] } });
+    const live = selectProductionScene({ question: source, turnPlan: ownPlan, problemIR: null, ...(yieldPolicy ? { candidateValidation: validation } : { candidate: { ...doc } }), policy: { preferPlanner: true, allowedFigureSources: ["planner"] } });
     assert.equal(live.visualStatus, "validated", source);
     const saved = await canonicalizeTurnSceneMetadata({ question: source, sceneDocument: doc, visualStatus: "validated", sceneArtifacts: { schemaVersion: "scene-artifacts/v3", turnPlan: ownPlan, representationTier: tier, nonMetric, diagramResultStatus: "ready" }, segments: [] });
     assert(saved.ok, saved.ok ? "" : saved.error);
@@ -242,7 +242,7 @@ async function main() {
   const normalProof = compileSceneDocument(noAxesNormal, { sourceFunctionChecks: [{ entityId: "normal", expression: "x^2", adjunct: { role: "normal", at: 0 }, equation: { lhs: "x", rhs: "0" } }] });
   assert(normalBefore.ok && normalProof.ok);
   assert.deepEqual(normalProof.renderScene, normalBefore.renderScene, "normal proofs never draw their private witnesses");
-  for (const label of ["2*x=0", "0=x"]) {
+  for (const label of ["2*x=0", "0=x", "x=sin(0)", "e*x=0"]) {
     const doc = structuredClone(noAxesNormal);
     doc.entities.find(entity => entity.id === "normal")!.label = label;
     await admitted(normalSource, doc);
@@ -261,6 +261,59 @@ async function main() {
     doc.entities.find(entity => entity.id === "normal")!.label = label;
     assert.match(sceneSaveAdmissionFailure({ question: normalSource, document: doc, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/,
       "only a genuine affine equation of the normal may label it");
+  }
+  const companionSource = "Plot y=x and the circle x^2+y^2=1.";
+  const companion = graph(companionSource, ["x"], ["y=x"], false);
+  Object.assign(companion.constructions[0]!.inputs, { xMin: -4, xMax: 4 });
+  companion.source.diagramYieldPolicy = "verified_parts";
+  companion.entities.push({ id: "circle", kind: "polyline", role: "implicit circle" });
+  companion.constructions.push({ id: "make_circle", operator: "conic", inputs: { kind: "ellipse", center: [0, 0], a: 1, b: 1, samples: 65 }, outputs: ["circle"] });
+  companion.requiredEntityIds.push("circle"); companion.revealGroups[0]!.entityIds.push("circle");
+  const companionCompiled = compileSceneDocument(companion);
+  assert(companionCompiled.ok, `the unlabelled implicit companion must pass the existing compiler guards: ${JSON.stringify(companionCompiled.report.issues)}`);
+  await admitted(companionSource, companion, undefined, "verified_parts");
+  const missingFunctionSource = "Plot y=x^2 and the circle x^2+y^2=1.";
+  const missingFunction = structuredClone(companion);
+  missingFunction.source.question = missingFunctionSource;
+  assert.match(sceneSaveAdmissionFailure({ question: missingFunctionSource, document: missingFunction, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/,
+    "excluding an implicit companion cannot satisfy a missing explicit function");
+  const unlabelledParabola = structuredClone(conic);
+  delete unlabelledParabola.entities.find(entity => entity.id === "curve_0")!.label;
+  unlabelledParabola.source.diagramYieldPolicy = "verified_parts";
+  unlabelledParabola.entities.push({ id: "origin", kind: "point", role: "origin", label: "O" });
+  unlabelledParabola.constructions.push({ id: "make_origin", operator: "point", inputs: { x: 0, y: 0 }, outputs: ["origin"] });
+  unlabelledParabola.requiredEntityIds.push("origin"); unlabelledParabola.revealGroups[0]!.entityIds.push("origin");
+  await admitted(conicSource, unlabelledParabola, undefined, "verified_parts");
+  const wrongUnlabelled = structuredClone(unlabelledParabola);
+  wrongUnlabelled.constructions.find(construction => construction.operator === "conic")!.inputs.p = 0.5;
+  assert.match(sceneSaveAdmissionFailure({ question: conicSource, document: wrongUnlabelled, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/,
+    "an unlabelled conic needs a successful source proof to count as the required function");
+  for (const [source, expression, at, slope, labels] of [
+    ["Sketch y=exp(x) and its tangent at x=1.", "exp(x)", 1, Math.E, ["y=e*x", "pi*y=pi*e*x", "y=exp(1)*x"]],
+    ["Sketch y=sin(pi*x) and its tangent at x=0.", "sin(pi*x)", 0, Math.PI, ["y=pi*x"]],
+    ["Sketch y=sin(x) and its tangent at x=0.", "sin(x)", 0, 1, ["y=cos(0)*x"]],
+  ] as const) {
+    const doc = graph(source, [expression], [`y=${expression}`], false);
+    doc.entities.push({ id: "tangent", kind: "line", role: "source tangent", label: labels[0] });
+    doc.constructions.push({ id: "make_tangent", operator: "line", inputs: { start: [0, 0], end: [2, 2 * slope] }, outputs: ["tangent"] });
+    doc.requiredEntityIds.push("tangent"); doc.revealGroups[0]!.entityIds.push("tangent");
+    for (const label of labels) {
+      doc.entities.find(entity => entity.id === "tangent")!.label = label;
+      const before = compileSceneDocument(doc);
+      assert(before.ok, "the constant-expression tangent regression must already compile");
+      const proof = compileSceneDocument(doc, { sourceFunctionChecks: [{ entityId: "tangent", expression, adjunct: { role: "tangent", at }, equation: { lhs: label.split("=")[0]!, rhs: label.split("=")[1]! } }] });
+      assert(proof.ok, `the complete tangent label must retain constant-expression support: ${label}`);
+      assert.deepEqual(proof.renderScene, before.renderScene, "constant-expression proofs leave rendered marks unchanged");
+      await admitted(source, doc);
+    }
+    assert(!compileSceneDocument(doc, { sourceFunctionChecks: [{ entityId: "tangent", expression, adjunct: { role: "tangent", at }, equation: { lhs: "y", rhs: `(${slope})*x+x*(x-2)` } }] }).ok,
+      "a nonlinear equation agreeing at both endpoints is not an affine proof");
+    for (const label of ["y=2*x", "y=e*x+1", "y=x^2", "y=1/(x-x)"]) {
+      const bad = structuredClone(doc);
+      bad.entities.find(entity => entity.id === "tangent")!.label = label;
+      assert.match(sceneSaveAdmissionFailure({ question: source, document: bad, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/,
+        "constant-expression support cannot license false, nonlinear or undefined tangent equations");
+    }
   }
   console.log("planner function inventory: production selection, exact selection, all-tier/no-plan save, native curves and JSON reopen controls passed");
 }

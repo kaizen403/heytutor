@@ -1363,7 +1363,8 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
       // This inventory owns explicit functions. An implicit conic such as
       // y²=4x may accompany y=2x-4 without itself claiming to be y=f(x).
       // Its existing compiler obligations still apply independently.
-      return (labels.every(label => label === undefined) && document.source.diagramYieldPolicy === "verified_parts") || labels.some(label => {
+      return (labels.every(label => label === undefined) && document.source.diagramYieldPolicy === "verified_parts" &&
+        facts.some(fact => proveFunction(construction.outputs[0]!, fact.expression))) || labels.some(label => {
         const equation = typeof label === "string" ? readCartesianEquationLabel(normalizeMathText(label)) : null;
         return equation !== null && (equation.lhs.trim() === "y" || equation.rhs.trim() === "y" || facts.some(fact => equationMatches(label, fact.expression)));
       });
