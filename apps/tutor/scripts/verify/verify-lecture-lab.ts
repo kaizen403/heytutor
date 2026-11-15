@@ -1,5 +1,6 @@
 import {
   countJobsByStatus,
+  CONCURRENCY_OPTIONS,
   DELETE_LECTURE_CONFIRM,
   deletableJobBoardIds,
   deleteLecturesConfirm,
@@ -159,20 +160,26 @@ const queuedPlusRunning = [
 assert(nextQueuedJobs(queuedPlusRunning, 3).map((job) => job.id).join(",") === `${jobs[1]!.id},extra-queued`, "fill remaining slots from queued jobs");
 assert(nextQueuedJobs(queuedPlusRunning, 1).length === 0, "no extra slots when at concurrency cap");
 assert(nextQueuedJobs(jobs, 2).length === 2, "idle queue can start up to the cap");
-assert(MAX_CONCURRENT_LECTURES === 5, "lecture lab concurrency cap must be 5");
+assert(MAX_CONCURRENT_LECTURES === 10, "lecture lab concurrency ceiling must be 10");
+assert(CONCURRENCY_OPTIONS.join(",") === "1,2,3,4,5,6,7,8,9,10", "each concurrency from one to ten is selectable");
 assert(nextQueuedJobs(jobs, MAX_CONCURRENT_LECTURES).length === 2, "idle queue below the cap starts every queued job");
 
-const fiveQuestions = [
+const concurrentQuestions = [
   "A boat can travel at 5 m/s in still water. The river flows at 3 m/s east. Find the heading so the boat goes due north.",
   "A boat heads perpendicular to a 2 m/s current. Its still-water speed is 8 m/s. Find the resultant velocity.",
   "A raindrop appears to fall vertically at 4 m/s to a cyclist moving at 3 m/s. Find the true rain velocity.",
   "Two forces of 3 N and 4 N act at right angles. Find the resultant.",
   "A particle has velocity 6 î + 8 ĵ. Find the angle the velocity makes with the x-axis.",
-  "A sixth queued lecture must wait until a slot frees.",
-  "A seventh queued lecture must also wait.",
+  "A car accelerates uniformly from rest. Explain its velocity-time graph.",
+  "Explain the difference between speed and velocity.",
+  "Explain conservation of momentum in a collision.",
+  "Find the work done by a constant force along a displacement.",
+  "Explain the acceleration of a falling body.",
+  "An eleventh queued lecture must wait until a slot frees.",
+  "A twelfth queued lecture must also wait.",
 ];
 const overlappingJobs = makeLectureJobs(
-  fiveQuestions.map((question, index) => ({
+  concurrentQuestions.map((question, index) => ({
     id: `physics|2|vectors|q${index}`,
     topicId: "physics|2|vectors",
     difficulty: "medium" as const,
@@ -180,25 +187,30 @@ const overlappingJobs = makeLectureJobs(
   })),
   now,
 );
-assert(overlappingJobs.length === 7, "isolation fixture must enqueue seven lectures");
+assert(overlappingJobs.length === 12, "isolation fixture must enqueue twelve lectures");
 const firstWave = nextQueuedJobs(overlappingJobs, MAX_CONCURRENT_LECTURES);
-assert(firstWave.length === 5, "the cap of 5 must start five overlapping jobs");
-const runningFive = firstWave.map((job) => ({ ...job, status: "running" as const, startedAt: now }));
+assert(firstWave.length === 10, "the ceiling of 10 must start ten overlapping jobs");
+const runningTen = firstWave.map((job) => ({ ...job, status: "running" as const, startedAt: now }));
 const stillQueued = overlappingJobs.filter((job) => !firstWave.some((started) => started.id === job.id));
 assert(
-  nextQueuedJobs([...runningFive, ...stillQueued], MAX_CONCURRENT_LECTURES).length === 0,
-  "no sixth lecture may start while five are running",
+  nextQueuedJobs([...runningTen, ...stillQueued], MAX_CONCURRENT_LECTURES).length === 0,
+  "no eleventh lecture may start while ten are running",
 );
+const settledWave = runningTen.map((job, index) => index === 0 ? { ...job, status: "complete" as const } : job);
+assert(nextQueuedJobs([...settledWave, ...stillQueued], MAX_CONCURRENT_LECTURES)[0]?.id === stillQueued[0]?.id,
+  "finishing one of ten recordings admits the next queued lecture");
+assert(nextQueuedJobs([...runningTen, ...stillQueued], 5).length === 0,
+  "lowering concurrency leaves running recordings intact and starts no more");
 
-const overlappingRuntimes: HeadlessRuntime[] = runningFive.map((job, index) => ({
+const overlappingRuntimes: HeadlessRuntime[] = runningTen.map((job, index) => ({
   jobId: job.id,
   boardId: `board-${index}`,
   question: job.question,
 }));
-assert(lectureRuntimesAreIsolated(overlappingRuntimes), "five overlapping jobs must have distinct job and board ids");
+assert(lectureRuntimesAreIsolated(overlappingRuntimes), "ten overlapping jobs must have distinct job and board ids");
 assert(
-  new Set(overlappingRuntimes.map(lectureRuntimeKey)).size === 5,
-  "five overlapping jobs must have distinct runtime keys",
+  new Set(overlappingRuntimes.map(lectureRuntimeKey)).size === 10,
+  "ten overlapping jobs must have distinct runtime keys",
 );
 assert(
   !lectureRuntimesAreIsolated([
@@ -212,13 +224,13 @@ let claimed: HeadlessRuntime[] = [];
 for (const runtime of overlappingRuntimes) {
   claimed = attachLectureRuntime(claimed, runtime);
 }
-assert(claimed.length === 5, "each job must attach its own shell");
+assert(claimed.length === 10, "each job must attach its own shell");
 assert(
   attachLectureRuntime(claimed, {
     jobId: stillQueued[0]!.id,
     boardId: overlappingRuntimes[0]!.boardId,
     question: stillQueued[0]!.question,
-  }).length === 5,
+  }).length === 10,
   "a later job must not steal an in-use board",
 );
 assert(

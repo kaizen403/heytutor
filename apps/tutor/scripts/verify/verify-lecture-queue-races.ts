@@ -150,6 +150,7 @@ async function verify() {
 try {
   let queue = render();
   assert(queue.concurrency === 5, "the playground still defaults to five recordings");
+  assert(queue.concurrency === 5, "the playground still defaults to five recordings");
   let staleReady = 0;
   let currentReady = 0;
   queue.enqueue([question], { onReady: () => { staleReady++; } });

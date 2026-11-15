@@ -133,12 +133,12 @@ export function RunBar({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 border-t border-stroke px-4 py-3">
+      <div className="flex flex-col gap-2 border-t border-stroke px-4 py-3">
         <span className="text-xs text-soft" title="The rest wait in the queue">
           Record at a time
         </span>
         <div
-          className="flex items-center gap-1"
+          className="grid grid-cols-5 gap-1"
           aria-label="Concurrent lectures"
         >
           {CONCURRENCY_OPTIONS.map((count) => (
@@ -149,7 +149,7 @@ export function RunBar({
               aria-pressed={concurrency === count}
               aria-label={`${count} concurrent lectures`}
               className={cn(
-                "h-7 w-7 rounded-md border text-xs font-medium transition-colors",
+                "h-7 rounded-md border text-xs font-medium transition-colors",
                 concurrency === count
                   ? "border-sky-500/40 bg-sky-500/20 text-sky-200"
                   : "border-transparent text-faint hover:bg-ink-800 hover:text-frost",

@@ -7,7 +7,7 @@ import type { BoardEntry } from "@/lib/boards/types";
 import type { TutorPhase } from "@/features/tutor-session/types";
 import {
   drainLectureJobs,
-  MAX_CONCURRENT_LECTURES,
+  DEFAULT_CONCURRENT_LECTURES,
   JOB_TIMEOUT_MS,
   makeLectureJobs,
   nextQueuedJobs,
@@ -64,7 +64,7 @@ export function useLectureQueue() {
   const [runtimes, setRuntimes] = useState<HeadlessRuntime[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const [boards, setBoards] = useState<BoardEntry[]>([]);
-  const [concurrency, setConcurrency] = useState(MAX_CONCURRENT_LECTURES);
+  const [concurrency, setConcurrency] = useState(DEFAULT_CONCURRENT_LECTURES);
 
   const jobsRef = useRef<LectureJob[]>([]);
   const boardReadRevisionRef = useRef(0);

@@ -9,6 +9,7 @@ import {
 } from "../../lib/http/ipRateLimit";
 import { contentSecurityPolicy, securityHeaderEntries } from "../../lib/http/securityHeaders";
 import {
+  releaseTtsWsConnection,
   resetTtsWsConnectionsForTests,
   tryAcquireTtsWsConnection,
   TTS_WS_MAX_CONNECTIONS_PER_USER,
@@ -118,11 +119,14 @@ for (let i = 0; i < TTS_WS_MAX_CONNECTIONS_PER_USER; i += 1) {
 }
 assert(!tryAcquireTtsWsConnection("user-a"), "a fourth TTS socket for one user is refused");
 resetTtsWsConnectionsForTests();
-assert(TTS_WS_MAX_CONNECTIONS_WITH_BYPASS === 5, "the authenticated staff cap is five");
+assert(TTS_WS_MAX_CONNECTIONS_WITH_BYPASS === 10, "the authenticated staff cap is ten");
 for (let i = 0; i < TTS_WS_MAX_CONNECTIONS_WITH_BYPASS; i += 1) {
-  assert(tryAcquireTtsWsConnection("staff-a", true), "authenticated staff can open five sockets");
+  assert(tryAcquireTtsWsConnection("staff-a", true), "authenticated staff can open ten sockets");
 }
-assert(!tryAcquireTtsWsConnection("staff-a", true), "the sixth staff socket is refused");
+assert(!tryAcquireTtsWsConnection("staff-a", true), "the eleventh staff socket is refused");
+releaseTtsWsConnection("staff-a");
+assert(tryAcquireTtsWsConnection("staff-a", true), "closing a staff socket admits a replacement at the ten-socket cap");
+assert(!tryAcquireTtsWsConnection("staff-a", true), "the replacement cannot exceed the staff socket cap");
 resetTtsWsConnectionsForTests();
 for (let i = 0; i < TTS_WS_MAX_CONNECTIONS_PER_USER; i += 1) {
   assert(tryAcquireTtsWsConnection("dev-cookie", false), "anonymous dev sockets retain the base cap");
