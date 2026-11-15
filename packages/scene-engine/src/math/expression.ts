@@ -307,6 +307,9 @@ function rationalPolynomials(roots: readonly ExpressionNode[], retainOpaqueTerms
           result = outward([middle - width, middle + width]);
         } else {
           const middle = fn(center); result = outward([Math.max(-1, middle - radius), Math.min(1, middle + radius)]);
+          // Rounding cannot widen the proved sine/cosine codomain. Retaining
+          // that invariant lets enclosing inverse functions check their domain.
+          result.lo = Math.max(-1, result.lo); result.hi = Math.min(1, result.hi);
         }
       } else if (node.name === "abs") result = outward([a.lo <= 0 && a.hi >= 0 ? 0 : Math.min(Math.abs(a.lo), Math.abs(a.hi)), Math.max(Math.abs(a.lo), Math.abs(a.hi))]);
       else result = outward([fn(a.lo), fn(a.hi)]);
@@ -513,9 +516,9 @@ export function cartesianLineCoefficients(lhs: string, rhs: string): { x: number
     // The nominal floating scale is fixed for every coefficient; enclose its
     // reciprocal directly rather than treating it as a source expression.
     const normalizer = algebra.fractionBounds({ n: 1n, d: 1n }, algebra.binaryFraction(norm));
-    const result = resultWithBounds(normalized, ranges.map(range => algebra.multiplyIntervals(range, normalizer)));
-    if (result.uncertainty && Math.max(result.uncertainty.x, result.uncertainty.y, result.uncertainty.constant) > 1e-8) return null;
-    return result;
+    // Keep coefficient enclosures for the compiler's point/direction residual.
+    // An absolute intercept cutoff would reject accurate large-offset lines.
+    return resultWithBounds(normalized, ranges.map(range => algebra.multiplyIntervals(range, normalizer)));
   } catch { return null; }
 }
 
