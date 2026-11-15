@@ -57,6 +57,26 @@ export interface ParsedMathExpression2D {
   assertContinuousOn(xMin: number, xMax: number, yMin: number, yMax: number): void;
 }
 
+/** Preserve lexer token boundaries while spelling implicit products out.
+ * In particular, `2 e + 1` and the single number token `2e+1` differ. */
+export function normalizeMathProductNotation(value: string): string {
+  if (value.length > MAX_EXPRESSION_LENGTH * 2 + 8) throw new Error("expression notation too long");
+  const source = normalizePlainMathSource(value), tokens = tokenize(source);
+  let result = "";
+  for (let index = 0; index < tokens.length - 1; index++) {
+    const token = tokens[index]!, previous = tokens[index - 1];
+    if (previous?.kind === "number" && token.kind === "number") throw new Error("separate number tokens need an operator");
+    if (previous?.kind === "identifier" && (token.kind === "identifier" || token.kind === "number" ||
+        token.kind === "leftParen" && ["pi", "e"].includes(previous.value))) throw new Error("ambiguous identifier product needs an operator");
+    const ends = previous && ["number", "identifier", "rightParen"].includes(previous.kind);
+    const starts = ["number", "identifier", "leftParen"].includes(token.kind);
+    const call = previous?.kind === "identifier" && token.kind === "leftParen" && !["x", "y", "pi", "e"].includes(previous.value);
+    if (ends && starts && !call) result += "*";
+    result += source.slice(token.position, tokens[index + 1]!.position).trim();
+  }
+  return result;
+}
+
 /** Prove structural or bounded rational-polynomial identity. This never treats
  * agreement at sampled points as equality. Non-polynomial rewrites decline;
  * identical non-polynomial syntax retains its existing parser semantics. */
@@ -93,73 +113,12 @@ export function mathExpressionsEquivalent(left: string, right: string, options: 
     if (JSON.stringify(a) === JSON.stringify(b)) return true;
     if (options.allowNonzeroScale && a.kind === "binary" && b.kind === "binary" && a.operator === "-" && b.operator === "-" &&
         JSON.stringify(a.left) === JSON.stringify(b.right) && JSON.stringify(a.right) === JSON.stringify(b.left)) return true;
-    type Fraction = { n: bigint; d: bigint };
-    type Polynomial = Map<string, Fraction>;
-    let remaining = 16_384;
-    const step = () => { chargeExpressionSteps(1); if (--remaining < 0) throw new Error("identity work limit"); };
-    const fraction = (n: bigint, d = 1n): Fraction => {
-      step();
-      if (d === 0n || n.toString(2).length > 2048 || d.toString(2).length > 2048) throw new Error("identity coefficient limit");
-      if (d < 0n) { n = -n; d = -d; }
-      let x = n < 0n ? -n : n, y = d;
-      while (y) { const remainder = x % y; x = y; y = remainder; }
-      return { n: n / x, d: d / x };
-    };
-    const number = (value: number): Fraction => {
-      if (!Number.isFinite(value)) throw new Error("nonfinite coefficient");
-      const [mantissa, exponent = "0"] = String(value).split("e");
-      const decimals = mantissa!.split(".")[1]?.length ?? 0;
-      const scale = decimals - Number(exponent);
-      return fraction(BigInt(mantissa!.replace(".", "")) * 10n ** BigInt(Math.max(0, -scale)), 10n ** BigInt(Math.max(0, scale)));
-    };
-    const constant = (value: Fraction): Polynomial => value.n === 0n ? new Map() : new Map([["0,0", value]]);
-    const put = (poly: Polynomial, key: string, value: Fraction) => {
-      const old = poly.get(key);
-      const sum = old ? fraction(old.n * value.d + value.n * old.d, old.d * value.d) : value;
-      if (sum.n) poly.set(key, sum); else poly.delete(key);
-      if (poly.size > 128) throw new Error("identity term limit");
-    };
-    const multiply = (x: Polynomial, y: Polynomial): Polynomial => {
-      const result: Polynomial = new Map();
-      for (const [u, c] of x) for (const [v, d] of y) {
-        step();
-        const [ux, uy] = u.split(",").map(Number), [vx, vy] = v.split(",").map(Number);
-        const px = ux! + vx!, py = uy! + vy!;
-        if (px + py > 16) throw new Error("identity degree limit");
-        put(result, `${px},${py}`, fraction(c.n * d.n, c.d * d.d));
-      }
-      return result;
-    };
-    const polynomial = (node: ExpressionNode): Polynomial => {
-      step();
-      if (node.kind === "number") return constant(number(node.value));
-      if (node.kind === "variable") return new Map([[node.name === "x" ? "1,0" : "0,1", fraction(1n)]]);
-      if (node.kind === "function") throw new Error("non-polynomial identity");
-      if (node.kind === "unary") return new Map([...polynomial(node.value)].map(([key, value]) => [key, fraction(node.operator === "-" ? -value.n : value.n, value.d)]));
-      const x = polynomial(node.left), y = polynomial(node.right);
-      if (node.operator === "+" || node.operator === "-") {
-        const result = new Map(x);
-        for (const [key, value] of y) put(result, key, fraction(node.operator === "-" ? -value.n : value.n, value.d));
-        return result;
-      }
-      if (node.operator === "*") return multiply(x, y);
-      const scalar = y.size === 0 ? fraction(0n) : y.size === 1 ? y.get("0,0") : undefined;
-      if (!scalar) throw new Error("nonconstant divisor or exponent");
-      if (node.operator === "/") {
-        if (!scalar.n) throw new Error("zero divisor");
-        return new Map([...x].map(([key, value]) => [key, fraction(value.n * scalar.d, value.d * scalar.n)]));
-      }
-      if (scalar.d !== 1n || scalar.n < 0n || scalar.n > 16n) throw new Error("unsupported polynomial power");
-      let result = constant(fraction(1n));
-      for (let i = 0; i < Number(scalar.n); i++) result = multiply(result, x);
-      return result;
-    };
-    const x = polynomial(a), y = polynomial(b);
+    const [x, y] = rationalPolynomials([a, b]) as [Polynomial, Polynomial];
     if (x.size !== y.size || [...x.keys()].some(key => !y.has(key))) return false;
     if (x.size === 0) return true;
     const key = x.keys().next().value!;
-    const xc = options.allowNonzeroScale ? x.get(key)! : fraction(1n);
-    const yc = options.allowNonzeroScale ? y.get(key)! : fraction(1n);
+    const xc = options.allowNonzeroScale ? x.get(key)! : { n: 1n, d: 1n };
+    const yc = options.allowNonzeroScale ? y.get(key)! : { n: 1n, d: 1n };
     return [...x].every(([term, value]) => {
       const other = y.get(term)!;
       return value.n * yc.n * other.d * xc.d === other.n * xc.n * value.d * yc.d;
@@ -167,30 +126,130 @@ export function mathExpressionsEquivalent(left: string, right: string, options: 
   } catch { return false; }
 }
 
+type Fraction = { n: bigint; d: bigint };
+type Polynomial = Map<string, Fraction>;
+
+/** Shared exact coefficient algebra; all consumers retain its work limits. */
+function rationalPolynomials(roots: readonly ExpressionNode[]): Polynomial[] {
+  let remaining = 16_384;
+  const step = () => { chargeExpressionSteps(1); if (--remaining < 0) throw new Error("identity work limit"); };
+  const fraction = (n: bigint, d = 1n): Fraction => {
+    step();
+    if (d === 0n || n.toString(2).length > 2048 || d.toString(2).length > 2048) throw new Error("identity coefficient limit");
+    if (d < 0n) { n = -n; d = -d; }
+    let x = n < 0n ? -n : n, y = d;
+    while (y) { const remainder = x % y; x = y; y = remainder; }
+    return { n: n / x, d: d / x };
+  };
+  const number = (value: number): Fraction => {
+    if (!Number.isFinite(value)) throw new Error("nonfinite coefficient");
+    const [mantissa, exponent = "0"] = String(value).split("e");
+    const decimals = mantissa!.split(".")[1]?.length ?? 0;
+    const scale = decimals - Number(exponent);
+    return fraction(BigInt(mantissa!.replace(".", "")) * 10n ** BigInt(Math.max(0, -scale)), 10n ** BigInt(Math.max(0, scale)));
+  };
+  const constant = (value: Fraction): Polynomial => value.n === 0n ? new Map() : new Map([["0,0", value]]);
+  const put = (poly: Polynomial, key: string, value: Fraction) => {
+    const old = poly.get(key);
+    const sum = old ? fraction(old.n * value.d + value.n * old.d, old.d * value.d) : value;
+    if (sum.n) poly.set(key, sum); else poly.delete(key);
+    if (poly.size > 128) throw new Error("identity term limit");
+  };
+  const multiply = (x: Polynomial, y: Polynomial): Polynomial => {
+    const result: Polynomial = new Map();
+    for (const [u, c] of x) for (const [v, d] of y) {
+      step();
+      const [ux, uy] = u.split(",").map(Number), [vx, vy] = v.split(",").map(Number);
+      const px = ux! + vx!, py = uy! + vy!;
+      if (px + py > 16) throw new Error("identity degree limit");
+      put(result, `${px},${py}`, fraction(c.n * d.n, c.d * d.d));
+    }
+    return result;
+  };
+  const polynomial = (node: ExpressionNode): Polynomial => {
+    step();
+    if (node.kind === "number") return constant(number(node.value));
+    if (node.kind === "variable") return new Map([[node.name === "x" ? "1,0" : "0,1", fraction(1n)]]);
+    if (node.kind === "function") {
+      const argument = polynomial(node.argument);
+      if ([...argument.keys()].some(key => key !== "0,0")) throw new Error("non-polynomial identity");
+      return constant(number(evaluateNode(node, { x: 0, y: 0 }, { remaining: MAX_EVALUATION_STEPS })));
+    }
+    if (node.kind === "unary") return new Map([...polynomial(node.value)].map(([key, value]) => [key, fraction(node.operator === "-" ? -value.n : value.n, value.d)]));
+    const x = polynomial(node.left), y = polynomial(node.right);
+    if (node.operator === "+" || node.operator === "-") {
+      const result = new Map(x);
+      for (const [key, value] of y) put(result, key, fraction(node.operator === "-" ? -value.n : value.n, value.d));
+      return result;
+    }
+    if (node.operator === "*") return multiply(x, y);
+    const scalar = y.size === 0 ? fraction(0n) : y.size === 1 ? y.get("0,0") : undefined;
+    if (!scalar) throw new Error("nonconstant divisor or exponent");
+    if (node.operator === "/") {
+      if (!scalar.n) throw new Error("zero divisor");
+      return new Map([...x].map(([key, value]) => [key, fraction(value.n * scalar.d, value.d * scalar.n)]));
+    }
+    if (x.size === 0 || x.size === 1 && x.has("0,0")) return constant(number(evaluateNode(node, { x: 0, y: 0 }, { remaining: MAX_EVALUATION_STEPS })));
+    if (scalar.d !== 1n || scalar.n < 0n || scalar.n > 16n) throw new Error("unsupported polynomial power");
+    let result = constant(fraction(1n));
+    for (let i = 0; i < Number(scalar.n); i++) result = multiply(result, x);
+    return result;
+  };
+  return roots.map(polynomial);
+}
+
 /** A bounded analytic degree proof, never a fit to sampled points. */
 export function isAffineMathExpression(source: string): boolean {
   try {
     const parsed = parseMathExpression(source);
     const root = new Parser(tokenize(normalizePlainMathSource(source)), new Set<VariableName>(["x"])).parse();
-    const degree = (node: ExpressionNode): number => {
-      chargeExpressionSteps(1);
-      if (node.kind === "number") return 0;
-      if (node.kind === "variable") return 1;
-      if (node.kind === "unary") return degree(node.value);
-      if (node.kind === "function") return degree(node.argument) === 0 ? 0 : Infinity;
-      const left = degree(node.left), right = degree(node.right);
-      if (node.operator === "+" || node.operator === "-") return Math.max(left, right);
-      if (node.operator === "*") return left + right;
-      if (node.operator === "/") return right === 0 ? left : Infinity;
-      if (right !== 0) return Infinity;
-      const power = evaluateNode(node.right, { x: 0, y: 0 }, { remaining: MAX_EVALUATION_STEPS });
-      return Number.isInteger(power) && power >= 0 && power <= 16 ? power === 0 ? 0 : left * power : Infinity;
-    };
     const intercept = parsed.evaluate(0);
-    if (degree(root) <= 1) return true;
+    if (expressionDegree(root) <= 1) return true;
     const slope = parsed.derivative(0);
     return mathExpressionsEquivalent(source, `(${slope})*x+(${intercept})`);
   } catch { return false; }
+}
+
+/** A complete Cartesian line, normalized before floating-point geometry.
+ * Coefficients are derived by exact polynomial algebra, never point probes.
+ * A nonzero coefficient that cannot survive conversion refuses the relation. */
+export function cartesianLineCoefficients(lhs: string, rhs: string): { x: number; y: number; constant: number } | null {
+  try {
+    const source = `(${normalizeMathProductNotation(lhs)})-(${normalizeMathProductNotation(rhs)})`;
+    if (source.length > MAX_EXPRESSION_LENGTH * 2 + 8) return null;
+    const root = new Parser(tokenize(normalizePlainMathSource(source)), new Set<VariableName>(["x", "y"])).parse();
+    const coefficients = rationalPolynomials([root])[0]!;
+    if ([...coefficients.keys()].some(key => !["0,0", "1,0", "0,1"].includes(key))) return null;
+    const zero: Fraction = { n: 0n, d: 1n };
+    const a = coefficients.get("1,0") ?? zero, b = coefficients.get("0,1") ?? zero;
+    const abs = (value: bigint) => value < 0n ? -value : value;
+    const scale = abs(a.n) * b.d >= abs(b.n) * a.d ? a : b;
+    if (scale.n === 0n) return null;
+    const ratio = (value: Fraction): number => {
+      if (value.n === 0n) return 0;
+      const n = value.n * scale.d, d = value.d * scale.n;
+      const shiftN = Math.max(0, abs(n).toString(2).length - 53), shiftD = Math.max(0, abs(d).toString(2).length - 53);
+      const result = ((n < 0n) !== (d < 0n) ? -1 : 1) * Number(abs(n) >> BigInt(shiftN)) / Number(abs(d) >> BigInt(shiftD)) * 2 ** (shiftN - shiftD);
+      if (!Number.isFinite(result) || result === 0) throw new Error("line coefficient outside numeric range");
+      return result;
+    };
+    return { x: ratio(a), y: ratio(b), constant: ratio(coefficients.get("0,0") ?? zero) };
+  } catch { return null; }
+}
+
+function expressionDegree(node: ExpressionNode): number {
+  chargeExpressionSteps(1);
+  if (node.kind === "number") return 0;
+  if (node.kind === "variable") return 1;
+  if (node.kind === "unary") return expressionDegree(node.value);
+  if (node.kind === "function") return expressionDegree(node.argument) === 0 ? 0 : Infinity;
+  const left = expressionDegree(node.left), right = expressionDegree(node.right);
+  if (node.operator === "+" || node.operator === "-") return Math.max(left, right);
+  if (node.operator === "*") return left + right;
+  if (node.operator === "/") return right === 0 ? left : Infinity;
+  if (right !== 0) return Infinity;
+  const power = evaluateNode(node.right, { x: 0, y: 0 }, { remaining: MAX_EVALUATION_STEPS });
+  return Number.isInteger(power) && power >= 0 && power <= 16 ? power === 0 ? 0 : left * power : Infinity;
 }
 
 /** Parse the intentionally small, side-effect-free language used by function_curve. */

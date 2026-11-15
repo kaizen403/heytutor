@@ -7,6 +7,7 @@ import {
   detectArchetype,
   isRiverBoatStem,
   parseMathExpression,
+  normalizeMathProductNotation,
   mathExpressionsEquivalent,
   readCartesianEquationLabel,
   synthesizeFamilyScene,
@@ -1336,16 +1337,31 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
     .flatMap(construction => [construction.inputs.upper, construction.inputs.lower]));
   const sourceAxis = /(?<![\p{L}\p{N}_])x[\s-]+axis(?![\p{L}\p{N}_])/iu.test(stem);
   const adjuncts: Array<{ role: "tangent" | "normal"; at: number }> = [];
+  const boundEnds: number[] = [];
+  if (facts.length === 1) for (const declaration of stem.matchAll(new RegExp(`(?<![\\p{L}\\p{N}_])${lhs}`, "giu"))) {
+    const start = declaration.index! + declaration[0].length;
+    const boundary = hasStandaloneFunctionLhs(stem, declaration.index!, -1);
+    const read = boundary && readCompleteSupportedExpression(stem.slice(start), boundary, true);
+    if (read && mathExpressionsEquivalent(normalizeNativeFunctionBody(read.expression), facts[0]!.expression)) boundEnds.push(start + read.end);
+  }
   if (facts.length === 1) for (const match of stem.matchAll(/\b(tangent|normal)\b(?:\s+line)?\s+at\s+x\s*=\s*/giu)) {
+    // Only a positive continuation of this declared function owns the part.
+    // A mention, negation, hypothetical, or another object's request cannot.
+    const attached = boundEnds.some(end => end <= match.index! && (
+      /^\s*,?\s*(?:and|with|then)\s+(?:(?:draw|plot|sketch|show)\s+)?(?:(?:its|the|a)\s+)?$/iu.test(stem.slice(end, match.index!)) ||
+      /^\s*[.;]\s*(?:draw|plot|sketch|show)\s+its\s+$/iu.test(stem.slice(end, match.index!))));
+    if (!attached) continue;
     const value = readCompleteSupportedExpression(stem.slice(match.index! + match[0].length), [], true);
     if (!value || /\bx\b/u.test(value.expression)) continue;
+    const end = match.index! + match[0].length + value.end;
+    if (!/^\s*(?:$|[.!?;]|\band\b|,\s*(?:find|calculate|mark|show|draw|sketch|state)\b)/iu.test(stem.slice(end))) continue;
     try {
       const at = parseMathExpression(normalizeNativeFunctionBody(value.expression)).evaluate(0);
-      if (Number.isFinite(at)) adjuncts.push({ role: match[1]!.toLowerCase() as "tangent" | "normal", at });
+      if (Number.isFinite(at)) { adjuncts.push({ role: match[1]!.toLowerCase() as "tangent" | "normal", at }); boundEnds.push(end); }
     } catch { /* An unread source point cannot authorize an adjunct. */ }
   }
-  const proveLine = (entityId: string, expression: string, adjunct?: { role: "tangent" | "normal"; at: number }) =>
-    compileSceneDocument(document, { figureConsistency: true, sourceFunctionChecks: [{ entityId, expression, ...(adjunct ? { adjunct } : {}) }] }).ok;
+  const proveLine = (entityId: string, expression: string, adjunct?: { role: "tangent" | "normal"; at: number }, equation?: { lhs: string; rhs: string }) =>
+    compileSceneDocument(document, { figureConsistency: true, sourceFunctionChecks: [{ entityId, expression, ...(adjunct ? { adjunct } : {}), ...(equation ? { equation } : {}) }] }).ok;
   let unowned = false;
   for (const curve of document.constructions.filter(construction => {
     if (construction.operator === "function_curve" || construction.operator === "implicit_curve") return true;
@@ -1371,10 +1387,8 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
     let adjunctOwned = false;
     if (owner < 0 && !axis && facts.length === 1 && adjuncts.length > 0) {
       const equation = typeof label === "string" ? readCartesianEquationLabel(normalizeMathText(label)) : null;
-      const adjunctBody = straight && equation?.lhs.trim() === "y" ? normalizeNativeFunctionBody(equation.rhs) : body;
-      const labelAgrees = yieldedLabel || equationMatches(label, adjunctBody);
-      adjunctOwned = labelAgrees && (!straight || proveLine(curve.outputs[0]!, adjunctBody)) &&
-        adjuncts.some(adjunct => proveLine(curve.outputs[0]!, facts[0]!.expression, adjunct));
+      adjunctOwned = (yieldedLabel || equation !== null) &&
+        adjuncts.some(adjunct => proveLine(curve.outputs[0]!, facts[0]!.expression, adjunct, equation ?? undefined));
     }
     // A native display transform is accepted only with the entire independently
     // regenerated program, never a client-provided display/source tag.
@@ -1657,6 +1671,13 @@ function readCompleteSupportedExpression(source: string, closers: readonly strin
       depth++; index++; continue;
     }
     if (character === ")") { if (depth === 0) return null; depth--; index++; continue; }
+    // Read a complete numeric token before the identifier branch. An unsigned
+    // exponent such as 2e3 must not become an unknown identifier named e3.
+    // A trailing prose full stop stays outside the function expression.
+    if (/[0-9.]/.test(character)) {
+      const number = /^(?:\d+\.[eE][+-]?\d+|(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?)/u.exec(source.slice(index));
+      if (number) { index += number[0].length; continue; }
+    }
     if (/\s/.test(character) || /[0-9.+\-*/^]/.test(character)) { index++; continue; }
     if (/[\p{L}_]/u.test(character)) {
       const identifier = /^[\p{L}\p{N}_]+/u.exec(source.slice(index))![0];
@@ -1727,14 +1748,12 @@ function normalizeMathText(value: string): string {
 }
 
 function normalizeExpression(value: string): string {
-  return value
+  const source = value
     // Bare unary notation owns only the literal x argument. Multiplicative,
     // power, call, identifier and digit continuations remain unsupported.
-    .replace(BARE_UNARY_FUNCTION, "$1(x)")
-    .replace(/\s+/g, "")
-    .replace(/(\d)(?=(?:x|pi|e(?![+-]?\d)|sin|cos|tan|asin|acos|atan|sqrt|abs|exp|log|ln|\())/g, "$1*")
-    .replace(/x(?=\()/g, "x*")
-    .replace(/\)(?=(?:\d|x|pi|e|\())/g, ")*");
+    .replace(BARE_UNARY_FUNCTION, "$1(x)");
+  try { return normalizeMathProductNotation(source); }
+  catch { return source; } // The bounded parser refuses unsupported notation.
 }
 
 function sharedDisplayDomain(

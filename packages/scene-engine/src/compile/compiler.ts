@@ -55,7 +55,7 @@ import { compactCalloutLabel, isPointIdentifierText, isViewSummaryText, pointLab
 import { validateCircleLabelTraces, validateCircleSourceBinding } from "./circleGeometry";
 import { validateRelativeMotionSourceInputs } from "../synthesize/relativeMotionScene";
 import { validateUniformCircularSourceInputs } from "../physics/uniformCircularSourceBinding";
-import { isAffineMathExpression, parseMathExpression, parseMathExpression2D } from "../math/expression";
+import { cartesianLineCoefficients, isAffineMathExpression, parseMathExpression, parseMathExpression2D } from "../math/expression";
 import {
   planeFromCartesian,
   planePatchCorners,
@@ -496,6 +496,15 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
       const x = check.adjunct?.at ?? 0;
       if (!Number.isFinite(x)) throw new Error("source point must be finite");
       const y = fn.evaluate(x);
+      if (check.equation) {
+        const relation = cartesianLineCoefficients(check.equation.lhs, check.equation.rhs);
+        if (!relation) throw new Error("Adjunct label is not a complete affine relation");
+        const { x: a, y: b, constant: c } = relation;
+        const norm = Math.hypot(a, b), slope = fn.derivative(x);
+        const direction = check.adjunct?.role === "normal" ? { x: -slope, y: 1 } : { x: 1, y: slope };
+        if (Math.abs(a * x + b * y + c) / norm > 1e-6 ||
+            Math.abs(a * direction.x + b * direction.y) / (norm * Math.hypot(direction.x, direction.y)) > 1e-6) throw new Error("Adjunct label disagrees with the source line");
+      }
       // Proof-only witnesses stay in a private map. No witness is added to
       // the document, render geometry, reveal groups or stored commands.
       const proof = new Map(geometry);

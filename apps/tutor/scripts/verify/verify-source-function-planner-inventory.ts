@@ -132,11 +132,15 @@ async function main() {
   }
   for (const [source, body, label] of [
     ["Plot y=x+1e-3.", "x+1e-3", "y=x+1e-3"],
+    ["Plot y=x+2e1.", "x+20", "y=x+2e1"],
+    ["Plot y=x+2 e + 1.", "x+2*e+1", "y=x+2 e + 1"],
     ["Plot y=sin(x).", "sin(x)", "y-sin(x)=0"],
     ["Plot y=1/(x^2+1).", "1/(x^2+1)", "y-1/(x^2+1)=0"],
   ]) await admitted(source!, graph(source!, [body!], [label!]));
   const scientificWrong = graph("Plot y=x+1e-3.", ["x+e-3"], ["y=x+1e-3"], false);
   assert.match(sceneSaveAdmissionFailure({ question: "Plot y=x+1e-3.", document: scientificWrong, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "scientific literals cannot become Euler-constant products");
+  const eulerWrong = graph("Plot y=x+2 e + 1.", ["x+20"], ["y=x+2 e + 1"], false);
+  assert.match(sceneSaveAdmissionFailure({ question: "Plot y=x+2 e + 1.", document: eulerWrong, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "separated Euler tokens cannot become an exponent");
   for (const condition of ["at y=0.", "where y=0. A=1."]) {
     const source = "Plot y=x^2 and mark its vertex " + condition;
     const doc = graph(source, ["x^2"], ["y=x^2"]);
@@ -167,6 +171,22 @@ async function main() {
       assert.match(sceneSaveAdmissionFailure({ question: source, document: bad, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "an adjunct needs source incidence, analytic direction and affine geometry");
     }
   }
+  for (const source of ["Plot y=x^2. Do not draw its tangent at x=1.", "Plot y=x^2. If we drew a tangent at x=1, what would its slope be?", "Plot y=x^2. Draw a tangent at x=1 to the circle centered at (1,0) with radius 1."]) {
+    const doc = graph(source, ["x^2", "2*x-1"], ["y=x^2", "y=2*x-1"]);
+    assert(!validateProductionSceneCandidate({ question: source, turnPlan: { ...segmentPlan, question: source }, candidate: { ...doc } }).valid);
+    assert.match(sceneSaveAdmissionFailure({ question: source, document: doc, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "an adjunct mention is not an affirmative request bound to this curve");
+  }
+  const verticalSource = "Plot y=x^2 and its normal at x=0.";
+  const vertical = graph(verticalSource, ["x^2"], ["y=x^2"]);
+  vertical.entities.push({ id: "a", kind: "point", role: "normal point" }, { id: "b", kind: "point", role: "normal point" }, { id: "normal", kind: "line", role: "normal", label: "x=0" });
+  vertical.constructions.push({ id: "make_a", operator: "point", inputs: { x: 0, y: -1 }, outputs: ["a"] }, { id: "make_b", operator: "point", inputs: { x: 0, y: 1 }, outputs: ["b"] }, { id: "make_normal", operator: "line", inputs: { start: "a", end: "b" }, outputs: ["normal"] });
+  vertical.requiredEntityIds.push("a", "b", "normal"); vertical.revealGroups[0]!.entityIds.push("a", "b", "normal");
+  await admitted(verticalSource, vertical);
+  const wrongVerticalLabel = structuredClone(vertical);
+  wrongVerticalLabel.entities = wrongVerticalLabel.entities.filter(entity => entity.id !== "axes"); wrongVerticalLabel.constructions = wrongVerticalLabel.constructions.filter(construction => construction.operator !== "axes");
+  wrongVerticalLabel.requiredEntityIds = wrongVerticalLabel.requiredEntityIds.filter(id => id !== "axes"); wrongVerticalLabel.revealGroups[0]!.entityIds = wrongVerticalLabel.revealGroups[0]!.entityIds.filter(id => id !== "axes");
+  wrongVerticalLabel.entities.find(entity => entity.id === "normal")!.label = "x=1";
+  assert.match(sceneSaveAdmissionFailure({ question: verticalSource, document: wrongVerticalLabel, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "an axes-free normal cannot carry a false complete line equation");
   console.log("planner function inventory: production selection, exact selection, all-tier/no-plan save, native curves and JSON reopen controls passed");
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

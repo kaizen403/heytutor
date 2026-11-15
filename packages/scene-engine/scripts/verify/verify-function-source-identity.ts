@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { isAffineMathExpression, mathExpressionsEquivalent } from "../../src/math/expression";
+import { cartesianLineCoefficients, isAffineMathExpression, mathExpressionsEquivalent, normalizeMathProductNotation } from "../../src/math/expression";
 import { readCartesianEquationLabel } from "../../src/compile/qualitativeLabelTruth";
 
 for (const [left, right] of [
@@ -24,6 +24,17 @@ for (const expression of ["sin(x)", "1/(x^2+1)"]) {
 }
 for (const expression of ["2*x+1", "x/3+1/6", "x^2-x*x+x", "4"]) assert(isAffineMathExpression(expression), expression);
 for (const expression of ["x^2", "sin(x)", "1/x", "x/x", "x^3+1"]) assert(!isAffineMathExpression(expression), expression);
+for (const [source, expected] of [["x+2 e + 1", "x+2*e+1"], ["x+2e+1", "x+2e+1"], ["2e +1", "2*e+1"], ["2e+ 1", "2*e+1"], ["2 x+3 (x-1)", "2*x+3*(x-1)"]]) assert.equal(normalizeMathProductNotation(source!), expected);
+assert.throws(() => normalizeMathProductNotation("1 0"));
+for (const source of ["pi x", "e x", "x x", "x 2", "e(x)"]) assert.throws(() => normalizeMathProductNotation(source));
+assert.deepEqual(cartesianLineCoefficients("x", "0"), { x: 1, y: 0, constant: 0 });
+assert(cartesianLineCoefficients("y", "-x/2+3/2"));
+assert.equal(cartesianLineCoefficients("y", "x^2"), null);
+assert.equal(cartesianLineCoefficients("1/x", "y"), null);
+assert.equal(cartesianLineCoefficients("y-y", "0"), null);
+assert.deepEqual(cartesianLineCoefficients("5e-324*y", "0"), { x: 0, y: 1, constant: 0 });
+assert.equal(cartesianLineCoefficients("1e-5*x+y", "1e12")?.x, 1e-5);
+assert.equal(cartesianLineCoefficients("1e12*x+1e-5*x-1e12*x+y", "0")?.x, 1e-5);
 for (const label of ["f(x)=x^2", "C: y=x^2", "y-x^2=0", "2*y=2*x*x"]) {
   const equation = readCartesianEquationLabel(label);
   assert(equation);
