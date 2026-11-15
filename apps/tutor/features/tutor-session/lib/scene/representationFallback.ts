@@ -1351,13 +1351,23 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
       if (Number.isFinite(at)) adjuncts.push({ role: match[1]!.toLowerCase() as "tangent" | "normal", at });
     } catch { /* An unread source point cannot authorize an adjunct. */ }
   }
-  const proveLine = (entityId: string, expression: string, adjunct?: { role: "tangent" | "normal"; at: number }) =>
-    compileSceneDocument(document, { figureConsistency: true, sourceFunctionChecks: [{ entityId, expression, ...(adjunct ? { adjunct } : {}) }] }).ok;
+  const proveFunction = (entityId: string, expression: string, adjunct?: { role: "tangent" | "normal"; at: number }, equation?: { lhs: string; rhs: string }) =>
+    compileSceneDocument(document, { figureConsistency: true, sourceFunctionChecks: [{ entityId, expression, ...(adjunct ? { adjunct } : {}), ...(equation ? { equation } : {}) }] }).ok;
   const equationLabels = (entityId: string) => [document.entities.find(entity => entity.id === entityId)?.label,
     ...document.annotations.filter(annotation => annotation.kind === "label" && annotation.targetIds.includes(entityId)).map(annotation => annotation.text)];
   let unowned = false;
   for (const curve of document.constructions.filter(construction => {
     if (construction.operator === "function_curve" || construction.operator === "implicit_curve") return true;
+    if (construction.operator === "conic") {
+      const labels = equationLabels(construction.outputs[0]!);
+      // This inventory owns explicit functions. An implicit conic such as
+      // y²=4x may accompany y=2x-4 without itself claiming to be y=f(x).
+      // Its existing compiler obligations still apply independently.
+      return (labels.every(label => label === undefined) && document.source.diagramYieldPolicy === "verified_parts") || labels.some(label => {
+        const equation = typeof label === "string" ? readCartesianEquationLabel(normalizeMathText(label)) : null;
+        return equation !== null && (equation.lhs.trim() === "y" || equation.rhs.trim() === "y" || facts.some(fact => equationMatches(label, fact.expression)));
+      });
+    }
     if (!["line", "line_equation", "segment"].includes(construction.operator)) return false;
     return equationLabels(construction.outputs[0]!).some(label => {
       const equation = typeof label === "string" ? readCartesianEquationLabel(label) : null;
@@ -1368,7 +1378,7 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
     const label = labels.find(label => typeof label === "string" && readCartesianEquationLabel(normalizeMathText(label)) !== null);
     const body = typeof curve.inputs.expression === "string" ? normalizeMathText(curve.inputs.expression) : "";
     const straight = ["line", "line_equation", "segment"].includes(curve.operator);
-    const bodyOwns = (expression: string) => straight ? proveLine(curve.outputs[0]!, expression) : curve.operator === "function_curve"
+    const bodyOwns = (expression: string) => straight || curve.operator === "conic" ? proveFunction(curve.outputs[0]!, expression) : curve.operator === "function_curve"
       ? mathExpressionsEquivalent(body, expression)
       : mathExpressionsEquivalent(body, `y-(${expression})`, { allowNonzeroScale: true });
     // verified_parts may omit an unprovable label. The presentation flag does
@@ -1382,10 +1392,9 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
     let adjunctOwned = false;
     if (owner < 0 && !axis && facts.length === 1 && adjuncts.length > 0) {
       const equation = typeof label === "string" ? readCartesianEquationLabel(normalizeMathText(label)) : null;
-      const adjunctBody = straight && equation?.lhs.trim() === "y" ? normalizeNativeFunctionBody(equation.rhs) : body;
-      const labelAgrees = yieldedLabel || equationMatches(label, adjunctBody);
-      adjunctOwned = labelAgrees && (!straight || proveLine(curve.outputs[0]!, adjunctBody)) &&
-        adjuncts.some(adjunct => proveLine(curve.outputs[0]!, facts[0]!.expression, adjunct));
+      const labelAgrees = yieldedLabel || (straight ? equation !== null : equationMatches(label, body));
+      adjunctOwned = labelAgrees && adjuncts.some(adjunct =>
+        proveFunction(curve.outputs[0]!, facts[0]!.expression, adjunct, straight && equation ? equation : undefined));
     }
     // A native display transform is accepted only with the entire independently
     // regenerated program, never a client-provided display/source tag.

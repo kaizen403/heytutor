@@ -125,7 +125,8 @@ async function main() {
     const ownPlan = { ...segmentPlan, question: source };
     const { tier, nonMetric } = decision ?? { tier: "qualitative_verified" as const, nonMetric: true };
     if (decision) doc = { ...doc, source: { ...doc.source, representationTier: tier, nonMetric } };
-    assert(validateProductionSceneCandidate({ question: source, turnPlan: ownPlan, candidate: { ...doc } }).valid, source);
+    const validation = validateProductionSceneCandidate({ question: source, turnPlan: ownPlan, candidate: { ...doc } });
+    assert(validation.valid, `${source}: ${JSON.stringify(validation.errors)}`);
     const live = selectProductionScene({ question: source, turnPlan: ownPlan, problemIR: null, candidate: { ...doc }, policy: { preferPlanner: true, allowedFigureSources: ["planner"] } });
     assert.equal(live.visualStatus, "validated", source);
     const saved = await canonicalizeTurnSceneMetadata({ question: source, sceneDocument: doc, visualStatus: "validated", sceneArtifacts: { schemaVersion: "scene-artifacts/v3", turnPlan: ownPlan, representationTier: tier, nonMetric, diagramResultStatus: "ready" }, segments: [] });
@@ -194,6 +195,72 @@ async function main() {
       const bad = graph(source, ["x^2", wrong], ["y=x^2", `y=${wrong}`]);
       assert.match(sceneSaveAdmissionFailure({ question: source, document: bad, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "an adjunct needs source incidence, analytic direction and affine geometry");
     }
+  }
+  const conicSource = "Plot y=x^2.";
+  const conic = graph(conicSource, ["x^2"], ["y=x^2"]);
+  const parabola = conic.constructions.find(construction => construction.operator === "function_curve")!;
+  parabola.operator = "conic";
+  parabola.inputs = { kind: "parabola", vertex: [0, 0], p: 0.25, rotationDeg: 90, tMin: -4, tMax: 4, samples: 65 };
+  const conicBefore = compileSceneDocument(conic, { figureConsistency: true });
+  assert(conicBefore.ok && conicBefore.renderScene, "the conic regression must already compile");
+  await admitted(conicSource, conic);
+  const conicProof = compileSceneDocument(conic, { sourceFunctionChecks: [{ entityId: "curve_0", expression: "x^2" }] });
+  assert(conicProof.ok);
+  assert.deepEqual(conicProof.renderScene, conicBefore.renderScene, "conic source proofs must not change drawn marks");
+  for (const change of [{ p: 0.5 }, { rotationDeg: 0 }, { rotationDeg: 45 }, { rotationDeg: 90.000001 }, { vertex: [1, 0] }]) {
+    const bad = structuredClone(conic);
+    Object.assign(bad.constructions.find(construction => construction.operator === "conic")!.inputs, change);
+    assert.match(sceneSaveAdmissionFailure({ question: conicSource, document: bad, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/,
+      "a conic equation label cannot vouch for the wrong parabola");
+  }
+  for (const [rotationDeg, p, expression] of [[-90, -0.25, "(x-1)^2+2"], [270, 0.25, "-(x-1)^2+2"], [450, 0.075, "(x-1)^2/(3/10)+2"]] as const) {
+    const source = `Plot y=${expression}.`;
+    const doc = graph(source, [expression], [`y=${expression.replace("(3/10)", ".3")}`], false);
+    const construction = doc.constructions[0]!;
+    construction.operator = "conic";
+    construction.inputs = { kind: "parabola", vertex: [1, 2], p, rotationDeg, tMin: -4, tMax: 4, samples: 65 };
+    assert(compileSceneDocument(doc).ok, "the alternate conic must pass the existing label and geometry guards");
+    await admitted(source, doc);
+    const bad = structuredClone(doc);
+    bad.constructions[0]!.inputs.p = p * 2;
+    assert.match(sceneSaveAdmissionFailure({ question: source, document: bad, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/,
+      "conic ownership is proved without relying on visible Cartesian axes");
+  }
+  const normalSource = "Sketch y=x^2 and its normal at x=0.";
+  const verticalNormal = graph(normalSource, ["x^2"], ["y=x^2"]);
+  verticalNormal.entities.push({ id: "normal", kind: "line", role: "normal", label: "x=0" });
+  verticalNormal.constructions.push({ id: "make_normal", operator: "line", inputs: { start: [0, -1], end: [0, 3] }, outputs: ["normal"] });
+  verticalNormal.requiredEntityIds.push("normal"); verticalNormal.revealGroups[0]!.entityIds.push("normal");
+  await admitted(normalSource, verticalNormal);
+  const noAxesNormal = structuredClone(verticalNormal);
+  noAxesNormal.entities = noAxesNormal.entities.filter(entity => entity.id !== "axes");
+  noAxesNormal.constructions = noAxesNormal.constructions.filter(construction => construction.operator !== "axes");
+  noAxesNormal.requiredEntityIds = noAxesNormal.requiredEntityIds.filter(id => id !== "axes");
+  noAxesNormal.revealGroups[0]!.entityIds = noAxesNormal.revealGroups[0]!.entityIds.filter(id => id !== "axes");
+  await admitted(normalSource, noAxesNormal);
+  const normalBefore = compileSceneDocument(noAxesNormal);
+  const normalProof = compileSceneDocument(noAxesNormal, { sourceFunctionChecks: [{ entityId: "normal", expression: "x^2", adjunct: { role: "normal", at: 0 }, equation: { lhs: "x", rhs: "0" } }] });
+  assert(normalBefore.ok && normalProof.ok);
+  assert.deepEqual(normalProof.renderScene, normalBefore.renderScene, "normal proofs never draw their private witnesses");
+  for (const label of ["2*x=0", "0=x"]) {
+    const doc = structuredClone(noAxesNormal);
+    doc.entities.find(entity => entity.id === "normal")!.label = label;
+    await admitted(normalSource, doc);
+  }
+  for (const change of ["shift", "tilt", "label"] as const) {
+    const bad = structuredClone(noAxesNormal);
+    const normal = bad.constructions.find(construction => construction.outputs.includes("normal"))!;
+    if (change === "shift") normal.inputs = { start: [1, -1], end: [1, 3] };
+    if (change === "tilt") normal.inputs = { start: [-1, -1], end: [1, 1] };
+    if (change === "label") bad.entities.find(entity => entity.id === "normal")!.label = "x=1";
+    assert.match(sceneSaveAdmissionFailure({ question: normalSource, document: bad, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/,
+      "normal incidence, direction and equation labels are independently proved without axes");
+  }
+  for (const label of ["x=x", "x^2=0", "y=0"]) {
+    const doc = structuredClone(noAxesNormal);
+    doc.entities.find(entity => entity.id === "normal")!.label = label;
+    assert.match(sceneSaveAdmissionFailure({ question: normalSource, document: doc, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/,
+      "only a genuine affine equation of the normal may label it");
   }
   console.log("planner function inventory: production selection, exact selection, all-tier/no-plan save, native curves and JSON reopen controls passed");
 }

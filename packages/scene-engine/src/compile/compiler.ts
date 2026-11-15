@@ -132,6 +132,7 @@ import { validateLinearSourceBinding, validateLinearClaims } from "./linearRegio
 import { evaluateDistributedFieldsConstruction, type GaussFluxDefinition, type LineChargeFieldDefinition, type LoopFieldDefinition, type SinusoidalFluxDefinition, type SinusoidStateDefinition, type WireFieldDefinition } from "./distributedFieldsGeometry";
 import { evaluateTriangleConstruction } from "./triangleGeometry";
 import { conicPointResidual, evaluateConicConstruction, type ConicDefinition } from "./conicGeometry";
+import { conicMatchesSourceFunction, lineMatchesCartesianEquation } from "./sourceFunctionProof";
 import {
   evaluateSpaceDerivationConstruction,
   spaceAcuteAngle,
@@ -489,13 +490,18 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
   for (const [index, check] of sourceFunctionChecks.slice(0, 64).entries()) {
     try {
       const construction = document.constructions.find(item => item.outputs.includes(check.entityId));
+      const path = geometry.get(check.entityId);
+      if (construction?.operator === "conic") {
+        if (check.adjunct || check.equation || path?.kind !== "compound" || !path.conic || !conicMatchesSourceFunction(path.conic, check.expression)) throw new Error("conic is not proved equal to the source function");
+        continue;
+      }
       if (!construction || !["line", "line_equation", "segment", "function_curve"].includes(construction.operator)) throw new Error("source function proof requires a straight line");
       if (construction.operator === "function_curve" && (typeof construction.inputs.expression !== "string" || !isAffineMathExpression(construction.inputs.expression))) throw new Error("adjunct curve is not proved affine");
       const fn = parseMathExpression(check.expression);
       if (check.adjunct && !["tangent", "normal"].includes(check.adjunct.role)) throw new Error("Unknown source adjunct role");
       if (!check.adjunct && !isAffineMathExpression(check.expression)) throw new Error("source function is not proved affine");
-      const path = geometry.get(check.entityId);
       if (!path || path.kind !== "path" || path.points.length < 2) throw new Error("source function proof requires a path");
+      if (check.equation && !lineMatchesCartesianEquation(path.points, check.equation)) throw new Error("line is not proved equal to its Cartesian equation label");
       const firstX = path.points[0]!.x, lastX = path.points.at(-1)!.x;
       if (!check.adjunct && Math.abs(lastX - firstX) <= 1e-12) throw new Error("source function proof requires distinct abscissae");
       const x = check.adjunct?.at ?? firstX;
