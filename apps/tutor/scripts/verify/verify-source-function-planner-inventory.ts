@@ -1,6 +1,6 @@
 /** Compilation alone cannot let a planner replace requested function graphs. */
 import assert from "node:assert/strict";
-import { compileSceneDocument, type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { buildLinearSourceDocument, compileSceneDocument, mathExpressionsEquivalent, tierForForeignDocument, type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { selectVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
 import { selectProductionScene, validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { sceneSaveAdmissionFailure } from "../../lib/scene/sceneSaveAdmission";
@@ -121,15 +121,37 @@ async function main() {
   falseYield.source.diagramYieldPolicy = "verified_parts";
   for (const entity of falseYield.entities) delete entity.label;
   assert.match(sceneSaveAdmissionFailure({ question: wrongPlan.question, document: falseYield, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "a yield flag cannot establish curve truth");
-  async function admitted(source: string, doc: SceneDocument) {
+  async function admitted(source: string, doc: SceneDocument, decision?: ReturnType<typeof tierForForeignDocument>) {
     const ownPlan = { ...segmentPlan, question: source };
+    const { tier, nonMetric } = decision ?? { tier: "qualitative_verified" as const, nonMetric: true };
+    if (decision) doc = { ...doc, source: { ...doc.source, representationTier: tier, nonMetric } };
     assert(validateProductionSceneCandidate({ question: source, turnPlan: ownPlan, candidate: { ...doc } }).valid, source);
     const live = selectProductionScene({ question: source, turnPlan: ownPlan, problemIR: null, candidate: { ...doc }, policy: { preferPlanner: true, allowedFigureSources: ["planner"] } });
     assert.equal(live.visualStatus, "validated", source);
-    const saved = await canonicalizeTurnSceneMetadata({ question: source, sceneDocument: doc, visualStatus: "validated", sceneArtifacts: { schemaVersion: "scene-artifacts/v3", turnPlan: ownPlan, representationTier: "qualitative_verified", nonMetric: true, diagramResultStatus: "ready" }, segments: [] });
+    const saved = await canonicalizeTurnSceneMetadata({ question: source, sceneDocument: doc, visualStatus: "validated", sceneArtifacts: { schemaVersion: "scene-artifacts/v3", turnPlan: ownPlan, representationTier: tier, nonMetric, diagramResultStatus: "ready" }, segments: [] });
     assert(saved.ok, saved.ok ? "" : saved.error);
-    assert(admitStoredScene({ sceneDocument: JSON.parse(JSON.stringify(saved.value.sceneDocument)), sceneQuestion: source, turnPlan: ownPlan, submittedTier: "qualitative_verified" }).ok);
+    assert(admitStoredScene({ sceneDocument: JSON.parse(JSON.stringify(saved.value.sceneDocument)), sceneQuestion: source, turnPlan: ownPlan, submittedTier: tier }).ok);
   }
+  const annotated = graph("Plot y=x^2.", ["x^2"], ["y=x^2"]);
+  delete annotated.entities.find(entity => entity.id === "curve_0")!.label;
+  annotated.annotations.push({ id: "curve_equation", kind: "label", targetIds: ["curve_0"], text: "y=x^2" });
+  await admitted("Plot y=x^2.", annotated);
+  const wrongAnnotated = structuredClone(annotated);
+  wrongAnnotated.constructions.find(construction => construction.operator === "function_curve")!.inputs.expression = "x";
+  assert.match(sceneSaveAdmissionFailure({ question: "Plot y=x^2.", document: wrongAnnotated, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/,
+    "an attached equation cannot license an unrelated curve body");
+  assert(mathExpressionsEquivalent("sin(x)-2*y", "y-sin(x)/2", { allowNonzeroScale: true }), "exact scaling of the same function terms preserves its equation");
+  assert(!mathExpressionsEquivalent("cos(x)-2*y", "y-sin(x)/2", { allowNonzeroScale: true }), "different function terms cannot become equivalent");
+  assert(!mathExpressionsEquivalent("sin(1/x)-sin(1/x)", "0"), "cancelling function terms cannot erase their domain");
+  await admitted("Sketch y = sin(x)/2.", graph("Sketch y = sin(x)/2.", ["sin(x)/2"], ["sin(x)=2y"]));
+  const linearQuestion = "The graphs y=(3/2)x+4 and y=-(1/2)x+10 cross at P. Show the graphs and find the exact coordinates of P.";
+  const linearProgram = buildLinearSourceDocument(linearQuestion);
+  assert(linearProgram?.constructions.some(construction => construction.operator === "linear_system"));
+  await admitted(linearQuestion, linearProgram, tierForForeignDocument(linearProgram));
+  const unrelatedLinear = structuredClone(linearProgram);
+  unrelatedLinear.constructions[0]!.inputs.equations = ["x+y=2", "x-y=1"];
+  assert(!compileSceneDocument(unrelatedLinear, { figureConsistency: true }).ok, "the composite source compiler rejects different equations");
+  assert(sceneSaveAdmissionFailure({ question: linearQuestion, document: unrelatedLinear, turnPlan: null, tier: tierForForeignDocument(unrelatedLinear).tier }), "an unrelated composite cannot claim source-built authority");
   for (const [source, body, label] of [
     ["Plot y=x+1e-3.", "x+1e-3", "y=x+1e-3"],
     ["Plot y=sin(x).", "sin(x)", "y-sin(x)=0"],
@@ -155,6 +177,11 @@ async function main() {
   assert(lineBefore.ok && lineProof.ok);
   assert.deepEqual(lineProof.renderScene, lineBefore.renderScene, "source witnesses never become drawn or stored marks");
   await admitted(lineSource, line);
+  const graphSegment = structuredClone(line);
+  graphSegment.entities.find(entity => entity.id === "ab")!.kind = "segment";
+  graphSegment.constructions[2]!.operator = "segment";
+  graphSegment.constructions[0]!.inputs = { x: 3, y: 7 }; graphSegment.constructions[1]!.inputs = { x: 5, y: 11 };
+  await admitted(lineSource, graphSegment);
   const wrongLine = structuredClone(line); wrongLine.constructions[1]!.inputs = { x: 1, y: 4 };
   assert(!compileSceneDocument(wrongLine, { sourceFunctionChecks: [{ entityId: "ab", expression: "2*x+1" }] }).ok, "axes-free straight-line ownership is independently proved");
   for (const role of ["tangent", "normal"] as const) {

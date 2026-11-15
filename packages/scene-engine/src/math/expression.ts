@@ -123,6 +123,11 @@ export function mathExpressionsEquivalent(left: string, right: string, options: 
       const result: Polynomial = new Map();
       for (const [u, c] of x) for (const [v, d] of y) {
         step();
+        if (u === "0,0" || v === "0,0") {
+          put(result, u === "0,0" ? v : u, fraction(c.n * d.n, c.d * d.d));
+          continue;
+        }
+        if (u.startsWith("function:") || v.startsWith("function:")) throw new Error("non-polynomial product");
         const [ux, uy] = u.split(",").map(Number), [vx, vy] = v.split(",").map(Number);
         const px = ux! + vx!, py = uy! + vy!;
         if (px + py > 16) throw new Error("identity degree limit");
@@ -130,11 +135,18 @@ export function mathExpressionsEquivalent(left: string, right: string, options: 
       }
       return result;
     };
+    const functionAtoms = new Set<string>();
     const polynomial = (node: ExpressionNode): Polynomial => {
       step();
       if (node.kind === "number") return constant(number(node.value));
       if (node.kind === "variable") return new Map([[node.name === "x" ? "1,0" : "0,1", fraction(1n)]]);
-      if (node.kind === "function") throw new Error("non-polynomial identity");
+      if (node.kind === "function") {
+        // Rearranging identical function terms does not change their arguments
+        // or domains. Only scalar arithmetic may combine these opaque terms.
+        const key = `function:${JSON.stringify(node)}`;
+        functionAtoms.add(key);
+        return new Map([[key, fraction(1n)]]);
+      }
       if (node.kind === "unary") return new Map([...polynomial(node.value)].map(([key, value]) => [key, fraction(node.operator === "-" ? -value.n : value.n, value.d)]));
       const x = polynomial(node.left), y = polynomial(node.right);
       if (node.operator === "+" || node.operator === "-") {
@@ -154,7 +166,10 @@ export function mathExpressionsEquivalent(left: string, right: string, options: 
       for (let i = 0; i < Number(scalar.n); i++) result = multiply(result, x);
       return result;
     };
-    const x = polynomial(a), y = polynomial(b);
+    const x = polynomial(a), leftFunctions = new Set(functionAtoms);
+    functionAtoms.clear();
+    const y = polynomial(b);
+    if (leftFunctions.size !== functionAtoms.size || [...leftFunctions].some(key => !functionAtoms.has(key))) return false;
     if (x.size !== y.size || [...x.keys()].some(key => !y.has(key))) return false;
     if (x.size === 0) return true;
     const key = x.keys().next().value!;

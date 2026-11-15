@@ -489,12 +489,16 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
   for (const [index, check] of sourceFunctionChecks.slice(0, 64).entries()) {
     try {
       const construction = document.constructions.find(item => item.outputs.includes(check.entityId));
-      if (!construction || !["line", "line_equation", "function_curve"].includes(construction.operator)) throw new Error("source function proof requires a straight line");
+      if (!construction || !["line", "line_equation", "segment", "function_curve"].includes(construction.operator)) throw new Error("source function proof requires a straight line");
       if (construction.operator === "function_curve" && (typeof construction.inputs.expression !== "string" || !isAffineMathExpression(construction.inputs.expression))) throw new Error("adjunct curve is not proved affine");
       const fn = parseMathExpression(check.expression);
       if (check.adjunct && !["tangent", "normal"].includes(check.adjunct.role)) throw new Error("Unknown source adjunct role");
       if (!check.adjunct && !isAffineMathExpression(check.expression)) throw new Error("source function is not proved affine");
-      const x = check.adjunct?.at ?? 0;
+      const path = geometry.get(check.entityId);
+      if (!path || path.kind !== "path" || path.points.length < 2) throw new Error("source function proof requires a path");
+      const firstX = path.points[0]!.x, lastX = path.points.at(-1)!.x;
+      if (!check.adjunct && Math.abs(lastX - firstX) <= 1e-12) throw new Error("source function proof requires distinct abscissae");
+      const x = check.adjunct?.at ?? firstX;
       if (!Number.isFinite(x)) throw new Error("source point must be finite");
       const y = fn.evaluate(x);
       // Proof-only witnesses stay in a private map. No witness is added to
@@ -514,7 +518,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
         proof.set(direction, { kind: "path", points: [{ x, y }, { x: x + 1, y: y + slope }] });
         obligation("direction", check.adjunct.role === "tangent" ? "parallel" : "perpendicular", [direction, check.entityId]);
       } else {
-        const next = witness("next"); proof.set(next, { kind: "point", point: { x: 1, y: fn.evaluate(1) } });
+        const next = witness("next"); proof.set(next, { kind: "point", point: { x: lastX, y: fn.evaluate(lastX) } });
         obligation("next", "incident", [next, check.entityId]);
       }
     } catch (error) {

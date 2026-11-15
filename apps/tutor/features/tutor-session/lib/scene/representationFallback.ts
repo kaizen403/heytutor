@@ -1288,6 +1288,15 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
   const plotRequest = new RegExp(`${request}(?:graphs?\\b|plots?\\b|curves?\\b|functions?\\b|${lhs})`, "iu").test(stem);
   const regionRequest = new RegExp(`${request}regions?\\b|\\b(?:find|calculate|determine)\\s+${modifiers}area\\s+(?:of|under|between|bounded|enclosed)\\b`, "iu").test(stem);
   if (!plotRequest && !regionRequest) return [];
+  const cleanSourceTier = (doc: SceneDocument) => ({ ...doc, source: Object.fromEntries(Object.entries(doc.source)
+    .filter(([key]) => !["question", "representationTier", "nonMetric"].includes(key))) });
+  // A complete source-built linear system owns its component lines as one
+  // composite. Re-derive the whole program and retain every compiler guard.
+  if (document.constructions.some(construction => construction.operator === "linear_system")) {
+    const linear = buildLinearSourceDocument(stem);
+    if (linear && sameJsonStructure(cleanSourceTier(document), cleanSourceTier(linear), true) &&
+        compileSceneDocument(document, { figureConsistency: true }).ok) return [];
+  }
   const independent = synthesizeFamilyScene({ question: stem, turnPlan: null, problemIR: null });
   const facts = extractExplicitFunctionFacts(question, true, independent?.document);
   // The fallback producer refuses an unowned normal or unrelated scalar
@@ -1321,15 +1330,13 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
   let nativeIdentity: boolean | undefined;
   const sourceOnlyNative = () => {
     if (nativeIdentity !== undefined) return nativeIdentity;
-    const clean = (doc: SceneDocument) => ({ ...doc, source: Object.fromEntries(Object.entries(doc.source)
-      .filter(([key]) => !["question", "representationTier", "nonMetric"].includes(key))) });
     if (!independent) return nativeIdentity = false;
-    const regenerated = clean(independent.document);
+    const regenerated = cleanSourceTier(independent.document);
     // Persistence writes this server-regenerated JSON, including its harmless
     // conversion of -0 to 0. Never serialize the submitted program to hide
     // unknown, nonfinite or non-JSON values from the structural comparison.
-    return nativeIdentity = sameJsonStructure(clean(document), regenerated, true) ||
-      sameJsonStructure(clean(document), JSON.parse(JSON.stringify(regenerated)), true);
+    return nativeIdentity = sameJsonStructure(cleanSourceTier(document), regenerated, true) ||
+      sameJsonStructure(cleanSourceTier(document), JSON.parse(JSON.stringify(regenerated)), true);
   };
   const owners = new Set<number>();
   const boundaries = new Set(document.constructions.filter(construction => construction.operator === "function_region")
@@ -1346,24 +1353,28 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
   }
   const proveLine = (entityId: string, expression: string, adjunct?: { role: "tangent" | "normal"; at: number }) =>
     compileSceneDocument(document, { figureConsistency: true, sourceFunctionChecks: [{ entityId, expression, ...(adjunct ? { adjunct } : {}) }] }).ok;
+  const equationLabels = (entityId: string) => [document.entities.find(entity => entity.id === entityId)?.label,
+    ...document.annotations.filter(annotation => annotation.kind === "label" && annotation.targetIds.includes(entityId)).map(annotation => annotation.text)];
   let unowned = false;
   for (const curve of document.constructions.filter(construction => {
     if (construction.operator === "function_curve" || construction.operator === "implicit_curve") return true;
-    if (construction.operator !== "line" && construction.operator !== "line_equation") return false;
-    const label = document.entities.find(entity => entity.id === construction.outputs[0])?.label;
-    const equation = typeof label === "string" ? readCartesianEquationLabel(label) : null;
-    return equation !== null && (/(?<![\p{L}\p{N}_])y(?![\p{L}\p{N}_])/u.test(equation.lhs + " " + equation.rhs) || adjuncts.length > 0);
+    if (!["line", "line_equation", "segment"].includes(construction.operator)) return false;
+    return equationLabels(construction.outputs[0]!).some(label => {
+      const equation = typeof label === "string" ? readCartesianEquationLabel(label) : null;
+      return equation !== null && (/(?<![\p{L}\p{N}_])y(?![\p{L}\p{N}_])/u.test(equation.lhs + " " + equation.rhs) || adjuncts.length > 0);
+    });
   })) {
-    const label = document.entities.find(entity => entity.id === curve.outputs[0])?.label;
+    const labels = equationLabels(curve.outputs[0]!);
+    const label = labels.find(label => typeof label === "string" && readCartesianEquationLabel(normalizeMathText(label)) !== null);
     const body = typeof curve.inputs.expression === "string" ? normalizeMathText(curve.inputs.expression) : "";
-    const straight = curve.operator === "line" || curve.operator === "line_equation";
+    const straight = ["line", "line_equation", "segment"].includes(curve.operator);
     const bodyOwns = (expression: string) => straight ? proveLine(curve.outputs[0]!, expression) : curve.operator === "function_curve"
       ? mathExpressionsEquivalent(body, expression)
       : mathExpressionsEquivalent(body, `y-(${expression})`, { allowNonzeroScale: true });
     // verified_parts may omit an unprovable label. The presentation flag does
     // not prove anything: the remaining literal body must still independently
     // equal its source function, with every requested function accounted for.
-    const yieldedLabel = label === undefined && document.source.diagramYieldPolicy === "verified_parts";
+    const yieldedLabel = labels.every(label => label === undefined) && document.source.diagramYieldPolicy === "verified_parts";
     const owner = facts.findIndex(fact => equationMatches(label, fact.expression) || yieldedLabel && bodyOwns(fact.expression));
     const axis = owner < 0 && sourceAxis && boundaries.has(curve.outputs[0]) && (label === undefined || equationMatches(label, "0"));
     const expression = axis ? "0" : facts[owner]?.expression;
