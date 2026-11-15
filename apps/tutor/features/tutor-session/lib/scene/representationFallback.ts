@@ -1,11 +1,14 @@
 import {
   SCENE_ENGINE_VERSION,
+  SCENE_COUNT_LIMITS,
   buildMatrixSourceDocument,
   buildLinearSourceDocument,
   compileSceneDocument,
   detectArchetype,
   isRiverBoatStem,
   parseMathExpression,
+  mathExpressionsEquivalent,
+  readCartesianEquationLabel,
   synthesizeFamilyScene,
   synthesizeLastResortScene,
   isFullProblemIRStructure,
@@ -24,6 +27,7 @@ import {
   type ProblemStructureView,
   type RenderScene,
   type SceneDocument,
+  type SceneIssue,
   type TurnPlanV3,
   type ValidationReport,
   type FigureSource,
@@ -564,6 +568,8 @@ function checkUsableExactRepresentation(
       normalizeQuestion(sourceQuestion) !== normalizeQuestion(expectedQuestion)) {
     return reject("source_question_mismatch", "the scene was drawn for a different question");
   }
+  const functionIssues = validateSourceFunctionInventory(candidate.sceneDocument, expectedQuestion);
+  if (functionIssues.length) return reject("source_function_inventory_unmet", functionIssues[0]!.message);
   if (candidate.validationReport.issues.some((issue) =>
     issue.severity === "fatal" || issue.code === "assertion_failed")) {
     return reject("exact_assertion_unproven", "the scene report carries a fatal issue or a failed assertion");
@@ -998,7 +1004,7 @@ function extractExplicitFunctionFacts(question: string, nativeInventory = false,
     // A scalar condition on an already declared curve is not another curve.
     // "draw y=0" still declares a full horizontal line; "where y=0" asks
     // about the existing curve. Neither condition nor its answer adds ink.
-    if (facts.length > 0 && /\b(?:when|where)\s*$/iu.test(normalized.slice(0, lhs)) && !match[1]) {
+    if (facts.length > 0 && isSourceOrdinateCondition(normalized.slice(0, lhs)) && !match[1]) {
       try {
         const expression = normalizeNativeFunctionBody(read.expression);
         if (/\bx\b/iu.test(expression) || !Number.isFinite(parseMathExpression(expression).evaluate(0))) return [];
@@ -1059,6 +1065,11 @@ function extractExplicitFunctionFacts(question: string, nativeInventory = false,
     if (!isNeutralPlottingRequest(rest)) return [];
   }
   return facts;
+}
+
+function isSourceOrdinateCondition(prefix: string): boolean {
+  return /\b(?:when|where)\s*$/iu.test(prefix) ||
+    /\b(?:point|vertex|intersection|root|minimum|maximum)(?:\s+[A-Z])?\s+at\s*$/iu.test(prefix);
 }
 
 /** The stem with its quoted text and every accepted equation span blanked. */
@@ -1263,6 +1274,117 @@ function sourceFunctionSettingEqualities(source: string, unquoted: Uint8Array, e
         parseMathExpression(normalizeExpression(match[1]!.replace(/π/gu, "pi"))).evaluate(0) === 0) add(match);
   }
   return owned;
+}
+
+/** A declared plot owns every explicit source function, independently of its
+ * geometric tier, visible axes, or planner metadata. */
+export function validateSourceFunctionInventory(document: SceneDocument, question: string): SceneIssue[] {
+  const normalized = normalizeMathText(question);
+  const positions = unquotedFunctionSourcePositions(normalized);
+  const stem = normalized.split("").map((character, index) => positions[index] ? character : " ").join("");
+  const lhs = String.raw`(?:y\s*=|[\p{L}][\p{L}\p{N}_]*\s*\(\s*x\s*\)\s*=)`;
+  const modifiers = String.raw`(?:(?:an?|the|these|both|all|labelled|labeled|enclosed|bounded|shaded)\s+)*`;
+  const request = String.raw`\b(?:plot|graph|sketch|draw|show|construct)\s+${modifiers}(?:diagram\s+of\s+${modifiers})?`;
+  const plotRequest = new RegExp(`${request}(?:graphs?\\b|plots?\\b|curves?\\b|functions?\\b|${lhs})`, "iu").test(stem);
+  const regionRequest = new RegExp(`${request}regions?\\b|\\b(?:find|calculate|determine)\\s+${modifiers}area\\s+(?:of|under|between|bounded|enclosed)\\b`, "iu").test(stem);
+  if (!plotRequest && !regionRequest) return [];
+  const independent = synthesizeFamilyScene({ question: stem, turnPlan: null, problemIR: null });
+  const facts = extractExplicitFunctionFacts(question, true, independent?.document);
+  // The fallback producer refuses an unowned normal or unrelated scalar
+  // equality as a whole. Those cannot hide the explicitly requested curves
+  // from planner admission. Read every declared function before considering
+  // other requested marks; an unread later function still refuses the set.
+  if (facts.length === 0) {
+    const declarations = new RegExp(`(?<![\\p{L}\\p{N}_])${lhs}`, "giu");
+    let unread = false, previousEnd = -1;
+    for (const match of normalized.matchAll(declarations)) {
+      if (!positions[match.index!]) continue;
+      const boundary = hasStandaloneFunctionLhs(normalized, match.index!, previousEnd);
+      const start = match.index! + match[0].length;
+      const read = boundary && readCompleteSupportedExpression(normalized.slice(start), boundary, true);
+      if (!read) { unread = true; break; }
+      const expression = normalizeNativeFunctionBody(read.expression);
+      if (facts.length > 0 && isSourceOrdinateCondition(normalized.slice(0, match.index!)) && !/\bx\b/u.test(expression)) continue;
+      if (!facts.some(fact => fact.expression === expression)) facts.push({ expression, sourceText: normalized.slice(match.index!, start + read.end) });
+      previousEnd = start + read.end;
+      if (facts.length > SCENE_COUNT_LIMITS.perKind) { unread = true; break; }
+    }
+    if (unread) return [{ code: "source_function_inventory_unmet", severity: "fatal", path: "constructions", message: "A requested function declaration could not be read completely." }];
+  }
+  if (facts.length === 0) return [];
+  if (!plotRequest && !facts.some(fact => /\bx\b/u.test(fact.expression)) && !/\b(?:curves?|functions?|integration|x[ -]axis)\b/iu.test(stem)) return [];
+  const equationMatches = (label: unknown, expression: string) => {
+    const equation = typeof label === "string" ? readCartesianEquationLabel(normalizeMathText(label)) : null;
+    const side = (value: string) => normalizeNativeFunctionBody(value).replace(/(\d)(?=y\b)/gu, "$1*");
+    return equation !== null && mathExpressionsEquivalent(`(${side(equation.lhs)})-(${side(equation.rhs)})`, `y-(${expression})`, { allowNonzeroScale: true });
+  };
+  let nativeIdentity: boolean | undefined;
+  const sourceOnlyNative = () => {
+    if (nativeIdentity !== undefined) return nativeIdentity;
+    const clean = (doc: SceneDocument) => ({ ...doc, source: Object.fromEntries(Object.entries(doc.source)
+      .filter(([key]) => !["question", "representationTier", "nonMetric"].includes(key))) });
+    if (!independent) return nativeIdentity = false;
+    const regenerated = clean(independent.document);
+    // Persistence writes this server-regenerated JSON, including its harmless
+    // conversion of -0 to 0. Never serialize the submitted program to hide
+    // unknown, nonfinite or non-JSON values from the structural comparison.
+    return nativeIdentity = sameJsonStructure(clean(document), regenerated, true) ||
+      sameJsonStructure(clean(document), JSON.parse(JSON.stringify(regenerated)), true);
+  };
+  const owners = new Set<number>();
+  const boundaries = new Set(document.constructions.filter(construction => construction.operator === "function_region")
+    .flatMap(construction => [construction.inputs.upper, construction.inputs.lower]));
+  const sourceAxis = /(?<![\p{L}\p{N}_])x[\s-]+axis(?![\p{L}\p{N}_])/iu.test(stem);
+  const adjuncts: Array<{ role: "tangent" | "normal"; at: number }> = [];
+  if (facts.length === 1) for (const match of stem.matchAll(/\b(tangent|normal)\b(?:\s+line)?\s+at\s+x\s*=\s*/giu)) {
+    const value = readCompleteSupportedExpression(stem.slice(match.index! + match[0].length), [], true);
+    if (!value || /\bx\b/u.test(value.expression)) continue;
+    try {
+      const at = parseMathExpression(normalizeNativeFunctionBody(value.expression)).evaluate(0);
+      if (Number.isFinite(at)) adjuncts.push({ role: match[1]!.toLowerCase() as "tangent" | "normal", at });
+    } catch { /* An unread source point cannot authorize an adjunct. */ }
+  }
+  const proveLine = (entityId: string, expression: string, adjunct?: { role: "tangent" | "normal"; at: number }) =>
+    compileSceneDocument(document, { figureConsistency: true, sourceFunctionChecks: [{ entityId, expression, ...(adjunct ? { adjunct } : {}) }] }).ok;
+  let unowned = false;
+  for (const curve of document.constructions.filter(construction => {
+    if (construction.operator === "function_curve" || construction.operator === "implicit_curve") return true;
+    if (construction.operator !== "line" && construction.operator !== "line_equation") return false;
+    const label = document.entities.find(entity => entity.id === construction.outputs[0])?.label;
+    const equation = typeof label === "string" ? readCartesianEquationLabel(label) : null;
+    return equation !== null && (/(?<![\p{L}\p{N}_])y(?![\p{L}\p{N}_])/u.test(equation.lhs + " " + equation.rhs) || adjuncts.length > 0);
+  })) {
+    const label = document.entities.find(entity => entity.id === curve.outputs[0])?.label;
+    const body = typeof curve.inputs.expression === "string" ? normalizeMathText(curve.inputs.expression) : "";
+    const straight = curve.operator === "line" || curve.operator === "line_equation";
+    const bodyOwns = (expression: string) => straight ? proveLine(curve.outputs[0]!, expression) : curve.operator === "function_curve"
+      ? mathExpressionsEquivalent(body, expression)
+      : mathExpressionsEquivalent(body, `y-(${expression})`, { allowNonzeroScale: true });
+    // verified_parts may omit an unprovable label. The presentation flag does
+    // not prove anything: the remaining literal body must still independently
+    // equal its source function, with every requested function accounted for.
+    const yieldedLabel = label === undefined && document.source.diagramYieldPolicy === "verified_parts";
+    const owner = facts.findIndex(fact => equationMatches(label, fact.expression) || yieldedLabel && bodyOwns(fact.expression));
+    const axis = owner < 0 && sourceAxis && boundaries.has(curve.outputs[0]) && (label === undefined || equationMatches(label, "0"));
+    const expression = axis ? "0" : facts[owner]?.expression;
+    const bodyMatches = expression !== undefined && bodyOwns(expression);
+    let adjunctOwned = false;
+    if (owner < 0 && !axis && facts.length === 1 && adjuncts.length > 0) {
+      const equation = typeof label === "string" ? readCartesianEquationLabel(normalizeMathText(label)) : null;
+      const adjunctBody = straight && equation?.lhs.trim() === "y" ? normalizeNativeFunctionBody(equation.rhs) : body;
+      const labelAgrees = yieldedLabel || equationMatches(label, adjunctBody);
+      adjunctOwned = labelAgrees && (!straight || proveLine(curve.outputs[0]!, adjunctBody)) &&
+        adjuncts.some(adjunct => proveLine(curve.outputs[0]!, facts[0]!.expression, adjunct));
+    }
+    // A native display transform is accepted only with the entire independently
+    // regenerated program, never a client-provided display/source tag.
+    if (adjunctOwned || (owner >= 0 || axis) && (bodyMatches || sourceOnlyNative())) {
+      if (owner >= 0) owners.add(owner);
+    } else unowned = true;
+  }
+  if (!unowned && owners.size === facts.length) return [];
+  return [{ code: "source_function_inventory_unmet", severity: "fatal", path: "constructions",
+    message: "The requested plot must retain every explicit source function with its complete equation; unrelated geometry cannot satisfy it." }];
 }
 
 /** Source-inventory admission for independently validated native syntheses.
@@ -1610,7 +1732,7 @@ function normalizeExpression(value: string): string {
     // power, call, identifier and digit continuations remain unsupported.
     .replace(BARE_UNARY_FUNCTION, "$1(x)")
     .replace(/\s+/g, "")
-    .replace(/(\d)(?=(?:x|pi|e|sin|cos|tan|asin|acos|atan|sqrt|abs|exp|log|ln|\())/g, "$1*")
+    .replace(/(\d)(?=(?:x|pi|e(?![+-]?\d)|sin|cos|tan|asin|acos|atan|sqrt|abs|exp|log|ln|\())/g, "$1*")
     .replace(/x(?=\()/g, "x*")
     .replace(/\)(?=(?:\d|x|pi|e|\())/g, ")*");
 }

@@ -56,7 +56,7 @@ import { compactCalloutLabel, isPointIdentifierText, isViewSummaryText, pointLab
 import { validateCircleLabelTraces, validateCircleSourceBinding } from "./circleGeometry";
 import { validateRelativeMotionSourceInputs } from "../synthesize/relativeMotionScene";
 import { validateUniformCircularSourceInputs } from "../physics/uniformCircularSourceBinding";
-import { parseMathExpression, parseMathExpression2D } from "../math/expression";
+import { isAffineMathExpression, parseMathExpression, parseMathExpression2D } from "../math/expression";
 import {
   planeFromCartesian,
   planePatchCorners,
@@ -484,6 +484,43 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
     issues.push(...validateOpticalMediumTruth(document, geometry));
   }
   for (const assertion of document.assertions) validateAssertion(assertion, geometry, document, issues);
+  const sourceFunctionChecks = options.sourceFunctionChecks ?? [];
+  if (sourceFunctionChecks.length > 64) issues.push({ code: "source_function_proof_failed", severity: "fatal", message: "Source function proof limit exceeded" });
+  for (const [index, check] of sourceFunctionChecks.slice(0, 64).entries()) {
+    try {
+      const construction = document.constructions.find(item => item.outputs.includes(check.entityId));
+      if (!construction || !["line", "line_equation", "function_curve"].includes(construction.operator)) throw new Error("source function proof requires a straight line");
+      if (construction.operator === "function_curve" && (typeof construction.inputs.expression !== "string" || !isAffineMathExpression(construction.inputs.expression))) throw new Error("adjunct curve is not proved affine");
+      const fn = parseMathExpression(check.expression);
+      if (check.adjunct && !["tangent", "normal"].includes(check.adjunct.role)) throw new Error("Unknown source adjunct role");
+      if (!check.adjunct && !isAffineMathExpression(check.expression)) throw new Error("source function is not proved affine");
+      const x = check.adjunct?.at ?? 0;
+      if (!Number.isFinite(x)) throw new Error("source point must be finite");
+      const y = fn.evaluate(x);
+      // Proof-only witnesses stay in a private map. No witness is added to
+      // the document, render geometry, reveal groups or stored commands.
+      const proof = new Map(geometry);
+      const witness = (suffix: string) => {
+        let id = `__source_function_${index}_${suffix}`;
+        while (proof.has(id)) id += "_";
+        return id;
+      };
+      const point = witness("point"); proof.set(point, { kind: "point", point: { x, y } });
+      const obligation = (suffix: string, predicate: SceneAssertion["predicate"], entities: string[]) => validateAssertion({ id: `source_function_${index}_${suffix}`, predicate, entities, expected: true, severity: "fatal", tolerance: 1e-6 }, proof, document, issues);
+      obligation("incident", "incident", [point, check.entityId]);
+      if (check.adjunct) {
+        const slope = fn.derivative(x);
+        const direction = witness("derivative");
+        proof.set(direction, { kind: "path", points: [{ x, y }, { x: x + 1, y: y + slope }] });
+        obligation("direction", check.adjunct.role === "tangent" ? "parallel" : "perpendicular", [direction, check.entityId]);
+      } else {
+        const next = witness("next"); proof.set(next, { kind: "point", point: { x: 1, y: fn.evaluate(1) } });
+        obligation("next", "incident", [next, check.entityId]);
+      }
+    } catch (error) {
+      issues.push({ code: "source_function_proof_failed", severity: "fatal", entityIds: [check.entityId], message: error instanceof Error ? error.message : "Source function proof failed" });
+    }
+  }
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
   // Light stops at the optical elements it meets: cut outgoing rays at their
   // first crossing, refuse an incident ray that crosses one before its contact.

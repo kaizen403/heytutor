@@ -11,7 +11,7 @@ import type { InkPace } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { storedPageTurnAt, storedTurnContinuesBoard, storedTurnPageQuestion } from "@/lib/boards/boardContinuation";
-import { storedPageFigureChange } from "../lib/replay/pageFigureSync";
+import { restoreInstalledDsaFrames, storedPageFigureChange } from "../lib/replay/pageFigureSync";
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import { lecturePageCacheKey } from "@/lib/lecture-export/canExportLectureMp4";
 import {
@@ -413,13 +413,16 @@ export function useLectureExport({
             // its own controller and verified figure.
             if (!hasStartedTurn || !storedTurnContinuesBoard(turn)) {
               const controller = codeLessonControllerRef.current!;
-              const plan = storedCodeLessonPlan(turn.sceneArtifacts);
+              const plan = storedCodeLessonPlan(turn.sceneArtifacts, turn.question);
               if (plan) controller.commit(plan);
               else controller.reset();
               restoreDsaFrames(controller, turn, plan);
               diagramRef.current = controller.frames.current()?.presentation.diagram ?? diagram;
             } else if (storedPageFigureChange(turns, turns.indexOf(turn)).kind !== "keep" ||
               storedPageTurnAt(turns, turns.indexOf(turn)) !== null) {
+              if (storedPageFigureChange(turns, turns.indexOf(turn)).kind === "install") {
+                restoreInstalledDsaFrames(codeLessonControllerRef.current, turn);
+              }
               // The export swapped a doubt's own figure in, or returned the
               // lesson's on its resume, or turned a doubt's fresh page or
               // returned the lesson's: point FOCUS at the figure it drew.

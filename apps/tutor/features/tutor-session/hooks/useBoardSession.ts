@@ -731,7 +731,7 @@ export function useBoardSession({
 
           // A DSA turn's TYPE commands reveal blocks of this plan; committing
           // it first also brings the code panel back for the restored board.
-          const codeLesson = continuesPage ? null : storedCodeLessonPlan(turn.sceneArtifacts);
+          const codeLesson = continuesPage ? null : storedCodeLessonPlan(turn.sceneArtifacts, turn.question);
           if (!continuesPage) {
             restoredCodePlanKey = codeLesson ? JSON.stringify(codeLesson) : null;
             restoredCodeComplete = false;
@@ -771,6 +771,7 @@ export function useBoardSession({
               executeCommand: executeCommandRef.current,
               shouldCancel: inkStale,
               lessonFigures: lessonFiguresRef?.current,
+              codeLessonController: codeLessonControllerRef?.current,
               // doubt-page-restore-sync:begin
               notes: restoreNotes,
               // doubt-page-restore-sync:end

@@ -64,13 +64,15 @@ async function tracked<T>(spend: PictureSpend, lane: PictureUsage["lane"], run: 
 }
 
 export type FindPictureOutcome =
-  | { status: "ready"; picture: ReferencePictureRecord; cached: boolean; steps: string[] }
-  | { status: "declined"; reason: string; steps: string[] };
+  | { status: "ready"; picture: ReferencePictureRecord; cached: boolean; steps: string[]; required?: boolean }
+  | { status: "declined"; reason: string; steps: string[]; required?: boolean };
 
 export interface FindPictureDeps {
   apiKey: string;
   spend?: PictureSpend;
   signal?: AbortSignal;
+  /** Source-bound semantic requirement, available before search/judging. */
+  onRequirement?: (required: boolean) => void;
   fetchImpl?: (input: string, init?: RequestInit) => Promise<Response>;
   imageProvider?: ImageProviderConfig | null;
   store?: Pick<typeof store, "readQueryCache" | "writeQueryCache" | "saveReferencePicture" | "findPictureBySourceKey">;
@@ -132,18 +134,22 @@ export async function findReferencePicture(question: string, subject: string | u
   const spend = deps.spend ?? createPictureSpend();
   const steps: string[] = [];
   const db = deps.store ?? store;
-  const decline = (reason: string): FindPictureOutcome => ({ status: "declined", reason, steps });
+  let required = false;
+  const decline = (reason: string): FindPictureOutcome => ({ status: "declined", reason, steps, ...(required ? { required: true } : {}) });
 
   const written = await tracked(spend, "query", () => writePictureQuery(question, { apiKey: deps.apiKey, subject, signal: deps.signal, fetchImpl: deps.fetchImpl }), deps.signal);
   spend.usages.push({ lane: "query", model: written.model, usage: written.usage });
   const query = written.query;
+  required = query?.required === true;
   if (!query) return decline("query_unreadable");
+  deps.signal?.throwIfAborted();
+  deps.onRequirement?.(required);
   steps.push(`query: ${query.mustShow} | ${query.queries.join(" ; ")}`);
   if (!query.wantsPicture) return decline(query.declineReason ?? "no_picture_wanted");
 
   const queryKey = store.queryKeyFor(query.mustShow);
   const cached = queryKey ? await db.readQueryCache(queryKey) : null;
-  if (cached?.status === "ready") return { status: "ready", picture: cached.picture, cached: true, steps: [...steps, "cache: hit"] };
+  if (cached?.status === "ready") return { status: "ready", picture: cached.picture, cached: true, steps: [...steps, "cache: hit"], ...(required ? { required: true } : {}) };
   if (cached?.status === "declined") return decline(`cached_${cached.reason}`);
   const remember = async (outcome: { pictureId: string } | { reason: string }) => {
     if (queryKey) await db.writeQueryCache(queryKey, outcome).catch(() => undefined);
@@ -178,7 +184,7 @@ export async function findReferencePicture(question: string, subject: string | u
     return decline("plan_failed");
   }
   await remember({ pictureId: picture.id });
-  return { status: "ready", picture, cached: false, steps };
+  return { status: "ready", picture, cached: false, steps, ...(required ? { required: true } : {}) };
 }
 
 async function judgeCommons(queries: string[], context: Context): Promise<{ judged: Judged[]; searched: number }> {

@@ -13,6 +13,7 @@
  * default is not.
  */
 import { FIGURE_QUESTION_CHARS, figureQuestionChars } from "@/lib/scene/figureQuestion";
+import { validateSourceFunctionInventory } from "@/features/tutor-session/lib/scene/representationFallback";
 import {
   displayedSceneQuantityTexts,
   certifyVseprSourceDocument,
@@ -298,6 +299,7 @@ export function sceneSaveAdmissionFailure(input: {
     }
   }
   const sourceInputIssues = [
+    ...validateSourceFunctionInventory(document, question),
     ...(turnPlan ? validateProjectileMeasurementPlan(document, turnPlan) : []),
     ...validateLinearSourcePlan(question, turnPlan),
     ...validateCoordinateDistanceSourceInputs(document, question),

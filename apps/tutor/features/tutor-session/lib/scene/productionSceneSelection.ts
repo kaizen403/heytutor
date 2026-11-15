@@ -26,11 +26,11 @@ import { shouldAttemptExactScene } from "./diagramGeneration";
 import { projectileSpeedLiteralIssues } from "./projectileSpeedLiteral";
 import { resolveVisualRequirement } from "./visualRequirement";
 import {
-  selectVerifiedRepresentationExplained, type ExactCandidateDecline, type SelectedRepresentation,
+  selectVerifiedRepresentationExplained, validateSourceFunctionInventory, type ExactCandidateDecline, type SelectedRepresentation,
 } from "./representationFallback";
 
 /** Lab execution identity: old rounds did not use all production admission guards. */
-export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v3";
+export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v5";
 
 export interface ProductionSceneInput {
   question: string;
@@ -261,6 +261,7 @@ function validateCandidateOnce(input: ProductionSceneCandidateInput): SceneCandi
     ...validateProjectileMeasurementPlan(validated.document, authoritativePlan),
   ];
   const sourceIssues = [
+    ...validateSourceFunctionInventory(validated.document, question),
     ...validateMatrixSourceBinding(validated.document, question, authoritativePlan),
     ...validatePvSourceBinding(validated.document, question, authoritativePlan),
   ];

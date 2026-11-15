@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { failedTurnWhere } from "../../lib/admin/turnFilters";
 import { FAILED_TURN_STAGES } from "../../lib/obs/failedTurnTelemetry";
 import { classifyOutcome } from "../../lib/admin/outcome";
-import { Prisma } from "@prisma/client";
+import { matches } from "./turnFailurePredicateFixture";
 import { classifyTurnFailure, CONFIRMED_TURN_FAILURE_CODES, countEngineRefusal, PICTURE_ANSWERED_FAILURE_CODES, type TurnFailureInput } from "../../lib/obs/turnFailureClassification";
 
 type Fixture = TurnFailureInput & { name: string; expected: "failed" | "healthy" | "unverified" | "pending" | "picture_shown" };
@@ -12,6 +12,7 @@ const continuation = { boardContinuation: { schemaVersion: "board-continuation/v
 const none = { turnPlan: { visualRequirement: "none" } };
 const picture = { referencePicture: { id: "rp_0123456789abcdef01234567" }, referencePictureOutcome: { attempted: true, status: "shown", reason: null, ms: 9_600, speculative: true } };
 const fixtures: Fixture[] = [
+  { name: "taught empty-zone doubt with unmet required picture", expected: "failed", visualStatus: "text_only", status: "complete", segments: narrative, sceneArtifacts: { ...continuation, referencePictureOutcome: { required: true, attempted: true, status: "declined", reason: "no_candidate_accepted" } } },
   { name: "legacy verified placeholder-only turn", expected: "unverified", visualStatus: "validated", status: "complete", segments: [{ command: { type: "CLEAR" } }] },
   { name: "expected no figure", expected: "healthy", visualStatus: "text_only", status: "complete", sceneArtifacts: none, segments: narrative },
   { name: "healthy same-page continuation", expected: "healthy", visualStatus: "text_only", status: "complete", sceneArtifacts: continuation, segments: narrative },
@@ -55,30 +56,7 @@ const fixtures: Fixture[] = [
   { name: "a retry required figure with no picture still fails", expected: "failed", visualStatus: "retry_required", status: "complete", sceneArtifacts: { referencePictureOutcome: { attempted: true, status: "skipped", reason: "wait_in_progress", ms: 0, speculative: false } }, segments: narrative },
 ];
 
-// Evaluate the concrete positive Prisma predicate on deterministic fixtures.
-// JSON path absence is false; it is never treated as NOT(true) or a failure.
-function matches(row: TurnFailureInput, where: unknown): boolean {
-  const condition = where as Record<string, unknown>;
-  if (Array.isArray(condition.AND) && !condition.AND.every((child) => matches(row, child))) return false;
-  if (Array.isArray(condition.OR) && !condition.OR.some((child) => matches(row, child))) return false;
-  for (const [key, value] of Object.entries(condition)) {
-    if (key === "AND" || key === "OR") continue;
-    if (key === "sceneArtifacts") {
-      const json = value as { path: string[]; equals: unknown };
-      let actual: unknown = row.sceneArtifacts;
-      for (const part of json.path) actual = actual !== null && typeof actual === "object" ? (actual as Record<string, unknown>)[part] : undefined;
-      if (json.equals === Prisma.AnyNull ? actual !== undefined && actual !== null : actual !== json.equals) return false;
-    } else if (key === "segments") {
-      if ((row.segments?.length ?? row.segmentCount) !== 0) return false;
-    } else if (key === "visualStatus" || key === "status") {
-      const actual = row[key] ?? null;
-      if (value !== null && typeof value === "object" && "in" in value) {
-        if (!(value as { in: unknown[] }).in.includes(actual)) return false;
-      } else if (actual !== value) return false;
-    } else throw new Error(`unsupported predicate fixture field ${key}`);
-  }
-  return true;
-}
+
 
 const predicate = failedTurnWhere();
 assert(!JSON.stringify(predicate).includes('"NOT"'), "JSON-null safety requires positive evidence branches");
@@ -148,7 +126,39 @@ for (const telemetryCode of [undefined, ...CONFIRMED_TURN_FAILURE_CODES]) {
   }
 }
 assert(grid > 10_000, "the grid really ran");
+// Required picture evidence is independent of the engine's visual requirement.
+// Optional declines, aborted attempts, and accepted stored pictures remain out
+// of the failed feed, including when JSON fields are absent or explicitly null.
+let pictureGrid = 0;
+for (const required of [undefined, false, true]) {
+  for (const attempted of [undefined, false, true]) {
+    for (const status of ["declined", "unavailable", "shown", "skipped"]) {
+      for (const reason of [undefined, null, "aborted", "no_candidate_accepted"]) {
+        for (const turnStatus of ["complete", "live", "stopped"]) {
+          for (const segments of [narrative, []]) {
+            for (const shown of [false, true]) {
+              for (const visualStatus of [null, "text_only", "validated"]) {
+                const row = {
+                  visualStatus, status: turnStatus, segments,
+                  sceneArtifacts: {
+                    ...continuation,
+                    ...(shown ? { referencePicture: picture.referencePicture } : {}),
+                    referencePictureOutcome: { required, attempted, status, reason },
+                  },
+                };
+                assert.equal(matches(row, predicate), classifyTurnFailure(row).classification === "failed",
+                  `picture query/classifier parity: ${JSON.stringify(row)}`);
+                pictureGrid++;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+assert.equal(pictureGrid, 5184);
 for (const code of ["not_needed", "continuation", "unrecorded", "unknown"]) assert(!(CONFIRMED_TURN_FAILURE_CODES as readonly string[]).includes(code));
 const windowed = failedTurnWhere(new Date("2026-10-01T00:00:00.000Z"));
 assert(Array.isArray(windowed.AND) && windowed.AND.length === 2, "the time window cannot replace the failure predicate");
-console.log(`turn failure classification: ${fixtures.length} scenarios and ${CONFIRMED_TURN_FAILURE_CODES.length} approved-code recovery pairs pass; unknown outcomes remain visible; no DB/network calls`);
+console.log(`turn failure classification: ${fixtures.length} scenarios, ${grid} code combinations and ${pictureGrid} picture combinations pass; no DB/network calls`);

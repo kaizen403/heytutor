@@ -284,7 +284,8 @@ export async function canonicalizeTurnSceneMetadata(
     const retryRequired = metadata.visualStatus === "retry_required";
     const plan = validatedOptionalTurnPlan(metadata.sceneArtifacts, question);
     const degradation = validatedDegradation(metadata.sceneArtifacts);
-    const figureSource = validatedFigureSource(metadata.sceneArtifacts);
+    // Provenance describes committed ink, never a discarded client scene.
+    const figureSource = validatedFigureSource(metadata.sceneArtifacts) || picture.stored || picture.outcome ? "text_only" : undefined;
     const diagramStrategy = validatedDiagramStrategy(metadata.sceneArtifacts);
     const completion = validatedCompletion(metadata.sceneArtifacts);
     const readTelemetry = readFailedTurnTelemetry(isRecord(metadata.sceneArtifacts) ? metadata.sceneArtifacts.failureTelemetry : undefined);

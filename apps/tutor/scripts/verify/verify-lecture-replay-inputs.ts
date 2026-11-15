@@ -8,6 +8,8 @@ import {
   type ProblemIR, type SolverResult,
 } from "@heytutor/scene-engine";
 import { createFallbackTurnPlanV3, inferSceneCapabilities } from "@heytutor/tutor-core";
+import { chemistryRefusesPlannerFigure, strictAdmitsOwningOpticsArchetype } from "../../features/tutor-session/lib/scene/diagramStrategy";
+import { resolveOpticsArchetypeInStrict } from "../../lib/scene/diagramStrategy.server";
 import { selectProductionScene, type ProductionSceneSelectionInput } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import type { LectureRun } from "../lecture-lab/lecturePipeline";
 
@@ -19,7 +21,7 @@ assert(end > 0 && (start > 0 || oldStart > 0), "actual stock final-selection cal
 const lines = source.slice(start > 0 ? start : oldStart, end);
 const execute = new Function("question", "turnPlan", "problemAuthority", "sceneCapabilities", "result", "fastRepresentation",
   "planning", "solverAuthorityBlocked", "REQUIRED_DIAGRAM_RETRY_ENABLED", "FIGURE_SOURCES", "diagramStrategyAllowsFigureSource",
-  "selectProductionScene", "problemAuthorityPromise", "run",
+  "selectProductionScene", "problemAuthorityPromise", "run", "blockFlowEligible", "chemistryRefusesPlannerFigure", "classifiedSubject", "strictAdmitsOwningOpticsArchetype", "resolveOpticsArchetypeInStrict",
   ts.transpileModule(lines, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText + "\nreturn {run,sceneSelection};");
 
 const question = "Draw the Lewis structure of the H2O molecule with 2 O-H bonds, 0 pi bonds, 2 oxygen lone pairs and a bond angle of 104.5 degrees.";
@@ -49,7 +51,7 @@ assert(validateSolverResult(solverResult, problemIR).valid);
 const audit = verifyTurnPlanAgainstSolver(problemIR, solverResult, plan, question);
 const authority = { problemIR, solverResult, audit, projection: buildSolverAuthorityProjection(problemIR, solverResult, audit) };
 type Replay = NonNullable<LectureRun["figureReplayInputs"]>;
-function capture(withAuthority: boolean, attempted: boolean, extra: Partial<ProductionSceneSelectionInput> = {}): {
+function capture(withAuthority: boolean, attempted: boolean, extra: Partial<ProductionSceneSelectionInput> = {}, classifiedSubject: Parameters<typeof chemistryRefusesPlannerFigure>[0] = "other"): {
   run: { figureReplayInputs: Replay | null }; sceneSelection: ReturnType<typeof selectProductionScene>;
 } {
   const run = { figureReplayInputs: null };
@@ -59,7 +61,8 @@ function capture(withAuthority: boolean, attempted: boolean, extra: Partial<Prod
     { figureSource: "planner", gate: { diagramStrategy: { strategy: extra.policy?.preferPlanner ? "strict" : "current" } } },
     false, true, FIGURE_SOURCES,
     (_strategy: unknown, figureSource: typeof FIGURE_SOURCES[number]) => extra.policy?.allowedFigureSources?.includes(figureSource) ?? true,
-    selectProductionScene, attempted ? Promise.resolve(null) : null, run);
+    selectProductionScene, attempted ? Promise.resolve(null) : null, run, extra.blockFlowEligible ?? false,
+    chemistryRefusesPlannerFigure, classifiedSubject, strictAdmitsOwningOpticsArchetype, resolveOpticsArchetypeInStrict);
 }
 const full = capture(true, true);
 assert(full.run.figureReplayInputs, "stock artifact must retain full selection inputs instead of only run.plan summaries");
@@ -68,6 +71,7 @@ const retained = serialized.figureReplayInputs;
 assert.equal(retained.schemaVersion, "lecture-figure-replay-inputs/v1");
 assert.deepEqual(retained.selection.turnPlan, plan);
 assert.deepEqual(retained.selection.problemIR, problemIR);
+assert.equal(retained.selection.blockFlowEligible, false, "the actual selection excerpt receives the chemistry turn's block-flow eligibility");
 assert.deepEqual(retained.authority.solverResult, solverResult);
 assert.deepEqual(retained.authority.audit, authority.audit);
 assert.deepEqual(retained.authority.projection, authority.projection);
@@ -77,18 +81,27 @@ assert(validateProblemIR(retained.selection.problemIR, question).valid);
 assert(validateSolverResult(retained.authority.solverResult, retained.selection.problemIR).valid);
 assert.deepEqual(selectProductionScene(retained.selection), full.sceneSelection, "JSON-restored inputs reproduce the final decision exactly");
 const withoutIR = selectProductionScene({ ...retained.selection, problemIR: null } satisfies ProductionSceneSelectionInput);
-assert(withoutIR.representation && !full.sceneSelection.representation,
-  "the full IR must preserve the chemistry obligation refusal that a null-IR replay loses");
-const representation = withoutIR.representation;
+assert(!withoutIR.representation && !full.sceneSelection.representation,
+  "the original unbound derived chemistry claims stay refused with and without IR; replay cannot strip a source guard");
+assert.match(withoutIR.reason ?? "", /vsepr_plan_fact_unverified/);
+const sourceOnlyPlan = { ...plan, givens: [], derived: [], qualitativeClaims: [] };
+const sourceOnly = selectProductionScene({ ...retained.selection, turnPlan: sourceOnlyPlan, problemIR: null } satisfies ProductionSceneSelectionInput);
+assert(sourceOnly.representation, "an independent source-certified figure supplies the positive captured candidate without the unverified scalar claims");
+const representation = sourceOnly.representation;
 const candidateValidation = { valid: true, errors: [], value: {
   document: representation.sceneDocument, renderScene: representation.renderScene, report: representation.validationReport,
 } };
 const strictPolicy = { preferPlanner: true, allowedFigureSources: ["planner", "text_only", "verified_recovery"] as const };
 const populated = capture(false, false, { candidateValidation, fastRepresentation: representation, policy: strictPolicy });
 assert(populated.run.figureReplayInputs);
+const classifiedChemistry = capture(false, false, { candidateValidation, fastRepresentation: representation, policy: strictPolicy }, "chemistry");
+assert.deepEqual(classifiedChemistry.run.figureReplayInputs?.selection.policy?.allowedFigureSources, ["text_only"], "the actual classified-chemistry guard excludes planner and recovery sources before replay capture");
+assert.equal(classifiedChemistry.sceneSelection.representation, null, "a strict chemistry planner candidate cannot borrow unknown-subject policy");
 assert.deepEqual(populated.run.figureReplayInputs.selection.candidateValidation, candidateValidation);
 assert.deepEqual(populated.run.figureReplayInputs.selection.fastRepresentation, representation);
-assert.deepEqual(populated.run.figureReplayInputs.selection.policy, strictPolicy);
+assert.equal(populated.run.figureReplayInputs.selection.policy?.preferPlanner, strictPolicy.preferPlanner);
+assert.deepEqual(populated.run.figureReplayInputs.selection.policy?.allowedFigureSources, strictPolicy.allowedFigureSources);
+assert.equal(populated.run.figureReplayInputs.selection.policy?.admitOwningOpticsArchetype, resolveOpticsArchetypeInStrict());
 const populatedJSON = JSON.parse(JSON.stringify(populated.run)).figureReplayInputs;
 assert.deepEqual(populatedJSON.selection, JSON.parse(JSON.stringify(populated.run.figureReplayInputs.selection)));
 assert.deepEqual(JSON.parse(JSON.stringify(selectProductionScene(populatedJSON.selection))), JSON.parse(JSON.stringify(populated.sceneSelection)));

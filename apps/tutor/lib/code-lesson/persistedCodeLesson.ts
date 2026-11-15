@@ -1,5 +1,6 @@
 import {
   codeFormatGateIssues,
+  classifyDsaQuestion,
   validateCodeLessonPlan,
   type CodeLessonPlan,
 } from "@heytutor/tutor-core";
@@ -44,6 +45,9 @@ export function parseStoredCodeLesson(
   if (question !== undefined && normalize(plan.question) !== normalize(question)) {
     return { status: "invalid", reason: "plan question does not match the turn question" };
   }
+  if (!classifyDsaQuestion(question ?? plan.question).isDsa) {
+    return { status: "invalid", reason: "turn question does not request a programming lesson" };
+  }
   const gateIssues = codeFormatGateIssues(plan);
   if (gateIssues.length > 0) {
     return {
@@ -55,8 +59,8 @@ export function parseStoredCodeLesson(
 }
 
 /** Lenient read for replay/restore surfaces: a plan or nothing. */
-export function storedCodeLessonPlan(sceneArtifacts: unknown): CodeLessonPlan | null {
-  const parsed = parseStoredCodeLesson(sceneArtifacts);
+export function storedCodeLessonPlan(sceneArtifacts: unknown, question?: string): CodeLessonPlan | null {
+  const parsed = parseStoredCodeLesson(sceneArtifacts, question);
   return parsed.status === "valid" ? parsed.plan : null;
 }
 

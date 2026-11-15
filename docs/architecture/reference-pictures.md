@@ -103,7 +103,16 @@ figure (every subject but the chemistry lane), so for maths and physics the
 search and judge run while the scene plans and add no wait when the figure
 fails; a verified figure that wins aborts it. For subjects with no engine the
 request is the whole wait before teaching. The turn waits up to 25 s past
-scene planning. Two runtime beats introduce the
+scene planning. The browser opts into `application/x-ndjson`: a semantic
+`requirement` frame arrives as soon as the existing query succeeds, followed
+by a `result` frame after search/judging/storage and paid settlement. Other
+callers still receive JSON. No extra query runs. The client bounds the body
+to 128 KiB and two frames, cancels/releases its reader on every exit, and
+retains discovered requirements through errors and its own deadline. The turn
+keeps that requirement independently for its UI deadline and Stop snapshot;
+late progress cannot change a completed or replaced turn. Requirement evidence
+never authorizes picture ink: only the accepted stored record does.
+Two runtime beats introduce the
 picture ("Here is a labelled diagram of ..." then "Let me colour it in."), and
 the prompt addon lists the judge's labels, forbids drawing tags and allows
 `[FOCUS:reference_picture]`, plus the located parts when part focus is on

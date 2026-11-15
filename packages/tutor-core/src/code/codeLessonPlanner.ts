@@ -15,6 +15,7 @@ import {
   type CodeSyntaxChecker,
 } from "./codeFormatGate";
 import { codeTraceIssues, type CodeLessonPlanContext } from "./codeTraceGate";
+import { classifyDsaQuestion } from "./classifyDsaQuestion";
 
 export interface CodeLessonPlannerOptions {
   proxyUrl: string;
@@ -74,6 +75,9 @@ export async function planCodeLessonV1(
   question: string,
   options: CodeLessonPlannerOptions,
 ): Promise<CodeLessonPlanResponse | null> {
+  // Schema-valid programs cannot authorize the lesson mode. Admission comes
+  // from the source question, before dispatching either model attempt.
+  if (!classifyDsaQuestion(question).isDsa) return null;
   const startedAt = Date.now();
   // The first attempt may not spend the whole budget. Measured live: a slow
   // plan ran 53 of its 60 seconds, the repair was cut off after 9, and the

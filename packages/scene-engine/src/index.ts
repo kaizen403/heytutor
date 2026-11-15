@@ -16,6 +16,7 @@ export * from "./compile/annotationMarks";
 export * from "./compile/sceneAnnotations";
 export { directedCurveInk, type DirectedCurveInk } from "./compile/directedCurve";
 export * from "./contracts/contractsV3";
+export { readCartesianEquationLabel } from "./compile/qualitativeLabelTruth";
 export * from "./ir/coordinateDistanceSource";
 export * from "./ir/pointLineSource";
 export * from "./ir/sectionFormulaSource";

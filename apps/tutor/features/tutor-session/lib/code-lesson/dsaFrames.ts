@@ -33,6 +33,8 @@ import type { VerifiedDiagramPresentation } from "@heytutor/drawing";
 import { codeLessonSectionCode, type CodeLessonPlan } from "@heytutor/tutor-core";
 import { DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildVerifiedDiagramPresentation } from "../scene/verifiedScenePresentation";
+import { restoreVerifiedDiagramFromTurn } from "../scene/restoreVerifiedDiagram";
+import type { StoredTurn } from "@/lib/boards/boardsClient";
 
 /**
  * A compiled walk-through, whichever builder produced it. A matched algorithm
@@ -337,10 +339,12 @@ export function resolveDsaFrames(
  */
 export function restoreDsaFrames(
   controller: { frames: DsaFrameController },
-  turn: { question: string } | null | undefined,
+  turn: Pick<StoredTurn, "question" | "visualStatus" | "sceneDocument"> | null | undefined,
   plan: CodeLessonPlan | null,
 ): void {
-  if (!turn || !plan) {
+  // Code source is sufficient for the editor, never for diagram authority.
+  // A save that removed the scene must not acquire it again through FRAME.
+  if (!turn || !plan || turn.visualStatus !== "validated" || !restoreVerifiedDiagramFromTurn(turn)) {
     controller.frames.reset();
     return;
   }

@@ -113,7 +113,7 @@ async function main(): Promise<void> {
     // --- A clean first plan is accepted without a repair call. ---
     {
       const served = serve([plan({ wide: false })]);
-      const result = await planCodeLessonV1("Sum a list of numbers.", OPTIONS);
+      const result = await planCodeLessonV1("Write a Python program to sum a list of numbers.", OPTIONS);
       assert(result?.plan, "a clean plan must be accepted");
       assert(served.calls() === 1, `a clean plan must not spend a repair call, made ${served.calls()}`);
     }
@@ -122,7 +122,7 @@ async function main(): Promise<void> {
     {
       const rejections: string[] = [];
       const served = serve([plan({ wide: true }), {}]);
-      const result = await planCodeLessonV1("Sum a list of numbers.", {
+      const result = await planCodeLessonV1("Write a Python program to sum a list of numbers.", {
         ...OPTIONS,
         onRejected: (_phase, issues) => rejections.push(...issues.map((issue) => issue.code)),
       });
@@ -144,7 +144,7 @@ async function main(): Promise<void> {
     // --- A structurally wrong plan is not salvaged. ---
     {
       serve([planTooManySections(), {}]);
-      const result = await planCodeLessonV1("Sum a list of numbers.", OPTIONS);
+      const result = await planCodeLessonV1("Write a Python program to sum a list of numbers.", OPTIONS);
       assert(
         result === null,
         "a plan the schema rejects outright is not worth salvaging: the salvage covers cosmetics, not anything that failed validation",
@@ -162,7 +162,7 @@ async function main(): Promise<void> {
       broken.sections[0]!.blocks[1] = { id: "s1b2", code: "    total = sum(values" };
       const rejections: string[] = [];
       serve([broken, {}]);
-      const result = await planCodeLessonV1("Sum a list of numbers.", {
+      const result = await planCodeLessonV1("Write a Python program to sum a list of numbers.", {
         ...OPTIONS,
         onRejected: (_phase, issues) => rejections.push(...issues.map((issue) => issue.code)),
       });
@@ -179,14 +179,14 @@ async function main(): Promise<void> {
     // --- Nothing parseable at all is not salvaged either. ---
     {
       serve(["not json", {}]);
-      const result = await planCodeLessonV1("Sum a list of numbers.", OPTIONS);
+      const result = await planCodeLessonV1("Write a Python program to sum a list of numbers.", OPTIONS);
       assert(result === null, "an unparseable first response leaves nothing to salvage");
     }
 
     // --- A good repair still wins over the salvaged first attempt. ---
     {
       serve([plan({ wide: true }), plan({ wide: false })]);
-      const result = await planCodeLessonV1("Sum a list of numbers.", OPTIONS);
+      const result = await planCodeLessonV1("Write a Python program to sum a list of numbers.", OPTIONS);
       assert(result?.plan, "a good repair must be accepted");
       const code = result!.plan.sections[0]!.blocks.map((block) => block.code).join("\n");
       assert(
