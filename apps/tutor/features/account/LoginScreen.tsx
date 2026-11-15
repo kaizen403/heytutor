@@ -94,6 +94,8 @@ export function LoginScreen({
         return;
       }
       setSent(true);
+    } catch {
+      setLocalError("Could not send the sign-in email. Check your connection and try again.");
     } finally {
       setSending(false);
     }

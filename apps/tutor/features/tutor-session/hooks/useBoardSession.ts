@@ -28,7 +28,6 @@ import {
   deleteBoardApi,
   updateBoard,
   fetchBoardDetail,
-  fetchBoards,
   storedTurnStatus,
   type RecordedSegmentPayload,
   type SceneVisualStatus,
@@ -54,6 +53,7 @@ import type { BoardLayoutState, TutorPhase } from "../types";
 import { waitForWhiteboard } from "../lib/board/whiteboardReady";
 import { overlayLiveTurnEvent, liveTurnSave, type LiveTurnMirrorEvent, type LiveTurnSnapshot } from "../lib/turn/liveTurnSave";
 import { IDLE_SAVE, type SaveStatus } from "../lib/turn/saveStatus";
+import { startBoardListRead } from "@/lib/boards/boardListRead";
 
 /** How long reopening a board waits for its own unsent saves before reading it. */
 const RESTORE_SAVE_DRAIN_MS = 8_000;
@@ -164,6 +164,12 @@ export function useBoardSession({
     readBoardRef.current = readBoard;
   }, [readBoard]);
   const [boards, setBoards] = useState<BoardEntry[]>([]);
+  const [boardsError, setBoardsError] = useState<string | null>(null);
+  const [boardsAttempt, setBoardsAttempt] = useState(0);
+  const retryBoards = useCallback(() => {
+    setBoardsError(null);
+    setBoardsAttempt((current) => current + 1);
+  }, []);
   const [boardLoaded, setBoardLoaded] = useState(false);
   const storedTurnsRef = useRef<StoredTurn[]>([]);
   const [storedTurnsCount, setStoredTurnsCount] = useState(0);
@@ -209,19 +215,18 @@ export function useBoardSession({
     }
   }, [speedMultiplier, speedRef, ttsClientRef, whiteboardRef, replayAudioRef, replayAudioPreloadRef]);
 
-  const boardsFetchedRef = useRef(false);
+  const isReadOnly = Boolean(readBoard);
   useEffect(() => {
-    if (boardsFetchedRef.current) return;
-    boardsFetchedRef.current = true;
-    if (readBoardRef.current) return;
-    void fetchBoards().then((list) => {
-      setBoards((prev) => {
-        const existingIds = new Set(prev.map((b) => b.id));
-        const newOnes = list.filter((b) => !existingIds.has(b.id));
-        return [...prev, ...newOnes];
+    if (isReadOnly) return;
+    return startBoardListRead((list) => {
+      setBoardsError(null);
+      setBoards((current) => {
+        // Boards created or edited during this read still own their local row.
+        const ids = new Set(current.map((board) => board.id));
+        return [...current, ...list.filter((board) => !ids.has(board.id))];
       });
-    });
-  }, []);
+    }, setBoardsError);
+  }, [isReadOnly, boardsAttempt]);
 
   const openBoard = useCallback(
     (question = "") => {
@@ -979,6 +984,8 @@ export function useBoardSession({
   return {
     boards,
     setBoards,
+    boardsError,
+    retryBoards,
     boardLoaded,
     storedTurnsRef,
     storedTurnsCount,

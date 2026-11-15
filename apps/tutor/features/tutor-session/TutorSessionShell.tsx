@@ -906,6 +906,8 @@ export function TutorSessionShell({
 
   const {
     boards,
+    boardsError,
+    retryBoards,
     setBoards,
     boardLoaded,
     storedTurnsRef,
@@ -1205,6 +1207,8 @@ export function TutorSessionShell({
     messages: notesMessages,
     sending: notesSending,
     error: notesError,
+    historyError: notesHistoryError,
+    reloadHistory: reloadNotesHistory,
     send: sendNotesChat,
     stop: stopNotesChat,
   } = useNotesChat(sessionId, notesEnabled);
@@ -2026,6 +2030,8 @@ export function TutorSessionShell({
             messages={notesMessages}
             sending={notesSending}
             error={notesError}
+            historyError={notesHistoryError}
+            onRetryHistory={reloadNotesHistory}
             onClose={toggleNotes}
             onSend={handleNotesChatSend}
             onStop={stopNotesChat}
@@ -2064,6 +2070,8 @@ export function TutorSessionShell({
               messages={notesMessages}
               sending={notesSending}
               error={notesError}
+              historyError={notesHistoryError}
+              onRetryHistory={reloadNotesHistory}
               onSend={handleNotesChatSend}
               onStop={stopNotesChat}
             />
@@ -2727,6 +2735,8 @@ export function TutorSessionShell({
     <AppShell
       variant="session"
       boards={boards}
+      boardsError={boardsError}
+      onRetryBoards={retryBoards}
       activeBoardId={sessionId}
       busyBoardId={
         phase !== "idle" || isReplaying || lecturePlayer.playing

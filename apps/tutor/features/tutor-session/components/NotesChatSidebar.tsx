@@ -13,6 +13,8 @@ interface NotesChatSidebarProps {
   messages: NotesChatMessage[];
   sending: boolean;
   error: string | null;
+  historyError?: string | null;
+  onRetryHistory?: () => void;
   onClose?: () => void;
   onSend: (message: string) => void;
   onStop?: () => void;
@@ -45,6 +47,8 @@ export function NotesChatSidebar({
   messages,
   sending,
   error,
+  historyError,
+  onRetryHistory,
   onClose,
   onSend,
   onStop,
@@ -87,6 +91,18 @@ export function NotesChatSidebar({
           onStarter={(prompt) => submit(prompt)}
         />
       </div>
+
+      {historyError ? (
+        <div className="ncs__error" role="status">
+          <p>{historyError}</p>
+          {onRetryHistory ? (
+            <button type="button" className="ncs__chip" disabled={sending}
+              onClick={onRetryHistory} aria-label="Retry loading saved messages">
+              Retry
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {error ? (
         <p className="ncs__error" role="status">

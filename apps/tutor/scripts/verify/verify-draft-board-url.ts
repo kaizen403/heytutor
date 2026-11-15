@@ -170,7 +170,7 @@ assert(
   "a lesson that New board already left must not claim the URL out from under the fresh board",
 );
 assert(
-  /let detail = draft \? null : await fetchBoardDetail\(boardId\)/.test(boardSession),
+  /let detail = read\s*\? \{ turns: \[\.\.\.read\.turns\] \}\s*: draft \? null : foreign \? await foreign\(boardId\) : await fetchBoardDetail\(boardId\)/.test(boardSession),
   "restoring an unsaved home board must not hit the boards API",
 );
 const restoreEffect = boardSession.slice(boardSession.lastIndexOf("const generation = ++restoreGenerationRef.current"));
@@ -257,12 +257,12 @@ assert(
 
 const notesClient = read("lib/boards/notesChatClient.ts");
 assert(
-  /fetch\(resolveApiUrl\(`\/api\/boards\/\$\{boardId\}\/notes-chat`\)\)/.test(notesClient),
+  /fetch\(resolveApiUrl\(`\/api\/boards\/\$\{boardId\}\/notes-chat`\), \{ signal \}\)/.test(notesClient),
   "the notes sidebar loads history from GET notes-chat",
 );
 const notesHook = read("features/tutor-session/hooks/useNotesChat.ts");
 assert(
-  /fetchNotesChatMessages\(boardId\)/.test(notesHook),
+  /fetchNotesChatMessages\(boardId, controller\.signal\)/.test(notesHook),
   "opening a board must fetch notes-chat for that session id, including drafts",
 );
 

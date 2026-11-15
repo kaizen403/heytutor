@@ -103,6 +103,8 @@ export function OnboardingScreen({
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ageBand: "under_13" }),
+    }).catch(() => {
+      // A failed refusal write must still leave tutoring and show the age gate.
     }).finally(() => {
       router.replace("/login?refused=1");
     });
@@ -646,7 +648,8 @@ function Choice({
       }`}
     >
       {checked ? <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden /> : null}
-      {label}
+      {/* Translation may replace text nodes; keep React's insertion anchor. */}
+      <span>{label}</span>
     </button>
   );
 }

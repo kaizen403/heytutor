@@ -8,6 +8,8 @@ export type AppShellProfile = Pick<
 
 export type AppShellBoardHandlers = {
   boards: BoardEntry[];
+  boardsError?: string | null;
+  onRetryBoards?: () => void;
   activeBoardId: string | null;
   busyBoardId?: string | null;
   onSelect: (id: string) => void;
