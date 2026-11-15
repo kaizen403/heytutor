@@ -88,7 +88,7 @@ export function mathExpressionsEquivalent(left: string, right: string, options: 
     };
     const one = (node: ExpressionNode) => {
       if (node.kind !== "number" || node.value !== 1) return false;
-      const value = rationalPolynomials([node])[0]!.get("0,0");
+      const value = rationalPolynomials([node]).values[0]!.get("0,0");
       return value !== undefined && value.n === value.d;
     };
     const simplify = (node: ExpressionNode): ExpressionNode => {
@@ -118,7 +118,7 @@ export function mathExpressionsEquivalent(left: string, right: string, options: 
     if (JSON.stringify(a) === JSON.stringify(b)) return true;
     if (options.allowNonzeroScale && a.kind === "binary" && b.kind === "binary" && a.operator === "-" && b.operator === "-" &&
         JSON.stringify(a.left) === JSON.stringify(b.right) && JSON.stringify(a.right) === JSON.stringify(b.left)) return true;
-    const [x, y] = rationalPolynomials([a, b], true) as [Polynomial, Polynomial];
+    const [x, y] = rationalPolynomials([a, b], true).values as [Polynomial, Polynomial];
     if (x.size !== y.size || [...x.keys()].some(key => !y.has(key))) return false;
     if (x.size === 0) return true;
     const key = x.keys().next().value!;
@@ -133,9 +133,12 @@ export function mathExpressionsEquivalent(left: string, right: string, options: 
 
 type Fraction = { n: bigint; d: bigint };
 type Polynomial = Map<string, Fraction>;
+type ConstantInterval = { lo: number; hi: number };
 
 /** Shared exact coefficient algebra; all consumers retain its work limits. */
-function rationalPolynomials(roots: readonly ExpressionNode[], retainOpaqueTerms = false, constantAtoms?: Map<number, ExpressionNode>): Polynomial[] {
+function rationalPolynomials(roots: readonly ExpressionNode[], retainOpaqueTerms = false) {
+  const constantAtoms = new Map<number, ExpressionNode>();
+  const constantRanges = new Map<number, ConstantInterval>();
   const atoms = new Map<string, number>();
   const domains: Set<string>[] = [];
   let domain: Set<string>;
@@ -187,6 +190,130 @@ function rationalPolynomials(roots: readonly ExpressionNode[], retainOpaqueTerms
     const literal = digits ? `${digits.slice(0, digits.length - trailing)}e${Number(exponent) - decimals + trailing}` : "0";
     return { ...value, literal };
   });
+  const adjacent = (value: number, up: boolean): number => {
+    if (!Number.isFinite(value)) throw new Error("nonfinite constant bound");
+    if (value === 0) return up ? Number.MIN_VALUE : -Number.MIN_VALUE;
+    const view = new DataView(new ArrayBuffer(8));
+    view.setFloat64(0, value);
+    let bits = view.getBigUint64(0);
+    bits += (value > 0) === up ? 1n : -1n;
+    view.setBigUint64(0, bits);
+    const result = view.getFloat64(0);
+    if (!Number.isFinite(result)) throw new Error("constant bound outside numeric range");
+    return result;
+  };
+  const binaryFraction = (value: number): Fraction => {
+    if (value === 0) return { n: 0n, d: 1n };
+    const view = new DataView(new ArrayBuffer(8)); view.setFloat64(0, value);
+    const bits = view.getBigUint64(0), exponent = Number((bits >> 52n) & 2047n);
+    const mantissa = (bits & ((1n << 52n) - 1n)) + (exponent ? 1n << 52n : 0n);
+    const power = exponent ? exponent - 1075 : -1074;
+    const sign = bits >> 63n ? -1n : 1n;
+    return { n: sign * mantissa * (power > 0 ? 1n << BigInt(power) : 1n), d: power < 0 ? 1n << BigInt(-power) : 1n };
+  };
+  const fractionBounds = (value: Fraction, scale: Fraction = { n: 1n, d: 1n }): ConstantInterval => {
+    step();
+    let n = value.n * scale.d, d = value.d * scale.n;
+    if (d === 0n) throw new Error("zero constant scale");
+    if (d < 0n) { n = -n; d = -d; }
+    if (n === 0n) return { lo: 0, hi: 0 };
+    const abs = (v: bigint) => v < 0n ? -v : v;
+    const sn = Math.max(0, abs(n).toString(2).length - 53), sd = Math.max(0, d.toString(2).length - 53);
+    const estimate = (n < 0n ? -1 : 1) * Number(abs(n) >> BigInt(sn)) / Number(d >> BigInt(sd)) * 2 ** (sn - sd);
+    if (!Number.isFinite(estimate)) throw new Error("constant fraction outside numeric range");
+    const compare = (candidate: number) => {
+      step(); const f = binaryFraction(candidate); const delta = n * f.d - f.n * d;
+      return delta < 0n ? -1 : delta > 0n ? 1 : 0;
+    };
+    let lo = estimate, hi = estimate;
+    const direction = compare(estimate);
+    if (direction === 0) return { lo, hi };
+    for (let i = 0; i < 4; i++) {
+      if (direction > 0) { hi = adjacent(hi, true); if (compare(hi) <= 0) return { lo, hi }; lo = hi; }
+      else { lo = adjacent(lo, false); if (compare(lo) >= 0) return { lo, hi }; hi = lo; }
+    }
+    throw new Error("constant fraction enclosure failed");
+  };
+  const outward = (values: number[]): ConstantInterval => {
+    step();
+    if (values.some(value => !Number.isFinite(value))) throw new Error("nonfinite constant interval");
+    return { lo: adjacent(Math.min(...values), false), hi: adjacent(Math.max(...values), true) };
+  };
+  const addIntervals = (a: ConstantInterval, b: ConstantInterval) => a.lo === 0 && a.hi === 0 ? b : b.lo === 0 && b.hi === 0 ? a : outward([a.lo + b.lo, a.hi + b.hi]);
+  const multiplyIntervals = (a: ConstantInterval, b: ConstantInterval): ConstantInterval => {
+    if (a.lo === 0 && a.hi === 0 || b.lo === 0 && b.hi === 0) return { lo: 0, hi: 0 };
+    if (a.lo === 1 && a.hi === 1) return b;
+    if (b.lo === 1 && b.hi === 1) return a;
+    return outward([a.lo * b.lo, a.lo * b.hi, a.hi * b.lo, a.hi * b.hi]);
+  };
+  const powerInterval = (base: ConstantInterval, exponent: ConstantInterval, integer: boolean): ConstantInterval => {
+    if (exponent.lo === 1 && exponent.hi === 1) return base;
+    if (!integer && base.lo < 0 || base.lo <= 0 && base.hi >= 0 && exponent.lo <= 0) throw new Error("unproved constant power domain");
+    const values = [base.lo ** exponent.lo, base.lo ** exponent.hi, base.hi ** exponent.lo, base.hi ** exponent.hi];
+    if (integer && exponent.lo === exponent.hi && exponent.lo > 0 && exponent.lo % 2 === 0 && base.lo <= 0 && base.hi >= 0) values.push(0);
+    if (base.lo <= 1 && base.hi >= 1 || exponent.lo <= 0 && exponent.hi >= 0) values.push(1);
+    return outward(values);
+  };
+  const exactCache = new WeakMap<ExpressionNode, Fraction | null>();
+  const exactConstant = (node: ExpressionNode): Fraction | null => {
+    step();
+    if (exactCache.has(node)) return exactCache.get(node)!;
+    let result: Fraction | null = null;
+    if (node.kind === "number") result = number(node.value, node.literal);
+    else if (node.kind === "unary") {
+      const value = exactConstant(node.value); if (value) result = fraction(node.operator === "-" ? -value.n : value.n, value.d);
+    } else if (node.kind === "binary") {
+      const a = exactConstant(node.left), b = exactConstant(node.right);
+      if (a && b) {
+        if (node.operator === "+" || node.operator === "-") result = fraction(a.n * b.d + (node.operator === "+" ? b.n : -b.n) * a.d, a.d * b.d);
+        else if (node.operator === "*") result = fraction(a.n * b.n, a.d * b.d);
+        else if (node.operator === "/") result = fraction(a.n * b.d, a.d * b.n);
+        else if (b.d === 1n && b.n >= -16n && b.n <= 16n) {
+          const power = b.n < 0n ? -b.n : b.n;
+          result = b.n < 0n ? fraction(a.d ** power, a.n ** power) : fraction(a.n ** power, a.d ** power);
+        }
+      }
+    }
+    exactCache.set(node, result); return result;
+  };
+  const intervalCache = new WeakMap<ExpressionNode, ConstantInterval>();
+  const constantInterval = (node: ExpressionNode): ConstantInterval => {
+    step();
+    const cached = intervalCache.get(node); if (cached) return cached;
+    const exact = exactConstant(node);
+    if (exact) { const result = fractionBounds(exact); intervalCache.set(node, result); return result; }
+    let result: ConstantInterval;
+    if (node.kind === "variable" || node.kind === "number") throw new Error("unproved constant expression");
+    if (node.kind === "unary") {
+      const value = constantInterval(node.value); result = node.operator === "-" ? { lo: -value.hi, hi: -value.lo } : value;
+    } else if (node.kind === "binary") {
+      const a = constantInterval(node.left), b = constantInterval(node.right);
+      if (node.operator === "+") result = addIntervals(a, b);
+      else if (node.operator === "-") result = addIntervals(a, { lo: -b.hi, hi: -b.lo });
+      else if (node.operator === "*") result = multiplyIntervals(a, b);
+      else if (node.operator === "/") {
+        if (b.lo <= 0 && b.hi >= 0) throw new Error("unproved nonzero constant divisor");
+        result = outward([a.lo / b.lo, a.lo / b.hi, a.hi / b.lo, a.hi / b.hi]);
+      } else result = powerInterval(a, b, exactConstant(node.right)?.d === 1n);
+    } else {
+      const a = constantInterval(node.argument), fn = FUNCTIONS[node.name];
+      if (node.name === "sqrt" && a.lo < 0 || ["log", "ln"].includes(node.name) && a.lo <= 0 || ["asin", "acos"].includes(node.name) && (a.lo < -1 || a.hi > 1)) throw new Error("unproved constant function domain");
+      if (["sin", "cos", "tan"].includes(node.name)) {
+        const center = a.lo + (a.hi - a.lo) / 2, radius = Math.max(center - a.lo, a.hi - center);
+        if (node.name === "tan") {
+          const lowerCos = Math.abs(Math.cos(center)) - radius - 4 * Number.EPSILON;
+          if (lowerCos <= 0) throw new Error("unproved tangent domain");
+          const width = radius / (lowerCos * lowerCos), middle = fn(center);
+          result = outward([middle - width, middle + width]);
+        } else {
+          const middle = fn(center); result = outward([Math.max(-1, middle - radius), Math.min(1, middle + radius)]);
+        }
+      } else if (node.name === "abs") result = outward([a.lo <= 0 && a.hi >= 0 ? 0 : Math.min(Math.abs(a.lo), Math.abs(a.hi)), Math.max(Math.abs(a.lo), Math.abs(a.hi))]);
+      else result = outward([fn(a.lo), fn(a.hi)]);
+      if (["sqrt", "abs", "exp"].includes(node.name)) result.lo = Math.max(0, result.lo);
+    }
+    intervalCache.set(node, result); return result;
+  };
   const opaque = (node: ExpressionNode, constant = false): Polynomial => {
     if (!retainOpaqueTerms && !constant) throw new Error("non-polynomial identity");
     const key = atomKey(node);
@@ -194,7 +321,14 @@ function rationalPolynomials(roots: readonly ExpressionNode[], retainOpaqueTerms
     let index = atoms.get(key);
     if (index === undefined) { index = atoms.size + 2; atoms.set(key, index); }
     if (atoms.size > 64) throw new Error("identity opaque term limit");
-    if (constant) constantAtoms?.set(index, node);
+    if (constant) {
+      constantAtoms.set(index, node);
+      if (!retainOpaqueTerms) {
+        const range = constantInterval(node), value = evaluateNode(node, { x: 0, y: 0 }, { remaining: MAX_EVALUATION_STEPS });
+        if (value < range.lo || value > range.hi) throw new Error("constant evaluation escaped its enclosure");
+        constantRanges.set(index, range);
+      }
+    }
     const powers = Array<number>(index + 1).fill(0); powers[index] = 1;
     return new Map([[powers.join(","), fraction(1n)]]);
   };
@@ -226,7 +360,8 @@ function rationalPolynomials(roots: readonly ExpressionNode[], retainOpaqueTerms
     if (node.operator === "*") return multiply(x, y);
     const scalar = y.size === 0 ? fraction(0n) : y.size === 1 ? y.get("0,0") : undefined;
     if (!scalar) {
-      if (node.operator === "/" && expressionDegree(node.right) === 0) {
+      const reciprocalFits = [...x.keys()].every(key => key.split(",").reduce((sum, power) => sum + Number(power), 0) < 16);
+      if (node.operator === "/" && expressionDegree(node.right) === 0 && (!retainOpaqueTerms || reciprocalFits)) {
         const inverse: ExpressionNode = { kind: "binary", operator: "/", left: { kind: "number", value: 1 }, right: node.right };
         evaluateNode(inverse, { x: 0, y: 0 }, { remaining: MAX_EVALUATION_STEPS });
         return multiply(x, opaque(inverse, true));
@@ -256,7 +391,7 @@ function rationalPolynomials(roots: readonly ExpressionNode[], retainOpaqueTerms
   };
   const result = roots.map(root => { domain = new Set(); domains.push(domain); return polynomial(root); });
   if (retainOpaqueTerms && domains.some(set => set.size !== domains[0]!.size || [...set].some(key => !domains[0]!.has(key)))) throw new Error("identity would discard an opaque domain");
-  return result;
+  return { values: result, constants: constantAtoms, ranges: constantRanges, fractionBounds, binaryFraction, addIntervals, multiplyIntervals, powerInterval };
 }
 
 /** A bounded analytic degree proof, never a fit to sampled points. */
@@ -275,7 +410,7 @@ export function isAffineMathExpression(source: string): boolean {
  * Degree and coefficient expressions use exact symbolic algebra, never point
  * probes. Finite constant atoms are evaluated only after the affine proof.
  * A nonzero coefficient that cannot survive conversion refuses the relation. */
-export function cartesianLineCoefficients(lhs: string, rhs: string): { x: number; y: number; constant: number } | null {
+export function cartesianLineCoefficients(lhs: string, rhs: string): { x: number; y: number; constant: number; uncertainty?: { x: number; y: number; constant: number } } | null {
   try {
     // In a Cartesian label, known constants may multiply a parenthesized
     // factor (e.g. 2e(x)); source-function notation keeps its stricter default.
@@ -283,8 +418,23 @@ export function cartesianLineCoefficients(lhs: string, rhs: string): { x: number
     const source = `(${notation(lhs)})-(${notation(rhs)})`;
     if (source.length > MAX_EXPRESSION_LENGTH * 2 + 8) return null;
     const root = new Parser(tokenize(normalizePlainMathSource(source)), new Set<VariableName>(["x", "y"])).parse();
-    const constants = new Map<number, ExpressionNode>();
-    const coefficients = rationalPolynomials([root], false, constants)[0]!;
+    const algebra = rationalPolynomials([root]);
+    const constants = algebra.constants;
+    let coefficients = algebra.values[0]!;
+    // A common, proved-nonzero constant factor does not change a relation's
+    // zero set. Cancel it symbolically before numerical normalization.
+    for (const index of constants.keys()) {
+      const range = algebra.ranges.get(index)!;
+      if (range.lo <= 0 && range.hi >= 0 || coefficients.size === 0) continue;
+      const common = Math.min(...[...coefficients.keys()].map(key => Number(key.split(",")[index] ?? 0)));
+      if (!common) continue;
+      coefficients = new Map([...coefficients].map(([key, value]) => {
+        const powers = key.split(",").map(Number); powers[index]! -= common;
+        while (powers.length > 2 && powers.at(-1) === 0) powers.pop();
+        return [powers.join(","), value];
+      }));
+    }
+    const hasConstantTerms = [...coefficients.keys()].some(key => key.split(",").slice(2).some(power => Number(power) !== 0));
     // Prove degree before evaluating any constant. A rounded value must never
     // erase a surviving x^2, xy or other nonlinear symbolic term.
     if ([...coefficients.keys()].some(key => {
@@ -295,7 +445,7 @@ export function cartesianLineCoefficients(lhs: string, rhs: string): { x: number
     const a = coefficients.get("1,0") ?? zero, b = coefficients.get("0,1") ?? zero;
     const abs = (value: bigint) => value < 0n ? -value : value;
     let scale = abs(a.n) * b.d >= abs(b.n) * a.d ? a : b;
-    if (constants.size > 0) for (const [key, value] of coefficients) {
+    if (hasConstantTerms) for (const [key, value] of coefficients) {
       const [x, y] = key.split(",").map(Number);
       if (x! + y! === 1 && abs(value.n) * scale.d > abs(scale.n) * value.d) scale = value;
     }
@@ -308,12 +458,25 @@ export function cartesianLineCoefficients(lhs: string, rhs: string): { x: number
       if (!Number.isFinite(result) || result === 0) throw new Error("line coefficient outside numeric range");
       return result;
     };
-    if (constants.size === 0) return { x: ratio(a), y: ratio(b), constant: ratio(coefficients.get("0,0") ?? zero) };
+    const resultWithBounds = (values: number[], ranges: ConstantInterval[]) => {
+      const errors = ranges.map((range, i) => {
+        const error = Math.max(Math.abs(values[i]! - range.lo), Math.abs(range.hi - values[i]!));
+        return error === 0 ? 0 : error * (1 + 4 * Number.EPSILON) + Number.MIN_VALUE;
+      });
+      if (errors.some(error => !Number.isFinite(error))) throw new Error("unbounded line coefficient uncertainty");
+      return { x: values[0]!, y: values[1]!, constant: values[2]!, ...(errors.some(error => error > 0) ? { uncertainty: { x: errors[0]!, y: errors[1]!, constant: errors[2]! } } : {}) };
+    };
+    if (!hasConstantTerms) {
+      const terms = [a, b, coefficients.get("0,0") ?? zero];
+      return resultWithBounds(terms.map(ratio), terms.map(value => algebra.fractionBounds(value, scale)));
+    }
     const values = new Map<number, number>();
     const groups: number[][] = [[], [], []];
+    const ranges: ConstantInterval[] = [{ lo: 0, hi: 0 }, { lo: 0, hi: 0 }, { lo: 0, hi: 0 }];
     for (const [key, coefficient] of coefficients) {
       const powers = key.split(",").map(Number);
-      let term = ratio(coefficient);
+      let range = algebra.fractionBounds(coefficient, scale);
+      let term = Math.max(range.lo, Math.min(range.hi, ratio(coefficient)));
       for (let index = 2; index < powers.length; index++) if (powers[index]) {
         let value = values.get(index);
         if (value === undefined) {
@@ -321,17 +484,23 @@ export function cartesianLineCoefficients(lhs: string, rhs: string): { x: number
           values.set(index, value);
         }
         term *= value ** powers[index]!;
+        range = algebra.multiplyIntervals(range, algebra.powerInterval(algebra.ranges.get(index)!, { lo: powers[index]!, hi: powers[index]! }, true));
       }
       if (!Number.isFinite(term) || term === 0) throw new Error("constant line coefficient outside numeric range");
-      groups[powers[0] ? 0 : powers[1] ? 1 : 2]!.push(term);
+      const group = powers[0] ? 0 : powers[1] ? 1 : 2;
+      ranges[group] = groups[group]!.length ? algebra.addIntervals(ranges[group]!, range) : range;
+      groups[group]!.push(term);
     }
-    const evaluated = groups.map(terms => {
+    const evaluated = groups.map((terms, index) => {
       let sum = 0, correction = 0, magnitude = 0;
       for (const term of terms) {
         const adjusted = term - correction, next = sum + adjusted;
         correction = (next - sum) - adjusted; sum = next; magnitude += Math.abs(term);
       }
-      if (terms.length > 0 && (sum === 0 || !Number.isFinite(sum) || Math.abs(sum) < magnitude * 1e-8)) throw new Error("unproved cancellation between constant coefficients");
+      if (!Number.isFinite(sum) || !Number.isFinite(magnitude) || terms.length > 0 && sum === 0) throw new Error("unbounded or lost nonzero constant coefficient");
+      const cancellation = terms.some(term => term > 0) && terms.some(term => term < 0);
+      const range = ranges[index]!;
+      if (cancellation && Math.max(Math.abs(sum - range.lo), Math.abs(range.hi - sum)) > Math.abs(sum) * 1e-8) throw new Error("unproved cancellation between constant coefficients");
       return sum;
     });
     const norm = Math.max(Math.abs(evaluated[0]!), Math.abs(evaluated[1]!));
@@ -341,7 +510,12 @@ export function cartesianLineCoefficients(lhs: string, rhs: string): { x: number
       if (!Number.isFinite(result) || value !== 0 && result === 0) throw new Error("line coefficient outside numeric range");
       return result;
     });
-    return { x: normalized[0]!, y: normalized[1]!, constant: normalized[2]! };
+    // The nominal floating scale is fixed for every coefficient; enclose its
+    // reciprocal directly rather than treating it as a source expression.
+    const normalizer = algebra.fractionBounds({ n: 1n, d: 1n }, algebra.binaryFraction(norm));
+    const result = resultWithBounds(normalized, ranges.map(range => algebra.multiplyIntervals(range, normalizer)));
+    if (result.uncertainty && Math.max(result.uncertainty.x, result.uncertainty.y, result.uncertainty.constant) > 1e-8) return null;
+    return result;
   } catch { return null; }
 }
 
