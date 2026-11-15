@@ -1354,7 +1354,7 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
     // A mention, negation, hypothetical, or another object's request cannot.
     const attached = boundEnds.some(end => end <= match.index! && (
       /^\s*,?\s*(?:and|with|then)\s+(?:(?:please\s+)?(?:draw|plot|sketch|show|find|determine|calculate|construct)\s+)?(?:(?:its|the|a)\s+)?$/iu.test(stem.slice(end, match.index!)) ||
-      /^\s*[.;]\s*(?:please\s+)?(?:draw|plot|sketch|show|find|determine|calculate|construct)\s+its\s+$/iu.test(stem.slice(end, match.index!))));
+      /^\s*[.;]\s*(?:please\s+)?(?:draw|plot|sketch|show|find|determine|calculate|construct)\s+(?:(?:its|the|a)\s+)?$/iu.test(stem.slice(end, match.index!))));
     if (!attached) continue;
     const pointSource = stem.slice(match.index! + match[0].length);
     const qualifier = /\s+on\s+(?:the|this)\s+curve(?=\s*(?:$|[.!?;]|\band\b|,\s*(?:find|calculate|mark|show|draw|sketch|state)\b))/iu.exec(pointSource);

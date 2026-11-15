@@ -357,18 +357,32 @@ async function main() {
       "implicit multiplication must retain affine, identifier and domain guards");
   }
   assert.throws(() => parseMathExpression("2x"), "executable curve bodies still require explicit multiplication");
-  for (const source of ["Plot y=x^2. Do not draw its tangent at x=1.", "Plot y=x^2. If we drew a tangent at x=1, what would its slope be?", "Plot y=x^2. Draw a tangent at x=1 to the circle centered at (1,0) with radius 1."]) {
+  for (const source of ["Plot y=x^2. Do not draw its tangent at x=1.", "Plot y=x^2. Do not draw a tangent at x=1.", "Plot y=x^2. Do not draw the tangent at x=1.", "Plot y=x^2. If we drew a tangent at x=1, what would its slope be?", "Plot y=x^2. Draw a tangent at x=1 to the circle centered at (1,0) with radius 1.", "Plot y=x^2. Draw the tangent at x=1 to the circle centered at (1,0) with radius 1.", "Plot y=x^2. Draw a tangent at x=1 on another curve.", "Plot y=x^2. A tangent at x=1 is mentioned in a note."]) {
     const doc = graph(source, ["x^2", "2*x-1"], ["y=x^2", "y=2*x-1"]);
     assert(!validateProductionSceneCandidate({ question: source, turnPlan: { ...segmentPlan, question: source }, candidate: { ...doc } }).valid);
     assert.match(sceneSaveAdmissionFailure({ question: source, document: doc, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "an adjunct mention is not an affirmative request bound to this curve");
   }
   for (const source of ["Plot y=x^2 and please draw its tangent at x=1.", "Plot y=x^2 and its tangent at x=1 on the curve.", "Plot y=x^2 and find its tangent at x=1.", "Plot y=x^2. Determine its tangent at x=1."]) await admitted(source, graph(source, ["x^2", "2*x-1"], ["y=x^2", "y=2*x-1"]));
+  for (const role of ["tangent", "normal"] as const) for (const request of ["Draw a", "Draw the", "Draw its", "Draw", "Please sketch the", "Find a", "Determine the", "Calculate a", "Construct the"]) {
+    const source = `Plot y=x^2. ${request} ${role} at x=1.`;
+    const body = role === "tangent" ? "2*x-1" : "-x/2+3/2";
+    const doc = graph(source, ["x^2", body], ["y=x^2", `y=${body}`]);
+    assert(compileSceneDocument(doc, { figureConsistency: true }).ok, "the affirmative-request regression must already compile");
+    await admitted(source, doc);
+  }
+  const semicolonTangent = "Plot y=x^2; draw a tangent at x=1.";
+  await admitted(semicolonTangent, graph(semicolonTangent, ["x^2", "2*x-1"], ["y=x^2", "y=2*x-1"]));
   const verticalSource = "Plot y=x^2 and its normal at x=0.";
   const vertical = graph(verticalSource, ["x^2"], ["y=x^2"]);
   vertical.entities.push({ id: "a", kind: "point", role: "normal point" }, { id: "b", kind: "point", role: "normal point" }, { id: "normal", kind: "line", role: "normal", label: "x=0" });
   vertical.constructions.push({ id: "make_a", operator: "point", inputs: { x: 0, y: -1 }, outputs: ["a"] }, { id: "make_b", operator: "point", inputs: { x: 0, y: 1 }, outputs: ["b"] }, { id: "make_normal", operator: "line", inputs: { start: "a", end: "b" }, outputs: ["normal"] });
   vertical.requiredEntityIds.push("a", "b", "normal"); vertical.revealGroups[0]!.entityIds.push("a", "b", "normal");
   await admitted(verticalSource, vertical);
+  for (const source of ["Plot y=x^2. Draw a normal at x=0.", "Plot y=x^2. Draw the normal at x=0."]) {
+    const doc = structuredClone(vertical);
+    doc.source.question = source;
+    await admitted(source, doc);
+  }
   const wrongVerticalLabel = structuredClone(vertical);
   wrongVerticalLabel.entities = wrongVerticalLabel.entities.filter(entity => entity.id !== "axes"); wrongVerticalLabel.constructions = wrongVerticalLabel.constructions.filter(construction => construction.operator !== "axes");
   wrongVerticalLabel.requiredEntityIds = wrongVerticalLabel.requiredEntityIds.filter(id => id !== "axes"); wrongVerticalLabel.revealGroups[0]!.entityIds = wrongVerticalLabel.revealGroups[0]!.entityIds.filter(id => id !== "axes");
