@@ -137,6 +137,15 @@ async function main() {
     ["Plot y=sin(x).", "sin(x)", "y-sin(x)=0"],
     ["Plot y=1/(x^2+1).", "1/(x^2+1)", "y-1/(x^2+1)=0"],
   ]) await admitted(source!, graph(source!, [body!], [label!]));
+  await admitted("Plot y=sin(2*x).", graph("Plot y=sin(2*x).", ["sin(2.0*x)"], ["y=sin(2e0*x)"]));
+  const radicalSource = "Sketch y=sqrt(2)*x^2 and its tangent at x=1.";
+  const radicalTangent = graph(radicalSource, ["sqrt(2)*x^2", "2*sqrt(2)*x-sqrt(2)"], ["y=sqrt(2)*x^2", "T"]);
+  radicalTangent.annotations.push({ id: "tangent_equation", kind: "callout", targetIds: ["curve_1"], text: "y=2*sqrt(2)*x-sqrt(2)" });
+  await admitted(radicalSource, radicalTangent);
+  const radicalNormal = "Sketch y=sqrt(2)*x^2 and its normal at x=1.";
+  const radicalNormalDocument = graph(radicalNormal, ["sqrt(2)*x^2", "-x/(2*sqrt(2))+sqrt(2)+1/(2*sqrt(2))"], ["y=sqrt(2)*x^2", "N"]);
+  radicalNormalDocument.annotations.push({ id: "normal_equation", kind: "callout", targetIds: ["curve_1"], text: "y=-x/(2*sqrt(2))+sqrt(2)+1/(2*sqrt(2))" });
+  await admitted(radicalNormal, radicalNormalDocument);
   const scientificWrong = graph("Plot y=x+1e-3.", ["x+e-3"], ["y=x+1e-3"], false);
   assert.match(sceneSaveAdmissionFailure({ question: "Plot y=x+1e-3.", document: scientificWrong, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "scientific literals cannot become Euler-constant products");
   const eulerWrong = graph("Plot y=x+2 e + 1.", ["x+20"], ["y=x+2 e + 1"], false);

@@ -14,6 +14,16 @@ for (const body of ["sin(x)", "cos(x)+sin(x)", "1/(x^2+1)"]) {
   assert(mathExpressionsEquivalent(`(${body})-2*y`, `y-(${body})/2`, { allowNonzeroScale: true }), "constant rearrangement preserves complete opaque terms");
   assert(!mathExpressionsEquivalent(`(${body})-3*y`, `y-(${body})/2`, { allowNonzeroScale: true }));
 }
+for (const [left, right] of [["sin(2.0*x)", "sin(2*x)"], ["sin(2e0*x)", "sin(2.00*x)"], ["sqrt(2.00)", "sqrt(2)"]]) assert(mathExpressionsEquivalent(left!, right!), "equal exact number spellings retain function identity");
+assert(!mathExpressionsEquivalent("sin(1.0000000000000000001*x)", "sin(x)"), "distinct exact function parameters must stay distinct");
+const radicalLine = cartesianLineCoefficients("y", "2*sqrt(2)*x-sqrt(2)");
+assert(radicalLine, "finite constant coefficients retain an affine proof");
+assert(Math.abs(radicalLine.x + radicalLine.y * Math.sqrt(2) + radicalLine.constant) < 1e-12);
+assert(cartesianLineCoefficients("y", "x/(2*sqrt(2))+sqrt(2)"));
+assert.equal(cartesianLineCoefficients("y", "sqrt(-1)*x"), null);
+assert(cartesianLineCoefficients("1e-300*y", "1e-300*sqrt(2)*x"), "constant coefficients normalize before conversion");
+assert.equal(cartesianLineCoefficients("x", "(sqrt(2.0000000000000000001)-sqrt(2))*y^2"), null, "rounded equal constants cannot erase nonlinear terms");
+assert.equal(cartesianLineCoefficients("y", "x/(sqrt(2.0000000000000000001)-sqrt(2))"), null, "rounded zero denominators refuse");
 assert(mathExpressionsEquivalent("2*y-2*x^2", "y-x*x", { allowNonzeroScale: true }));
 assert(!mathExpressionsEquivalent("0", "y-x^2", { allowNonzeroScale: true }));
 assert(!mathExpressionsEquivalent("y^2-x^4", "y-x^2", { allowNonzeroScale: true }));

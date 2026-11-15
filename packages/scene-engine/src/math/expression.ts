@@ -135,7 +135,7 @@ type Fraction = { n: bigint; d: bigint };
 type Polynomial = Map<string, Fraction>;
 
 /** Shared exact coefficient algebra; all consumers retain its work limits. */
-function rationalPolynomials(roots: readonly ExpressionNode[], retainOpaqueTerms = false): Polynomial[] {
+function rationalPolynomials(roots: readonly ExpressionNode[], retainOpaqueTerms = false, constantAtoms?: Map<number, ExpressionNode>): Polynomial[] {
   const atoms = new Map<string, number>();
   const domains: Set<string>[] = [];
   let domain: Set<string>;
@@ -176,13 +176,25 @@ function rationalPolynomials(roots: readonly ExpressionNode[], retainOpaqueTerms
     }
     return result;
   };
+  const atomKey = (node: ExpressionNode) => JSON.stringify(node, (_key, value: unknown) => {
+    if (!value || typeof value !== "object" || !("kind" in value) || value.kind !== "number" || !("literal" in value) || typeof value.literal !== "string") return value;
+    // Canonicalize the decimal token itself, never its rounded Number value.
+    // Thus 2.0 and 2e0 agree while 1.0000000000000000001 remains distinct.
+    const [mantissa, exponent = "0"] = value.literal.toLowerCase().split("e");
+    const decimals = mantissa!.split(".")[1]?.length ?? 0;
+    const digits = mantissa!.replace(".", "").replace(/^0+/u, "");
+    const trailing = /0+$/u.exec(digits)?.[0].length ?? 0;
+    const literal = digits ? `${digits.slice(0, digits.length - trailing)}e${Number(exponent) - decimals + trailing}` : "0";
+    return { ...value, literal };
+  });
   const opaque = (node: ExpressionNode, constant = false): Polynomial => {
     if (!retainOpaqueTerms && !constant) throw new Error("non-polynomial identity");
-    const key = JSON.stringify(node);
+    const key = atomKey(node);
     domain.add(key);
     let index = atoms.get(key);
     if (index === undefined) { index = atoms.size + 2; atoms.set(key, index); }
     if (atoms.size > 64) throw new Error("identity opaque term limit");
+    if (constant) constantAtoms?.set(index, node);
     const powers = Array<number>(index + 1).fill(0); powers[index] = 1;
     return new Map([[powers.join(","), fraction(1n)]]);
   };
@@ -213,7 +225,16 @@ function rationalPolynomials(roots: readonly ExpressionNode[], retainOpaqueTerms
     }
     if (node.operator === "*") return multiply(x, y);
     const scalar = y.size === 0 ? fraction(0n) : y.size === 1 ? y.get("0,0") : undefined;
-    if (!scalar) return opaque(node);
+    if (!scalar) {
+      if (node.operator === "/" && expressionDegree(node.right) === 0) {
+        const inverse: ExpressionNode = { kind: "binary", operator: "/", left: { kind: "number", value: 1 }, right: node.right };
+        evaluateNode(inverse, { x: 0, y: 0 }, { remaining: MAX_EVALUATION_STEPS });
+        return multiply(x, opaque(inverse, true));
+      }
+      const constant = expressionDegree(node) === 0;
+      if (constant) evaluateNode(node, { x: 0, y: 0 }, { remaining: MAX_EVALUATION_STEPS });
+      return opaque(node, constant);
+    }
     if (node.operator === "/") {
       if (!scalar.n) throw new Error("zero divisor");
       return new Map([...x].map(([key, value]) => [key, fraction(value.n * scalar.d, value.d * scalar.n)]));
@@ -251,19 +272,30 @@ export function isAffineMathExpression(source: string): boolean {
 }
 
 /** A complete Cartesian line, normalized before floating-point geometry.
- * Coefficients are derived by exact polynomial algebra, never point probes.
+ * Degree and coefficient expressions use exact symbolic algebra, never point
+ * probes. Finite constant atoms are evaluated only after the affine proof.
  * A nonzero coefficient that cannot survive conversion refuses the relation. */
 export function cartesianLineCoefficients(lhs: string, rhs: string): { x: number; y: number; constant: number } | null {
   try {
     const source = `(${normalizeMathProductNotation(lhs)})-(${normalizeMathProductNotation(rhs)})`;
     if (source.length > MAX_EXPRESSION_LENGTH * 2 + 8) return null;
     const root = new Parser(tokenize(normalizePlainMathSource(source)), new Set<VariableName>(["x", "y"])).parse();
-    const coefficients = rationalPolynomials([root])[0]!;
-    if ([...coefficients.keys()].some(key => !["0,0", "1,0", "0,1"].includes(key))) return null;
+    const constants = new Map<number, ExpressionNode>();
+    const coefficients = rationalPolynomials([root], false, constants)[0]!;
+    // Prove degree before evaluating any constant. A rounded value must never
+    // erase a surviving x^2, xy or other nonlinear symbolic term.
+    if ([...coefficients.keys()].some(key => {
+      const powers = key.split(",").map(Number);
+      return powers[0]! + powers[1]! > 1 || powers.slice(2).some((power, i) => power !== 0 && !constants.has(i + 2));
+    })) return null;
     const zero: Fraction = { n: 0n, d: 1n };
     const a = coefficients.get("1,0") ?? zero, b = coefficients.get("0,1") ?? zero;
     const abs = (value: bigint) => value < 0n ? -value : value;
-    const scale = abs(a.n) * b.d >= abs(b.n) * a.d ? a : b;
+    let scale = abs(a.n) * b.d >= abs(b.n) * a.d ? a : b;
+    if (constants.size > 0) for (const [key, value] of coefficients) {
+      const [x, y] = key.split(",").map(Number);
+      if (x! + y! === 1 && abs(value.n) * scale.d > abs(scale.n) * value.d) scale = value;
+    }
     if (scale.n === 0n) return null;
     const ratio = (value: Fraction): number => {
       if (value.n === 0n) return 0;
@@ -273,7 +305,40 @@ export function cartesianLineCoefficients(lhs: string, rhs: string): { x: number
       if (!Number.isFinite(result) || result === 0) throw new Error("line coefficient outside numeric range");
       return result;
     };
-    return { x: ratio(a), y: ratio(b), constant: ratio(coefficients.get("0,0") ?? zero) };
+    if (constants.size === 0) return { x: ratio(a), y: ratio(b), constant: ratio(coefficients.get("0,0") ?? zero) };
+    const values = new Map<number, number>();
+    const groups: number[][] = [[], [], []];
+    for (const [key, coefficient] of coefficients) {
+      const powers = key.split(",").map(Number);
+      let term = ratio(coefficient);
+      for (let index = 2; index < powers.length; index++) if (powers[index]) {
+        let value = values.get(index);
+        if (value === undefined) {
+          value = evaluateNode(constants.get(index)!, { x: 0, y: 0 }, { remaining: MAX_EVALUATION_STEPS });
+          values.set(index, value);
+        }
+        term *= value ** powers[index]!;
+      }
+      if (!Number.isFinite(term) || term === 0) throw new Error("constant line coefficient outside numeric range");
+      groups[powers[0] ? 0 : powers[1] ? 1 : 2]!.push(term);
+    }
+    const evaluated = groups.map(terms => {
+      let sum = 0, correction = 0, magnitude = 0;
+      for (const term of terms) {
+        const adjusted = term - correction, next = sum + adjusted;
+        correction = (next - sum) - adjusted; sum = next; magnitude += Math.abs(term);
+      }
+      if (terms.length > 0 && (sum === 0 || !Number.isFinite(sum) || Math.abs(sum) < magnitude * 1e-8)) throw new Error("unproved cancellation between constant coefficients");
+      return sum;
+    });
+    const norm = Math.max(Math.abs(evaluated[0]!), Math.abs(evaluated[1]!));
+    if (!Number.isFinite(norm) || norm === 0) return null;
+    const normalized = evaluated.map(value => {
+      const result = value / norm;
+      if (!Number.isFinite(result) || value !== 0 && result === 0) throw new Error("line coefficient outside numeric range");
+      return result;
+    });
+    return { x: normalized[0]!, y: normalized[1]!, constant: normalized[2]! };
   } catch { return null; }
 }
 
