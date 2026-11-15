@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import ts from "typescript";
 import { createFallbackTurnPlanV3 } from "@heytutor/tutor-core";
 import {
   compileSceneDocument,
@@ -58,13 +59,40 @@ assert(!evaluationSuppressesSelectedSource("planner_examples_strict", strictSele
 
 console.log("strict planner selection: admissible qualitative composite survives; default source preference is unchanged");
 
+// Check the two policy call sites, rather than unrelated uses of classification
+// (for example the block-flow eligibility gate). The bare DSA lesson below
+// correctly draws no scene, so ink equality alone cannot prove final admission.
+const pipeline = ts.createSourceFile("lecturePipeline.ts",
+  readFileSync(resolve(process.cwd(), "scripts/lecture-lab/lecturePipeline.ts"), "utf8"),
+  ts.ScriptTarget.Latest, true);
+const policyBindings = new Set(["pickerDecision", "diagramStrategy"]);
+function verifyPolicyBinding(node: ts.Node): void {
+  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && policyBindings.has(node.name.text)) {
+    const call = node.initializer;
+    assert(call && ts.isCallExpression(call) && ts.isIdentifier(call.expression) && call.expression.text === "labStrategyDecision");
+    const context = call.arguments[1];
+    assert(context && ts.isObjectLiteralExpression(context));
+    const dsa = context.properties.find((property) => ts.isPropertyAssignment(property) &&
+      ts.isIdentifier(property.name) && property.name.text === "dsa");
+    assert(dsa && ts.isPropertyAssignment(dsa));
+    const value = dsa.initializer;
+    assert(ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression) &&
+      value.expression.text === "dsaClassification" && value.name.text === "isDsa",
+    `${node.name.text} must pass the real DSA classification to shared production policy`);
+    policyBindings.delete(node.name.text);
+  }
+  ts.forEachChild(node, verifyPolicyBinding);
+}
+verifyPolicyBinding(pipeline);
+assert.deepEqual([...policyBindings], [], "both picker and final-selection policy calls must be checked");
+
 async function verifyDsaExemption(): Promise<void> {
   const dsaQuestion = "Explain binary search.";
   const nativeFetch = globalThis.fetch;
-  const plan = { ...createFallbackTurnPlanV3(dsaQuestion), visualRequirement: "required" as const };
+  const plan = { ...createFallbackTurnPlanV3(dsaQuestion), visualRequirement: "required" as const, subject: "other" };
   globalThis.fetch = async () => Response.json({ choices: [{ message: { content: JSON.stringify(plan) } }] });
   try {
-    const options = { origin: "http://synthetic", cookie: "", figureOnly: true, scenePlannerDeadlineMs: 1000,
+    const options = { productionStrictSubjects: ["other"] as const, origin: "http://synthetic", cookie: "", figureOnly: true, scenePlannerDeadlineMs: 1000,
       visualNeedReplay: { decision: "required" as const, source: "jev" as const, unavailableReason: null,
         usage: null, provenance: null } };
     const current = await runLecture(dsaQuestion, { ...options, arm: "current" });
@@ -73,9 +101,11 @@ async function verifyDsaExemption(): Promise<void> {
     assert.equal(strict.examplePicker, undefined, "DSA exemption must prevent the strict lab picker even with an empty library");
     assert.equal(strict.diagram.figureSource, current.diagram.figureSource, "DSA strict assignment keeps current source admission");
     assert.deepEqual(strict.diagram.labels, current.diagram.labels);
-    const pipeline = readFileSync(resolve(process.cwd(), "scripts/lecture-lab/lecturePipeline.ts"), "utf8");
-    assert.equal((pipeline.match(/dsa: dsaClassification\.isDsa/g) ?? []).length, 2,
-      "picker and final selection must both pass the real DSA classification to the shared production policy");
+    assert.equal(strict.turnPlanStatus, "planned", "exercise the accepted-plan policy path");
+    assert.deepEqual(strict.productionStrategy, { classifiedSubject: "other", strategy: "current" },
+      "the picker must apply the DSA exemption even when its accepted subject is assigned strict");
+    assert.equal(strict.diagram.suppressedFallback, null,
+      "final selection must not suppress the current DSA source under strict policy");
   } finally { globalThis.fetch = nativeFetch; }
   console.log("strict lab DSA exemption: no example picker and current source admission pass (mocked, zero model calls)");
 }

@@ -28,6 +28,7 @@
  * nothing has to come here and say why, and anything that fails for neither
  * reason fails outright.
  */
+import { writePhysicsProbeReport, type PhysicsProbeRecord } from "./physicsProbeReport.ts";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -63,6 +64,7 @@ const MAX_DECLARED_DECLINES = 48;
 const MAX_MISSING_BUILDERS = 54;
 
 const failures: string[] = [];
+const records: PhysicsProbeRecord[] = [];
 const declined: string[] = [];
 const missingBuilder: string[] = [];
 const probeFiles = readdirSync(probesDir)
@@ -76,7 +78,10 @@ for (const file of probeFiles) {
     questions: Array<{ id: string; question: string }>;
   };
   for (const item of probes.questions) {
-    if (honestTextOnly(item.question)) continue;
+    if (honestTextOnly(item.question)) {
+      records.push({ ...item, families: [], outcome: "text_only" });
+      continue;
+    }
     const capabilities = inferSceneCapabilities(item.question);
     const synthesized = synthesizeFamilyScene({
       question: item.question,
@@ -87,9 +92,14 @@ for (const file of probeFiles) {
     });
     const primitives = synthesized?.renderScene.primitives.length ?? 0;
     const mode = synthesized?.document.visualDecision.mode ?? "none";
+    const record: PhysicsProbeRecord = { ...item, families: capabilities.families,
+      outcome: synthesized && mode === "scene" && primitives > 0 ? "scene" : "missing_scene",
+      family: synthesized?.family, tier: synthesized?.tier };
+    records.push(record);
     if (!synthesized || mode !== "scene" || primitives === 0) {
       const forbids = sceneDemand(item.question).forbids;
       if (forbids.length > 0) {
+        record.outcome = "declared_decline";
         declined.push(`${item.id}: ${forbids.join(", ")}`);
         continue;
       }
@@ -105,6 +115,8 @@ for (const file of probeFiles) {
     }
   }
 }
+
+writePhysicsProbeReport("verify-physics-unit-probe-visuals", records);
 
 if (failures.length > 0) {
   const shown = failures.slice(0, 40);

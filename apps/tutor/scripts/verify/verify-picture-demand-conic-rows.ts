@@ -58,6 +58,35 @@ const withoutTier = (document: SceneDocument | undefined) => {
 const DRAWN = new Set(["conic_operator", "thread_spheres"]);
 const counts = { drawn: 0, laterDecline: 0, protected: 0, polarityRefused: 0 };
 
+function currentFixture(row: Row): SceneDocument {
+  const document = structuredClone(row.document);
+  if (row.id === "pd01") {
+    // Three disconnected Cartesian axes all use the same world origin.
+    // This comparison asks for conic forms, not a shared Cartesian plot.
+    // Keep every conic, focus, directrix, equation and proof; the engine's
+    // shared schematic layout separates the three views horizontally; the
+    // parabola's infinite vertical directrix stays in its own view.
+    const axes = new Set(document.entities.filter(entity => entity.kind === "axes").map(entity => entity.id));
+    document.entities = document.entities.filter(entity => !axes.has(entity.id));
+    document.constructions = document.constructions.filter(construction => construction.operator !== "axes");
+    document.requiredEntityIds = document.requiredEntityIds.filter(id => !axes.has(id));
+    for (const group of document.revealGroups) group.entityIds = group.entityIds.filter(id => !axes.has(id));
+    for (const [id, x] of [["parabola_origin", -16], ["ellipse_origin", 0], ["hyperbola_origin", 16]] as const) {
+      document.constructions.find(construction => construction.outputs.includes(id))!.inputs.x = x;
+    }
+    document.revealGroups = [{ id: "comparison", entityIds: document.entities.map(entity => entity.id), dependsOn: [],
+      narrationCue: document.revealGroups.map(group => group.narrationCue).join(" ") }];
+  }
+  if (row.id === "pd52") {
+    // Both identical spheres have these forces. Repeating their names does
+    // not infer a numeric answer or change any direction/angle proof.
+    for (const [id, label] of [["right_repulsion", "F_e"], ["right_tension", "T"], ["right_weight", "mg"]]) {
+      document.entities.find(entity => entity.id === id)!.label = label;
+    }
+  }
+  return document;
+}
+
 for (const row of rows) {
   const label = `${row.id} ${row.case} (${row.topic})`;
   const decision = liveDiagramStrategyDecision({
@@ -69,7 +98,19 @@ for (const row of rows) {
     preferPlanner: true,
     allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(decision, source)),
   };
-  const validation = validateProductionSceneCandidate({ candidate: structuredClone(row.document) as unknown as Record<string, unknown>, question: row.question, turnPlan: row.turnPlan });
+  assert.equal(hash(row.document), row.docHash, `${label}: the original recording stays unchanged`);
+  if (row.id === "pd01" || row.id === "pd52") {
+    const unsafe = validateProductionSceneCandidate({ candidate: structuredClone(row.document) as unknown as Record<string, unknown>, question: row.question, turnPlan: row.turnPlan });
+    const code = row.id === "pd01" ? "axes_frames_overlap" : "vector_without_label";
+    assert(!unsafe.valid && unsafe.errors.some(issue => issue.code === code), `${label}: original unsafe recording stays refused (${JSON.stringify(unsafe.errors)})`);
+    assert.equal(selectProductionScene({ question: row.question, turnPlan: row.turnPlan, problemIR: null,
+      candidateValidation: unsafe, policy }).representation, null, `${label}: unsafe recording draws nothing`);
+  }
+  const document = currentFixture(row);
+  assert.equal(document.source.question, row.question, `${label}: repair retains the original source`);
+  assert.deepEqual(document.quantities, row.document.quantities, `${label}: repair changes no source values`);
+  assert.deepEqual(document.assertions, row.document.assertions, `${label}: repair preserves every proof obligation`);
+  const validation = validateProductionSceneCandidate({ candidate: document as unknown as Record<string, unknown>, question: row.question, turnPlan: row.turnPlan });
   // A lone "+" or "−" polarity note cannot bind a terminal, so the compiler
   // refuses it in both yield modes, before the picture demand is consulted.
   // Only a protected row may end here, and it still draws nothing.
@@ -85,8 +126,23 @@ for (const row of rows) {
     counts.polarityRefused += 1;
     continue;
   }
-  assert(validation.valid && validation.value, `${label}: the recorded candidate must still validate`);
-  assert.equal(hash(validation.value.document), row.docHash, `${label}: revalidation keeps the recorded document`);
+  assert(validation.valid && validation.value, `${label}: current fixture must validate: ${JSON.stringify(validation.errors)}`);
+  assert.equal(hash(validation.value.document), hash(document), `${label}: revalidation keeps the current fixture`);
+  if (row.id === "pd01") {
+    for (const entity of row.document.entities.filter(entity => entity.label)) {
+      assert(validation.value.renderScene.primitives.some(primitive => primitive.entityId === entity.id && primitive.kind === "label" && primitive.text === entity.label),
+        `${label}: original verified label ${entity.label} remains compiled`);
+    }
+    const boxes = row.document.revealGroups.map(group => {
+      const points = validation.value!.renderScene.primitives.filter(primitive => group.entityIds.includes(primitive.entityId) && primitive.kind !== "label").flatMap(primitive => primitive.points);
+      assert(points.length, `${group.id}: actual panel ink`);
+      return { minX: Math.min(...points.map(p => p.x)), maxX: Math.max(...points.map(p => p.x)), minY: Math.min(...points.map(p => p.y)), maxY: Math.max(...points.map(p => p.y)) };
+    });
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i]!, b = boxes[j]!;
+      assert(a.maxX < b.minX || b.maxX < a.minX || a.maxY < b.minY || b.maxY < a.minY, `conic comparison views remain separate: ${JSON.stringify(boxes)}`);
+    }
+  }
   const selection = selectProductionScene({
     question: row.question, turnPlan: row.turnPlan, problemIR: null, candidateValidation: validation,
     fastRepresentation: null, exactFigureSource: "planner", solverAuthorityBlocked: row.solverBlocked,
@@ -100,7 +156,7 @@ for (const row of rows) {
   } else if (DRAWN.has(row.case)) {
     assert.equal(selection.visualStatus, "validated", `${label}: drawn under strict (${selection.reason})`);
     assert.equal(selection.representation?.figureSource, "planner", `${label}: the planner's own figure is drawn`);
-    assert.equal(hash(withoutTier(selection.representation?.sceneDocument)), hash(withoutTier(row.document)), `${label}: the drawn document is the recorded one`);
+    assert.equal(hash(withoutTier(selection.representation?.sceneDocument)), hash(withoutTier(document)), `${label}: selection preserves the source-bound current fixture`);
     assert.equal(selection.droppedCandidate, null, `${label}: a drawn candidate records no drop`);
     counts.drawn += 1;
   } else {

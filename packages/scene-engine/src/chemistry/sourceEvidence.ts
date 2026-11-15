@@ -5,6 +5,8 @@
  * question, after each relevant planner scalar has been checked by chemical
  * role and species. In particular, a layout angle is never a measured angle.
  */
+import { buildEffusionScene, readEffusionSource } from "./effusion";
+import { buildMassMolarityScene, readMassMolaritySource } from "./massMolarity";
 import type { TurnPlanQuantityV3, TurnPlanV3 } from "../contracts/contractsV3";
 import { PLAN_EXAMPLE_PROVENANCE, buildPlanExampleDocument } from "./planExample";
 import { displayedSceneQuantityTexts } from "../contracts/contractsV3";
@@ -195,6 +197,28 @@ function graphMatches(document: SceneDocument, fresh: SceneDocument, plan: TurnP
  * Unknown/ambiguous derived scalar roles intentionally decline this slice.
  */
 export function certifyVseprSourceDocument(document: SceneDocument, question: string, plan: TurnPlanV3 | null): VseprSourceCertification {
+  // Composition labels need graph/role closure as well as numerical equality.
+  // On success retain the ordinary numeric audit (no chemistry exemption).
+  const massMolaritySource = readMassMolaritySource(question);
+  const effusionSource = readEffusionSource(question);
+  const compositionSource = massMolaritySource || effusionSource;
+  const claimsComposition = document.source.sourceModel === "formula_mass_molarity/v1"
+    || document.source.sourceModel === "graham_effusion/v1" || document.source.chemistryFamily === "chem_effusion";
+  if (compositionSource || claimsComposition) {
+    const quantities = plan ? [...plan.givens, ...plan.derived].map(quantity => ({
+      ...quantity, origin: quantity.provenance === "given" ? "given" as const : "derived" as const,
+    })) : [];
+    const raw = massMolaritySource ? buildMassMolarityScene(question, quantities) : buildEffusionScene(question, quantities, false);
+    const fresh = raw ? validateSceneDocument(pruneDeadSceneEntities(raw as unknown as Record<string, unknown>)).document : null;
+    const submitted = validateSceneDocument(document).document;
+    // Admit only the exact native deferred result or the exact plan-staged form.
+    // Pre-staging admission runs before the plan can defer additional intermediates.
+    if (!fresh || !submitted || (!graphMatches(submitted, fresh, plan) && !graphMatches(submitted, fresh, null))) return {
+      status: "rejected", issues: [{ code: "chemistry_composition_source_graph_mismatch", severity: "fatal",
+        message: "composition graph or plan roles differ from independently regenerated original-source inputs" }],
+    };
+    return { status: "not_applicable" };
+  }
   // An untrusted candidate cannot opt out by stripping its provenance. Reuse
   // the existing family's cue on the actual question, then regenerate its
   // graph. Ordinary physics stems do not become chemistry from formula alone.

@@ -1,3 +1,4 @@
+import { separateSharedOriginVectors } from "./vectorLanes";
 import { strokePieces, validateLabelOwnerTruth, validateStraightLineNames } from "./labelOwnerTruth";
 import { circularStrokeDistance } from "./circularStrokeDistance";
 import { validateFigureConsistency } from "./figureConsistency";
@@ -592,6 +593,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
       }
     }
   }
+  separateSharedOriginVectors(document, primitives, viewport);
   const projectileProjectionIssues = validateProjectileMeasurementProjection(document, primitives);
   if (projectileProjectionIssues.length) return { ok: false, renderScene: null, report: report(document, [...issues, ...projectileProjectionIssues], primitives.length) };
   if (verifiedPartsEnabled) {
@@ -5948,6 +5950,8 @@ function dimensionLabelPlacement(entityId: string, value: Geometry, primitives: 
 }
 
 function screenLabelAnchor(entityId: string, value: Geometry, primitives: RenderPrimitive[], transform: (point: Point) => RenderPoint): RenderPoint {
+  const lane = primitives.find(p => p.entityId === entityId && p.kind === "vector" && p.provenance?.vectorLane === true);
+  if (lane) return labelAnchorForPath(lane.points, true, false);
   if (value.kind === "path" && value.infinite) {
     const rendered = primitives.find((primitive) => primitive.entityId === entityId && primitive.kind !== "label");
     const start = rendered?.points[0];
@@ -6147,6 +6151,9 @@ function appendCorrespondingTickPrimitives(
   transformPlan: EntityTransformPlan,
   constructionOnlyIds: Set<string>,
 ): void {
+  const movedVectors = new Map(primitives
+    .filter(primitive => primitive.kind === "vector" && primitive.provenance?.vectorLane === true)
+    .map(primitive => [primitive.entityId, primitive]));
   const ticked = new Set(
     document.constructions
       .filter((construction) => construction.operator === "tick_mark")
@@ -6169,6 +6176,12 @@ function appendCorrespondingTickPrimitives(
       const groupId = entityToGroup.get(entityId);
       if (!groupId) continue;
       const transform = transformPlan.transformFor(entityId);
+      const displayed = movedVectors.get(entityId);
+      const physicalStart = transform(value.points[0]!);
+      const shift = displayed ? {
+        x: displayed.points[0]!.x - physicalStart.x,
+        y: displayed.points[0]!.y - physicalStart.y,
+      } : { x: 0, y: 0 };
       const segments = congruenceTickSegments(value.points[0]!, value.points.at(-1)!, count);
       for (const [index, segment] of segments.entries()) {
         primitives.push({
@@ -6176,7 +6189,12 @@ function appendCorrespondingTickPrimitives(
           entityId,
           groupId,
           kind: "line",
-          points: segment.map(transform),
+          // Equality is proved in physical geometry; its mark belongs to the
+          // displayed shaft, including a free vector's witnessed translation.
+          points: segment.map(point => {
+            const screen = transform(point);
+            return { x: screen.x + shift.x, y: screen.y + shift.y };
+          }),
           provenance: { correspondingFamily: familyIndex, correspondingCount: count },
         });
       }

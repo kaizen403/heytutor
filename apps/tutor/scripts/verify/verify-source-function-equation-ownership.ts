@@ -1444,7 +1444,7 @@ function recompiledNativeVariant(candidate: NativeDisplayCandidate, mutate: (cop
     assertion.expected = { ...expected, y: parseMathExpression(construction.inputs.expression).evaluate(expected.x) };
   }
   const compiled = compileSceneDocument(copy.document);
-  assert(compiled.ok && compiled.renderScene, "the negative control must have real, valid display geometry");
+  assert(compiled.ok && compiled.renderScene, `the negative control must have real, valid display geometry: ${JSON.stringify(compiled.report.issues)}`);
   return { ...copy, renderScene: compiled.renderScene, validationReport: compiled.report };
 }
 check("unchanged native program: whole mixed named+y source inventory", () => {
@@ -1531,7 +1531,7 @@ for (const [name, declaration] of displayMetadataMutations) check(`native whole 
 for (const question of [inverseSourceQuestion, namedNativeRetention[0]!.question]) {
   for (const mutation of ["different factor", "negative input factor", "per-curve factor", "offset", "wrong body", "wrong label", "authority declaration"] as const) check(`native whole program input/label mutation ${mutation}: ${question}`, () => {
     const original = nativeProgramCandidate(question), k = nativeLiteralFactor(original);
-    const copy = recompiledNativeVariant(original, candidate => {
+    const mutate = (candidate: NativeDisplayCandidate) => {
       const curves = candidate.document.constructions.filter(c => c.operator === "function_curve");
       const curve = mutation === "per-curve factor" ? curves.at(-1)! : curves[0]!;
       const expression = curve.inputs.expression;
@@ -1542,7 +1542,19 @@ for (const question of [inverseSourceQuestion, namedNativeRetention[0]!.question
       if (mutation === "wrong body") curve.inputs.expression = `(${k})*(x^2)`;
       if (mutation === "wrong label") candidate.document.entities.find(e => e.id === curve.outputs[0])!.label = "y=x^2";
       if (mutation === "authority declaration") { candidate.tier = "qualitative_verified"; candidate.nonMetric = true; candidate.document.source.nonMetric = true; candidate.document.source.representationTier = "qualitative_verified"; }
-    });
+    };
+    if (["offset", "wrong body", "wrong label"].includes(mutation)) {
+      // These controls contradict their own equation label. The compiler
+      // refuses them before the later whole-source inventory is consulted.
+      const copy = structuredClone(original);
+      mutate(copy);
+      const compiled = compileSceneDocument(copy.document);
+      assert(!compiled.ok && !compiled.renderScene && compiled.report.issues.some(issue =>
+        issue.code === "equation_label_contradicts_geometry" && issue.severity === "fatal"),
+      `contradictory curve/label must be refused at compile: ${JSON.stringify(compiled.report.issues)}`);
+      return;
+    }
+    const copy = recompiledNativeVariant(original, mutate);
     assert.equal(prepareFallbackFunctionInventory(question, copy), null, "a valid changed geometry proof cannot substitute for the entire source-only engine program");
   });
 }
