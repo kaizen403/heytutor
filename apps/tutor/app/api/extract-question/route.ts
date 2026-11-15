@@ -21,6 +21,7 @@ import { resolveFireworksVisionModels } from "@/lib/llm/fireworksModels";
 import {
   completionTokenCap,
   endpointEnv,
+  noteProviderOutcome,
   providerChatBody,
   resolveLlmEndpoint,
 } from "@/lib/llm/llmProvider";
@@ -43,6 +44,17 @@ import { uploadImage } from "@/lib/object-store/s3";
 const NO_QUESTION_MESSAGE =
   "No question found in that photo. Crop to just the question and try again, or type it here.";
 const TRACE_REPLY_CHARS = 500;
+
+function isOcrContent(value: unknown): boolean {
+  if (value === null || typeof value === "string") return true;
+  return Array.isArray(value) && value.every(part => {
+    if (typeof part === "string") return true;
+    if (typeof part !== "object" || part === null || Array.isArray(part)) return false;
+    const content = part as Record<string, unknown>;
+    if (content.type === "refusal") return typeof content.refusal === "string";
+    return (content.type === undefined || content.type === "text" || content.type === "output_text") && typeof content.text === "string";
+  });
+}
 
 type UsageDetails = NonNullable<ReturnType<typeof usageDetailsFromParsed>>;
 
@@ -155,30 +167,55 @@ export async function POST(request: Request): Promise<Response> {
     generationName: "vision-ocr",
   });
   let attempts = 0;
-  const post = (candidate: string, secondLook: boolean) => {
+  const post = async (candidate: string, secondLook: boolean) => {
     attempts += 1;
-    return fetch(llm.url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "content-type": "application/json",
-      },
-      signal: AbortSignal.any([request.signal, AbortSignal.timeout(30_000)]),
-      body: JSON.stringify(requestBody(candidate, secondLook)),
-    });
+    try {
+      const response = await fetch(llm.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+        },
+        signal: AbortSignal.any([request.signal, AbortSignal.timeout(30_000)]),
+        body: JSON.stringify(requestBody(candidate, secondLook)),
+      });
+      if (!response.ok) noteProviderOutcome(llm, { ok: false, status: response.status });
+      return response;
+    } catch (error) {
+      // Leaving the photo flow is not an upstream outage. Connection failures
+      // and our provider timeout do count, just as they do in the chat route.
+      if (!request.signal.aborted) noteProviderOutcome(llm, { ok: false });
+      throw error;
+    }
   };
   const readReply = async (response: Response) => {
     if (!response.ok) {
       await response.body?.cancel();
       throw new Error(`OCR upstream ${response.status} from ${model}`);
     }
-    const raw: unknown = await response.json();
-    if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+    let raw: unknown;
+    try {
+      raw = await response.json();
+    } catch (error) {
+      if (!request.signal.aborted) noteProviderOutcome(llm, { ok: false });
+      throw error;
+    }
+    function invalidReply(): never {
+      if (!request.signal.aborted) noteProviderOutcome(llm, { ok: false });
       throw new Error("Invalid OCR response");
+    }
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) invalidReply();
     const data = raw as { choices?: unknown[]; usage?: unknown };
+    const choice: unknown = Array.isArray(data.choices) ? data.choices[0] : undefined;
+    const message = typeof choice === "object" && choice !== null && !Array.isArray(choice) && "message" in choice
+      ? choice.message : undefined;
+    if (typeof message !== "object" || message === null || Array.isArray(message)) invalidReply();
+    if ("content" in message ? !isOcrContent(message.content) : !("refusal" in message && typeof message.refusal === "string")) invalidReply();
+    if ("refusal" in message && message.refusal !== null && typeof message.refusal !== "string") invalidReply();
+    noteProviderOutcome(llm, { ok: true });
     const parsed = parseProviderUsage(data.usage);
     return {
-      extraction: readExtractionChoice(data.choices?.[0]),
+      extraction: readExtractionChoice(choice),
       usage: usageDetailsFromParsed(parsed),
       reasoningTokens: parsed.reasoning,
     };
@@ -333,7 +370,7 @@ export async function POST(request: Request): Promise<Response> {
       level: "ERROR",
     });
     return Response.json(
-      { error: "Could not read that image. Try a clearer photo." },
+      { error: "Could not read that image right now. Try again, or type your question." },
       { status: 502 },
     );
   } finally {

@@ -41,7 +41,10 @@ export async function settleThenFlush(options: {
   ]);
   clearTimeout(timer);
   if (timedOut) log(`[shutdown] ${options.open()} speech settlement(s) still open at exit`);
-  await options.flush(Math.max(100, capMs - (Date.now() - startedAt)));
+  const remainingMs = capMs - (Date.now() - startedAt);
+  // A delayed handoff cannot grant time beyond the cap. Do not pass zero:
+  // Sentry treats a zero timeout as an unbounded wait.
+  if (remainingMs > 0) await options.flush(remainingMs);
 }
 
 /** WebSocket close code 1012: the service is restarting. */

@@ -34,4 +34,5 @@ overrides:
   "zod@4": "4.6.6"
 patchedDependencies:
   braces@3.0.3: patches/braces@3.0.3.patch
+  langfuse-core@3.38.20: patches/langfuse-core@3.38.20.patch
   minimatch@11.0.4: patches/minimatch@11.0.4.patch

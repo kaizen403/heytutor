@@ -1,0 +1,30 @@
+diff --git a/lib/index.cjs.js b/lib/index.cjs.js
+index 7143961625977a7a40571a9668586c369041f916..8ea6f795638a4aa2c8a7f22f67a8c123f9f2a49d 100644
+--- a/lib/index.cjs.js
++++ b/lib/index.cjs.js
+@@ -1397,7 +1397,9 @@ class LangfuseCoreStateless {
+     const seenObjects = new WeakMap();
+     const maxLevels = 10;
+     const processRecursively = async (data, level) => {
+-      if (typeof data === "string" && data.startsWith("data:")) {
++      // Ordinary lesson text may begin with "data:". Only a base64 media URI
++      // may enter the upload path; otherwise preserve the original text.
++      if (typeof data === "string" && /^data:[^;/,\s]+\/[^;/,\s]+(?:;[^;,\s]+)*;base64,[A-Za-z0-9+/]+={0,2}$/.test(data)) {
+         const media = new LangfuseMedia({
+           base64DataUri: data
+         });
+diff --git a/lib/index.mjs b/lib/index.mjs
+index 7d020690eb121a4a02cd7b82231e7b0fd76571c8..5d6d1cca8b83b7ffd5ce59f9264c1dad6639e590 100644
+--- a/lib/index.mjs
++++ b/lib/index.mjs
+@@ -1395,7 +1395,9 @@ class LangfuseCoreStateless {
+     const seenObjects = new WeakMap();
+     const maxLevels = 10;
+     const processRecursively = async (data, level) => {
+-      if (typeof data === "string" && data.startsWith("data:")) {
++      // Ordinary lesson text may begin with "data:". Only a base64 media URI
++      // may enter the upload path; otherwise preserve the original text.
++      if (typeof data === "string" && /^data:[^;/,\s]+\/[^;/,\s]+(?:;[^;,\s]+)*;base64,[A-Za-z0-9+/]+={0,2}$/.test(data)) {
+         const media = new LangfuseMedia({
+           base64DataUri: data
+         });

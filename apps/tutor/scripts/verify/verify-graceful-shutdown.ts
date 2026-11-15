@@ -13,10 +13,12 @@
  */
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
-import { request } from "node:http";
+import { createServer, request } from "node:http";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { settleThenFlush } from "../../lib/http/gracefulShutdown";
+import { mock } from "node:test";
+import { setImmediate as nextTurn } from "node:timers/promises";
+import { installGracefulShutdown, settleThenFlush } from "../../lib/http/gracefulShutdown";
 
 const fixture = resolve(__dirname, "fixtures/gracefulShutdownServer.ts");
 const tsx = resolve(__dirname, "../../node_modules/.bin/tsx");
@@ -83,7 +85,149 @@ function signalGroup(child: ChildProcess): void {
   process.kill(-child.pid!, "SIGTERM");
 }
 
+async function verifySettlementBudget(): Promise<void> {
+  mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
+  try {
+    // Timer scheduling and Date.now() need not agree to the millisecond. CI
+    // reported 401 ms left after a nominal 200 ms slice of a 600 ms cap.
+    // Assert the actual remainder, including a delayed handoff, not wall time.
+    for (const elapsedMs of [199, 200, 275, 550, 600, 650]) {
+      const startedAt = Date.now();
+      const logged: string[] = [];
+      const allowances: number[] = [];
+      const pending = settleThenFlush({
+        settled: () => new Promise(() => undefined),
+        open: () => 2,
+        flush: async timeoutMs => { allowances.push(timeoutMs); },
+        log: line => logged.push(line),
+        sliceMs: 200,
+        capMs: 600,
+      });
+      mock.timers.tick(199);
+      await nextTurn();
+      assert.deepEqual(allowances, [], "the flush waits for the settlement slice");
+      assert.deepEqual(logged, [], "open settlements are reported only at the slice");
+      mock.timers.tick(Math.max(200, elapsedMs) - 199);
+      mock.timers.setTime(startedAt + elapsedMs);
+      await pending;
+      assert.deepEqual(logged, ["[shutdown] 2 speech settlement(s) still open at exit"]);
+      assert.deepEqual(allowances, elapsedMs < 600 ? [600 - elapsedMs] : [],
+        `after ${elapsedMs} ms the flush gets only the remaining budget, and never a zero timeout`);
+    }
+
+    // Early completion and rejection both leave the unused slice to the
+    // flush, and cancel the settlement timer rather than retaining a handle.
+    for (const rejected of [false, true]) {
+      const logged: string[] = [];
+      const allowances: number[] = [];
+      let settle!: () => void;
+      let reject!: (error: Error) => void;
+      const settlement = new Promise<void>((done, fail) => { settle = done; reject = fail; });
+      const pending = settleThenFlush({
+        settled: () => settlement,
+        open: () => 0,
+        flush: async timeoutMs => { allowances.push(timeoutMs); },
+        log: line => logged.push(line),
+        sliceMs: 200,
+        capMs: 600,
+      });
+      mock.timers.tick(40);
+      if (rejected) reject(new Error("synthetic settlement failure")); else settle();
+      await pending;
+      assert.deepEqual(allowances, [560], "early settlements leave the unused slice for the flush, even on rejection");
+      assert.deepEqual(logged, [], "a settled wait does not report a timeout");
+      const finishedAt = Date.now();
+      mock.timers.runAll();
+      assert.equal(Date.now(), finishedAt, "the settlement timer is cleared on early handoff");
+    }
+
+    // A failed flush reaches the shutdown caller; it must not leave a pending
+    // settlement timer behind. Then check that the real caller still exits.
+    for (const synchronous of [false, true]) {
+      const failure = new Error("synthetic flush failure");
+      await assert.rejects(settleThenFlush({
+        settled: async () => undefined,
+        open: () => 0,
+        flush: () => { if (synchronous) throw failure; return Promise.reject(failure); },
+      }), error => error === failure);
+      const finishedAt = Date.now();
+      mock.timers.runAll();
+      assert.equal(Date.now(), finishedAt, "a failed flush leaves no settlement timer");
+
+      const server = createServer();
+      const exits: number[] = [];
+      const shutdown = installGracefulShutdown({
+        server,
+        beforeExit: () => settleThenFlush({
+          settled: async () => undefined,
+          open: () => 0,
+          flush: () => { if (synchronous) throw failure; return Promise.reject(failure); },
+        }),
+        exit: code => { exits.push(code); },
+        log: () => undefined,
+      });
+      try {
+        shutdown.drain();
+        await nextTurn();
+        assert.deepEqual(exits, [0], "a thrown or rejected flush cannot prevent shutdown");
+        mock.timers.runAll();
+        await nextTurn();
+        assert.deepEqual(exits, [0], "the later drain cap cannot repeat a failed flush exit");
+      } finally {
+        process.removeListener("SIGTERM", shutdown.drain);
+      }
+    }
+
+    // Exercise the production composition: the flush hangs after settlement
+    // uses its slice. The outer cap covers BOTH phases, with no extra slice.
+    const exits: number[] = [];
+    const allowances: number[] = [];
+    const shutdown = installGracefulShutdown({
+      server: createServer(),
+      capMs: 1_000,
+      flushCapMs: 600,
+      beforeExit: () => settleThenFlush({
+        settled: () => new Promise(() => undefined),
+        open: () => 2,
+        flush: timeoutMs => { allowances.push(timeoutMs); return new Promise(() => undefined); },
+        sliceMs: 200,
+        capMs: 600,
+        log: () => undefined,
+      }),
+      exit: code => { exits.push(code); },
+      log: () => undefined,
+    });
+    try {
+      shutdown.drain();
+      shutdown.drain();
+      await nextTurn();
+      mock.timers.tick(200);
+      await nextTurn();
+      assert.deepEqual(allowances, [400], "the real caller hands the flush the remaining cap");
+      mock.timers.tick(399);
+      await nextTurn();
+      assert.deepEqual(exits, [], "the full remaining allowance is available to a stuck flush");
+      mock.timers.tick(1);
+      await nextTurn();
+      assert.deepEqual(exits, [0], "settlement and a stuck flush share one overall deadline");
+      mock.timers.tick(400);
+      await nextTurn();
+      assert.deepEqual(exits, [0], "the later drain cap cannot exit a second time");
+    } finally {
+      process.removeListener("SIGTERM", shutdown.drain);
+    }
+  } finally {
+    mock.timers.reset();
+  }
+  console.log("shutdown settlement budget: exact remaining allowances, expired deadlines, early/rejected settlements and failed flushes verified with controlled timers");
+}
+
 async function main() {
+  // Create the watchdog before mocking timers: a broken handoff must fail,
+  // not silently exit with an unresolved promise and no real handles.
+  const guard = setTimeout(() => { throw new Error("the settlement budget checks never finished"); }, 3_000);
+  try { await verifySettlementBudget(); } finally { clearTimeout(guard); }
+
   // 1. During the drain a new connection is refused; the stream in flight at
   //    the signal completes, then the process exits 0.
   {
@@ -217,29 +361,6 @@ async function main() {
     assert(log.indexOf("STREAM END") >= 0 && log.indexOf("SPEECH DRAIN") > log.indexOf("STREAM END"),
       `the speech drain starts only after the teaching stream ends: ${JSON.stringify(log)}`);
     assert(exit.code === 0 && exit.at - signalledAt >= 1_200, `the exit waits for the stream and then the sentence (${exit.at - signalledAt} ms)`);
-  }
-
-  //    A settle that never finishes uses only its slice: the open count is
-  //    logged, and the flush still runs with the time left in the cap.
-  {
-    const logged: string[] = [];
-    let flushedWith = -1;
-    const startedAt = Date.now();
-    // A timer keeps the process alive: a settle that never yields must fail
-    // this row, not end the process quietly with nothing left to run.
-    let guard: ReturnType<typeof setTimeout> | undefined;
-    const bounded = new Promise<never>((_, fail) => { guard = setTimeout(() => fail(new Error("the settle slice never handed over to the flush")), 3_000); });
-    await Promise.race([bounded, settleThenFlush({
-      settled: () => new Promise(() => undefined),
-      open: () => 2,
-      flush: async (timeoutMs) => { flushedWith = timeoutMs; },
-      log: (line) => logged.push(line),
-      sliceMs: 200,
-      capMs: 600,
-    })]).finally(() => clearTimeout(guard));
-    assert(logged.includes("[shutdown] 2 speech settlement(s) still open at exit"), `the open settlements are logged: ${JSON.stringify(logged)}`);
-    assert(flushedWith >= 300 && flushedWith <= 400 && Date.now() - startedAt < 450,
-      `the flush runs with the rest of the cap after the settle slice (${flushedWith} ms)`);
   }
 
   // 6. The production unit has no tsx relay parent.
