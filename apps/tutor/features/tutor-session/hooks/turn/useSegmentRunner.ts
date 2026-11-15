@@ -9,6 +9,7 @@ import {
   serializeSegmentCommands,
 } from "@heytutor/drawing";
 import {
+  HTTP_TTS_DOWNLOAD_TIMEOUT_MS,
   createSpeechRateState,
   observeSpeechRate,
   estimateSpeechDurationMs,
@@ -802,7 +803,7 @@ export function useSegmentRunner({
               inTransitTimeoutFloorMs = Math.max(inTransitTimeoutFloorMs,
                 // The grace is added so a browser takeover after a full wait still
                 // gets a whole sentence budget of its own.
-                clock.elapsedMs() + SPEECH_AUDIO_IN_TRANSIT_GRACE_MS + speakSegmentTimeoutMs(spokenText, slowestPlaybackRate));
+                Math.min(clock.elapsedMs() + SPEECH_AUDIO_IN_TRANSIT_GRACE_MS, HTTP_TTS_DOWNLOAD_TIMEOUT_MS) + speakSegmentTimeoutMs(spokenText, slowestPlaybackRate));
               onAudioInTransit();
             },
             onStart: () => {

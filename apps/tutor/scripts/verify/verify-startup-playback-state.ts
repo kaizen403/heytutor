@@ -136,8 +136,17 @@ async function main() {
       else client.resume();
       for (const reject of Audio.instances.at(-1)!.rejectors) reject(new DOMException("offline gesture failure", "NotAllowedError"));
       await flush();
-      assert.equal(events.filter(Boolean).length, 0, `${mode} playback must never request a gesture`);
+      if (mode === "paused") {
+        assert.equal(events.filter(Boolean).length, 0, "deliberate Pause never requests a gesture");
+      } else {
+        assert(events.some(event => event?.reason === "not-allowed"),
+          "a muted clip still retains genuine NotAllowedError recovery instead of stalling forever");
+        assert(events.filter(Boolean).every(event => event?.reason === "not-allowed"),
+          "muting suppresses irrelevant WebAudio blockage");
+        assert.equal(Audio.instances.length, count + 1, "mute recovery retains the same complete native clip");
+      }
       client.stop(); await speech;
+      assert.equal(events.at(-1), null, "Stop clears paused/muted playback ownership");
     }
 
     Context.deferResume = true;
@@ -154,7 +163,7 @@ async function main() {
     for (const release of ctx.releases) release();
     await flush();
     assert.equal(oldEvents.length, eventCount, "a late resume result cannot publish blockage after Stop");
-    console.log("verified optional playback diagnostics use actual failures, ignore suspended context alone, suppress pause/mute, and clear abandoned ownership");
+    console.log("verified optional playback diagnostics use actual failures, ignore suspended context alone, suppress Pause, retain muted NotAllowed recovery, and clear abandoned ownership");
   } finally {
     for (const [key, descriptor] of saved) {
       if (descriptor) Object.defineProperty(globalThis, key, descriptor);

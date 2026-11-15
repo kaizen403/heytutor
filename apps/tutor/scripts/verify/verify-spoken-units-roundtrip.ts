@@ -231,7 +231,7 @@ check(`${CUES.length} recorded focus labels are found in their sentence after sp
   }
 });
 
-console.log("\nThe figure tour names a part by its written role\n");
+console.log("\nWritten roles retain their units; the figure intro stays neutral\n");
 // The graph group of v2/p4c-t5, with the roles the scene planner wrote.
 const ROLES: [string, string][] = [
   ["graph", "velocity-time graph of the car"],
@@ -264,13 +264,17 @@ const tourScene: RenderScene = {
   ],
 };
 for (const language of ["hinglish", "english"] as const) {
-  check(`the ${language} tour speaks "20 m/s" and "t = 4 s", not "20 m s" and "t 4 s"`, () => {
+  check(`${language} teaching preserves written role units without promoting roles into the intro`, () => {
     const presentation = buildVerifiedDiagramPresentation(tourDocument, tourScene, { narrationLanguage: language });
     const tour = presentation.introSegments.map((segment) => segment.narration).join(" ");
-    assert.match(tour, /reaches 20 m\/s/, `the tour must name the role as written: ${tour}`);
-    assert.match(tour, /\bt = 4 s\b/, `the tour must name the role as written: ${tour}`);
-    assert.doesNotMatch(tour, /\b20 m s\b|\bt 4 s\b|\bt 10 s\b/, `punctuation stripped from a role: ${tour}`);
-    const spoken = language === "hinglish" ? hinglish(tour) : mathToSpeech(tour);
+    assert(tour.trim(), "the figure still has an opening narration");
+    assert(presentation.introSegments.some(segment => (segment.commands?.length ?? 0) > 0), "the figure still draws");
+    assert.doesNotMatch(tour, /reaches\s+(?:20|twenty)|steady\s+until|t\s*(?:=|equals)\s*(?:4|four|10|ten)\b/i,
+      "planner role prose cannot become a numeric explanation before teaching");
+    // Numeric role wording belongs to teaching. Exercise the same speech
+    // conversion there, without requiring the neutral intro to recite it.
+    const teaching = ROLES.map(([, role]) => role).join("; ");
+    const spoken = language === "hinglish" ? hinglish(teaching) : mathToSpeech(teaching);
     assert.match(spoken, language === "hinglish" ? /reaches twenty meters per second/ : /reaches 20 meters per second/, spoken);
     assert.match(spoken, language === "hinglish" ? /t equals four seconds/ : /t equals 4 s/, spoken);
     for (const segment of presentation.introSegments) {
