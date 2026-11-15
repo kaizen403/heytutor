@@ -121,9 +121,9 @@ async function main() {
   falseYield.source.diagramYieldPolicy = "verified_parts";
   for (const entity of falseYield.entities) delete entity.label;
   assert.match(sceneSaveAdmissionFailure({ question: wrongPlan.question, document: falseYield, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "a yield flag cannot establish curve truth");
-  async function admitted(source: string, doc: SceneDocument, decision?: ReturnType<typeof tierForForeignDocument>, yieldPolicy?: "verified_parts") {
+  async function admitted(source: string, doc: SceneDocument, decision?: ReturnType<typeof tierForForeignDocument> | "exact_verified" | "qualitative_verified" | "question_representation", yieldPolicy?: "verified_parts") {
     const ownPlan = { ...segmentPlan, question: source };
-    const { tier, nonMetric } = decision ?? { tier: "qualitative_verified" as const, nonMetric: true };
+    const { tier, nonMetric } = (typeof decision === "string" ? { tier: decision, nonMetric: decision !== "exact_verified" } : decision) ?? { tier: "qualitative_verified" as const, nonMetric: true };
     if (decision) doc = { ...doc, source: { ...doc.source, representationTier: tier, nonMetric } };
     const validation = validateProductionSceneCandidate({ question: source, turnPlan: ownPlan, candidate: { ...doc }, yieldPolicy });
     assert(validation.valid, `${source}: ${JSON.stringify(validation.errors)}`);
@@ -156,11 +156,24 @@ async function main() {
   assert(sceneSaveAdmissionFailure({ question: linearQuestion, document: unrelatedLinear, turnPlan: null, tier: tierForForeignDocument(unrelatedLinear).tier }), "an unrelated composite cannot claim source-built authority");
   for (const [source, body, label] of [
     ["Plot y=x+1e-3.", "x+1e-3", "y=x+1e-3"],
+    ["Plot y=x+2e1.", "x+20", "y=x+2e1"],
+    ["Plot y=x+2 e + 1.", "x+2*e+1", "y=x+2 e + 1"],
     ["Plot y=sin(x).", "sin(x)", "y-sin(x)=0"],
     ["Plot y=1/(x^2+1).", "1/(x^2+1)", "y-1/(x^2+1)=0"],
   ]) await admitted(source!, graph(source!, [body!], [label!]));
+  await admitted("Plot y=sin(2*x).", graph("Plot y=sin(2*x).", ["sin(2.0*x)"], ["y=sin(2e0*x)"]));
+  const radicalSource = "Sketch y=sqrt(2)*x^2 and its tangent at x=1.";
+  const radicalTangent = graph(radicalSource, ["sqrt(2)*x^2", "2*sqrt(2)*x-sqrt(2)"], ["y=sqrt(2)*x^2", "T"]);
+  radicalTangent.annotations.push({ id: "tangent_equation", kind: "callout", targetIds: ["curve_1"], text: "y=2*sqrt(2)*x-sqrt(2)" });
+  await admitted(radicalSource, radicalTangent);
+  const radicalNormal = "Sketch y=sqrt(2)*x^2 and its normal at x=1.";
+  const radicalNormalDocument = graph(radicalNormal, ["sqrt(2)*x^2", "-x/(2*sqrt(2))+sqrt(2)+1/(2*sqrt(2))"], ["y=sqrt(2)*x^2", "N"]);
+  radicalNormalDocument.annotations.push({ id: "normal_equation", kind: "callout", targetIds: ["curve_1"], text: "y=-x/(2*sqrt(2))+sqrt(2)+1/(2*sqrt(2))" });
+  await admitted(radicalNormal, radicalNormalDocument);
   const scientificWrong = graph("Plot y=x+1e-3.", ["x+e-3"], ["y=x+1e-3"], false);
   assert.match(sceneSaveAdmissionFailure({ question: "Plot y=x+1e-3.", document: scientificWrong, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "scientific literals cannot become Euler-constant products");
+  const eulerWrong = graph("Plot y=x+2 e + 1.", ["x+20"], ["y=x+2 e + 1"], false);
+  assert.match(sceneSaveAdmissionFailure({ question: "Plot y=x+2 e + 1.", document: eulerWrong, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "separated Euler tokens cannot become an exponent");
   for (const condition of ["at y=0.", "where y=0. A=1."]) {
     const source = "Plot y=x^2 and mark its vertex " + condition;
     const doc = graph(source, ["x^2"], ["y=x^2"]);
@@ -184,6 +197,18 @@ async function main() {
   graphSegment.constructions[2]!.operator = "segment";
   graphSegment.constructions[0]!.inputs = { x: 3, y: 7 }; graphSegment.constructions[1]!.inputs = { x: 5, y: 11 };
   await admitted(lineSource, graphSegment);
+  const segmentLine = structuredClone(line);
+  segmentLine.entities.find(entity => entity.id === "ab")!.kind = "segment";
+  segmentLine.constructions[2]!.operator = "segment";
+  await admitted(lineSource, segmentLine);
+  const distantSegment = structuredClone(segmentLine);
+  distantSegment.constructions[0]!.inputs = { x: 2, y: 5 }; distantSegment.constructions[1]!.inputs = { x: 3, y: 7 };
+  await admitted(lineSource, distantSegment);
+  const systemSource = "Plot y=2*x+1 and y=-x+2.";
+  const system = buildLinearSourceDocument(systemSource);
+  assert(system);
+  assert(system.constructions.some(item => item.operator === "linear_system"), "the existing source-only linear builder supplies the regression");
+  await admitted(systemSource, system, "exact_verified");
   const wrongLine = structuredClone(line); wrongLine.constructions[1]!.inputs = { x: 1, y: 4 };
   assert(!compileSceneDocument(wrongLine, { sourceFunctionChecks: [{ entityId: "ab", expression: "2*x+1" }] }).ok, "axes-free straight-line ownership is independently proved");
   for (const role of ["tangent", "normal"] as const) {
@@ -332,6 +357,47 @@ async function main() {
       "implicit multiplication must retain affine, identifier and domain guards");
   }
   assert.throws(() => parseMathExpression("2x"), "executable curve bodies still require explicit multiplication");
+  for (const source of ["Plot y=x^2. Do not draw its tangent at x=1.", "Plot y=x^2. If we drew a tangent at x=1, what would its slope be?", "Plot y=x^2. Draw a tangent at x=1 to the circle centered at (1,0) with radius 1."]) {
+    const doc = graph(source, ["x^2", "2*x-1"], ["y=x^2", "y=2*x-1"]);
+    assert(!validateProductionSceneCandidate({ question: source, turnPlan: { ...segmentPlan, question: source }, candidate: { ...doc } }).valid);
+    assert.match(sceneSaveAdmissionFailure({ question: source, document: doc, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "an adjunct mention is not an affirmative request bound to this curve");
+  }
+  for (const source of ["Plot y=x^2 and please draw its tangent at x=1.", "Plot y=x^2 and its tangent at x=1 on the curve.", "Plot y=x^2 and find its tangent at x=1.", "Plot y=x^2. Determine its tangent at x=1."]) await admitted(source, graph(source, ["x^2", "2*x-1"], ["y=x^2", "y=2*x-1"]));
+  const verticalSource = "Plot y=x^2 and its normal at x=0.";
+  const vertical = graph(verticalSource, ["x^2"], ["y=x^2"]);
+  vertical.entities.push({ id: "a", kind: "point", role: "normal point" }, { id: "b", kind: "point", role: "normal point" }, { id: "normal", kind: "line", role: "normal", label: "x=0" });
+  vertical.constructions.push({ id: "make_a", operator: "point", inputs: { x: 0, y: -1 }, outputs: ["a"] }, { id: "make_b", operator: "point", inputs: { x: 0, y: 1 }, outputs: ["b"] }, { id: "make_normal", operator: "line", inputs: { start: "a", end: "b" }, outputs: ["normal"] });
+  vertical.requiredEntityIds.push("a", "b", "normal"); vertical.revealGroups[0]!.entityIds.push("a", "b", "normal");
+  await admitted(verticalSource, vertical);
+  const wrongVerticalLabel = structuredClone(vertical);
+  wrongVerticalLabel.entities = wrongVerticalLabel.entities.filter(entity => entity.id !== "axes"); wrongVerticalLabel.constructions = wrongVerticalLabel.constructions.filter(construction => construction.operator !== "axes");
+  wrongVerticalLabel.requiredEntityIds = wrongVerticalLabel.requiredEntityIds.filter(id => id !== "axes"); wrongVerticalLabel.revealGroups[0]!.entityIds = wrongVerticalLabel.revealGroups[0]!.entityIds.filter(id => id !== "axes");
+  wrongVerticalLabel.entities.find(entity => entity.id === "normal")!.label = "x=1e-400*y^2";
+  assert.match(sceneSaveAdmissionFailure({ question: verticalSource, document: wrongVerticalLabel, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/);
+  wrongVerticalLabel.entities.find(entity => entity.id === "normal")!.label = "x=1";
+  assert.match(sceneSaveAdmissionFailure({ question: verticalSource, document: wrongVerticalLabel, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "an axes-free normal cannot carry a false complete line equation");
+  const proseCallout = graph("Plot y=x^2.", ["x^2"], ["y=x^2"], false);
+  proseCallout.annotations.push({ id: "evaluation_note", kind: "callout", targetIds: ["curve_0"], text: "At x=1" });
+  await admitted("Plot y=x^2.", proseCallout);
+  const proseEntity = graph("Plot y=x^2.", ["x^2"], ["Curve y=x^2"], false);
+  proseEntity.annotations.push({ id: "actual_equation", kind: "label", targetIds: ["curve_0"], text: "y=x^2" });
+  await admitted("Plot y=x^2.", proseEntity);
+  const conflictingGraph = graph("Plot y=x^2.", ["x^2"], ["y=x^3"], false);
+  conflictingGraph.annotations.push({ id: "correct_callout", kind: "callout", targetIds: ["curve_0"], text: "y=x^2" });
+  const conflictingNormal = structuredClone(wrongVerticalLabel);
+  conflictingNormal.annotations.push({ id: "correct_callout", kind: "callout", targetIds: ["normal"], text: "x=0" });
+  for (const [source, doc] of [["Plot y=x^2.", conflictingGraph], [verticalSource, conflictingNormal]] as const) {
+    assert(compileSceneDocument(doc, { figureConsistency: true }).ok, "axes-free conflicts must reach source admission");
+    const ownPlan = { ...segmentPlan, question: source };
+    assert(!validateProductionSceneCandidate({ question: source, turnPlan: ownPlan, candidate: { ...doc } }).valid, "one true equation cannot authorize a conflicting retained equation");
+    const live = selectProductionScene({ question: source, turnPlan: ownPlan, problemIR: null, candidate: { ...doc }, policy: { preferPlanner: true, allowedFigureSources: ["planner"] } });
+    assert.notEqual(live.visualStatus, "validated");
+    for (const retainedPlan of [ownPlan, null]) for (const tier of ["exact_verified", "qualitative_verified", "question_representation"] as const) {
+      const saved = await canonicalizeTurnSceneMetadata({ question: source, sceneDocument: doc, visualStatus: "validated", sceneArtifacts: { schemaVersion: "scene-artifacts/v3", turnPlan: retainedPlan, representationTier: tier, nonMetric: tier !== "exact_verified", diagramResultStatus: "ready" }, segments: [] });
+      assert(!saved.ok, "a conflicting equation cannot be persisted in any tier or without a plan");
+      assert(!admitStoredScene({ sceneDocument: JSON.parse(JSON.stringify(doc)), sceneQuestion: source, turnPlan: retainedPlan, submittedTier: tier }).ok, "a previously persisted conflicting equation cannot reopen");
+    }
+  }
   console.log("planner function inventory: production selection, exact selection, all-tier/no-plan save, native curves and JSON reopen controls passed");
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

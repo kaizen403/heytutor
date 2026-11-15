@@ -1,5 +1,5 @@
 import type { RenderPoint } from "../types";
-import { mathExpressionsEquivalent, parseAffineMathExpression2D } from "../math/expression";
+import { cartesianLineCoefficients, mathExpressionsEquivalent } from "../math/expression";
 import type { ConicDefinition } from "./conicGeometry";
 
 /** Prove the complete conic, not a fit to its sampled display points. */
@@ -17,7 +17,8 @@ export function conicMatchesSourceFunction(conic: ConicDefinition, expression: s
 
 /** The caller proves affine geometry; two endpoints then prove its whole equation. */
 export function lineMatchesCartesianEquation(points: readonly RenderPoint[], equation: { lhs: string; rhs: string }): boolean {
-  const affine = parseAffineMathExpression2D(`(${equation.lhs})-(${equation.rhs})`);
+  const affine = cartesianLineCoefficients(equation.lhs, equation.rhs);
+  if (!affine) return false;
   const a = affine.x, b = affine.y, c = affine.constant;
   const norm = Math.hypot(a, b);
   if (!Number.isFinite(norm) || norm === 0 || !Number.isFinite(c) || points.length < 2) return false;

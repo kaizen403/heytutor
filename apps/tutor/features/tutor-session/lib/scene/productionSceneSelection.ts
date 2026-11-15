@@ -30,7 +30,7 @@ import {
 } from "./representationFallback";
 
 /** Lab execution identity: old rounds did not use all production admission guards. */
-export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v5";
+export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v9";
 
 export interface ProductionSceneInput {
   question: string;
