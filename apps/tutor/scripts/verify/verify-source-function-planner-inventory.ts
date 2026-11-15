@@ -196,7 +196,7 @@ async function main() {
     assert(!validateProductionSceneCandidate({ question: source, turnPlan: { ...segmentPlan, question: source }, candidate: { ...doc } }).valid);
     assert.match(sceneSaveAdmissionFailure({ question: source, document: doc, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "an adjunct mention is not an affirmative request bound to this curve");
   }
-  for (const source of ["Plot y=x^2 and please draw its tangent at x=1.", "Plot y=x^2 and its tangent at x=1 on the curve."]) await admitted(source, graph(source, ["x^2", "2*x-1"], ["y=x^2", "y=2*x-1"]));
+  for (const source of ["Plot y=x^2 and please draw its tangent at x=1.", "Plot y=x^2 and its tangent at x=1 on the curve.", "Plot y=x^2 and find its tangent at x=1.", "Plot y=x^2. Determine its tangent at x=1."]) await admitted(source, graph(source, ["x^2", "2*x-1"], ["y=x^2", "y=2*x-1"]));
   const verticalSource = "Plot y=x^2 and its normal at x=0.";
   const vertical = graph(verticalSource, ["x^2"], ["y=x^2"]);
   vertical.entities.push({ id: "a", kind: "point", role: "normal point" }, { id: "b", kind: "point", role: "normal point" }, { id: "normal", kind: "line", role: "normal", label: "x=0" });
@@ -210,6 +210,25 @@ async function main() {
   assert.match(sceneSaveAdmissionFailure({ question: verticalSource, document: wrongVerticalLabel, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/);
   wrongVerticalLabel.entities.find(entity => entity.id === "normal")!.label = "x=1";
   assert.match(sceneSaveAdmissionFailure({ question: verticalSource, document: wrongVerticalLabel, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "an axes-free normal cannot carry a false complete line equation");
+  const proseCallout = graph("Plot y=x^2.", ["x^2"], ["y=x^2"], false);
+  proseCallout.annotations.push({ id: "evaluation_note", kind: "callout", targetIds: ["curve_0"], text: "At x=1" });
+  await admitted("Plot y=x^2.", proseCallout);
+  const conflictingGraph = graph("Plot y=x^2.", ["x^2"], ["y=x^3"], false);
+  conflictingGraph.annotations.push({ id: "correct_callout", kind: "callout", targetIds: ["curve_0"], text: "y=x^2" });
+  const conflictingNormal = structuredClone(wrongVerticalLabel);
+  conflictingNormal.annotations.push({ id: "correct_callout", kind: "callout", targetIds: ["normal"], text: "x=0" });
+  for (const [source, doc] of [["Plot y=x^2.", conflictingGraph], [verticalSource, conflictingNormal]] as const) {
+    assert(compileSceneDocument(doc, { figureConsistency: true }).ok, "axes-free conflicts must reach source admission");
+    const ownPlan = { ...segmentPlan, question: source };
+    assert(!validateProductionSceneCandidate({ question: source, turnPlan: ownPlan, candidate: { ...doc } }).valid, "one true equation cannot authorize a conflicting retained equation");
+    const live = selectProductionScene({ question: source, turnPlan: ownPlan, problemIR: null, candidate: { ...doc }, policy: { preferPlanner: true, allowedFigureSources: ["planner"] } });
+    assert.notEqual(live.visualStatus, "validated");
+    for (const retainedPlan of [ownPlan, null]) for (const tier of ["exact_verified", "qualitative_verified", "question_representation"] as const) {
+      const saved = await canonicalizeTurnSceneMetadata({ question: source, sceneDocument: doc, visualStatus: "validated", sceneArtifacts: { schemaVersion: "scene-artifacts/v3", turnPlan: retainedPlan, representationTier: tier, nonMetric: tier !== "exact_verified", diagramResultStatus: "ready" }, segments: [] });
+      assert(!saved.ok, "a conflicting equation cannot be persisted in any tier or without a plan");
+      assert(!admitStoredScene({ sceneDocument: JSON.parse(JSON.stringify(doc)), sceneQuestion: source, turnPlan: retainedPlan, submittedTier: tier }).ok, "a previously persisted conflicting equation cannot reopen");
+    }
+  }
   console.log("planner function inventory: production selection, exact selection, all-tier/no-plan save, native curves and JSON reopen controls passed");
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -1353,8 +1353,8 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
     // Only a positive continuation of this declared function owns the part.
     // A mention, negation, hypothetical, or another object's request cannot.
     const attached = boundEnds.some(end => end <= match.index! && (
-      /^\s*,?\s*(?:and|with|then)\s+(?:(?:please\s+)?(?:draw|plot|sketch|show)\s+)?(?:(?:its|the|a)\s+)?$/iu.test(stem.slice(end, match.index!)) ||
-      /^\s*[.;]\s*(?:please\s+)?(?:draw|plot|sketch|show)\s+its\s+$/iu.test(stem.slice(end, match.index!))));
+      /^\s*,?\s*(?:and|with|then)\s+(?:(?:please\s+)?(?:draw|plot|sketch|show|find|determine|calculate|construct)\s+)?(?:(?:its|the|a)\s+)?$/iu.test(stem.slice(end, match.index!)) ||
+      /^\s*[.;]\s*(?:please\s+)?(?:draw|plot|sketch|show|find|determine|calculate|construct)\s+its\s+$/iu.test(stem.slice(end, match.index!))));
     if (!attached) continue;
     const pointSource = stem.slice(match.index! + match[0].length);
     const qualifier = /\s+on\s+(?:the|this)\s+curve(?=\s*(?:$|[.!?;]|\band\b|,\s*(?:find|calculate|mark|show|draw|sketch|state)\b))/iu.exec(pointSource);
@@ -1380,6 +1380,15 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
     });
   })) {
     const labels = attachedLabels(curve.outputs[0]!);
+    const equationLabels = labels.filter((label, index): label is string => {
+      if (typeof label !== "string") return false;
+      const equation = readCartesianEquationLabel(normalizeMathText(label));
+      if (!equation) return false;
+      // "At x=1" is an explanatory coordinate callout, not an equation
+      // claiming to describe the whole curve. Keep its existing compiler path.
+      const prose = /^([\p{L}]{2,})(?:\s+[\p{L}]{2,})*\s+[xy]\s*$/iu.exec(equation.lhs);
+      return index === 0 || !prose || FUNCTION_EXPRESSION_IDENTIFIERS.has(prose[1]!.toLowerCase());
+    });
     const body = typeof curve.inputs.expression === "string" ? normalizeMathText(curve.inputs.expression) : "";
     const straight = ["line", "line_equation", "segment"].includes(curve.operator);
     const bodyOwns = (expression: string) => straight ? proveLine(curve.outputs[0]!, expression) : curve.operator === "function_curve"
@@ -1389,15 +1398,16 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
     // not prove anything: the remaining literal body must still independently
     // equal its source function, with every requested function accounted for.
     const yieldedLabel = labels.every(label => label === undefined) && document.source.diagramYieldPolicy === "verified_parts";
-    const owner = facts.findIndex(fact => labels.some(label => equationMatches(label, fact.expression)) || yieldedLabel && bodyOwns(fact.expression));
-    const axis = owner < 0 && sourceAxis && boundaries.has(curve.outputs[0]) && (labels.every(label => label === undefined) || labels.some(label => equationMatches(label, "0")));
+    const owner = facts.findIndex(fact => equationLabels.length > 0 && equationLabels.every(label => equationMatches(label, fact.expression)) || yieldedLabel && bodyOwns(fact.expression));
+    const axis = owner < 0 && sourceAxis && boundaries.has(curve.outputs[0]) &&
+      (labels.every(label => label === undefined) || equationLabels.length > 0) && equationLabels.every(label => equationMatches(label, "0"));
     const expression = axis ? "0" : facts[owner]?.expression;
     const bodyMatches = expression !== undefined && bodyOwns(expression);
     let adjunctOwned = false;
     if (owner < 0 && !axis && facts.length === 1 && adjuncts.length > 0) {
-      const equations = labels.flatMap(label => typeof label === "string" ? [readCartesianEquationLabel(normalizeMathText(label))].filter(equation => equation !== null) : []);
+      const equations = equationLabels.map(label => readCartesianEquationLabel(normalizeMathText(label))!);
       adjunctOwned = adjuncts.some(adjunct => yieldedLabel ? proveLine(curve.outputs[0]!, facts[0]!.expression, adjunct)
-        : equations.some(equation => proveLine(curve.outputs[0]!, facts[0]!.expression, adjunct, equation)));
+        : equations.length > 0 && equations.every(equation => proveLine(curve.outputs[0]!, facts[0]!.expression, adjunct, equation)));
     }
     // A native display transform is accepted only with the entire independently
     // regenerated program, never a client-provided display/source tag.
