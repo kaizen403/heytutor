@@ -173,6 +173,8 @@ export function useBoardSession({
   const [boardLoaded, setBoardLoaded] = useState(false);
   const storedTurnsRef = useRef<StoredTurn[]>([]);
   const [storedTurnsCount, setStoredTurnsCount] = useState(0);
+  /** Same-count local/server replacements must also notify thumbnail capture. */
+  const [storedTurnsRevision, setStoredTurnsRevision] = useState(0);
   const conversationHistoryRef = useRef<ConversationExchange[]>([]);
   const [inputInteracted, setInputInteracted] = useState(false);
   const replayBlobUrlsRef = useRef<string[]>([]);
@@ -540,6 +542,7 @@ export function useBoardSession({
       }
       storedTurnsRef.current = overlayLiveTurnEvent(storedTurnsRef.current, event, turn);
       setStoredTurnsCount(storedTurnsRef.current.length);
+      setStoredTurnsRevision((revision) => revision + 1);
       if (!existing) {
         setBoards((prev) =>
           prev.map((board) => (board.id === event.boardId ? { ...board, preview: event.preview.slice(0, 60) } : board)),
@@ -647,6 +650,7 @@ export function useBoardSession({
 
         storedTurnsRef.current = turns;
         setStoredTurnsCount(turns.length);
+        setStoredTurnsRevision((revision) => revision + 1);
         // Reset the input overlay state for the restored board: a board with no
         // turns shows the Accelute landing (inputInteracted=false), while a board
         // with prior turns shows the doubt InputBar (inputInteracted=true).
@@ -990,6 +994,7 @@ export function useBoardSession({
     storedTurnsRef,
     storedTurnsCount,
     setStoredTurnsCount,
+    storedTurnsRevision,
     conversationHistoryRef,
     inputInteracted,
     setInputInteracted,
