@@ -81,7 +81,7 @@ import { resolvePlannerModels } from "../../lib/llm/plannerTransport";
 import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { resolveLlmEndpoint } from "../../lib/llm/llmProvider";
 import { buildLabModelProfile, type LabModelProfile } from "../../lib/llm/labModelProfile";
-import { LECTURE_LAB_STANDARD_MODEL_HEADER } from "../../lib/billing/flags";
+import { LECTURE_LAB_HEADER, LECTURE_LAB_STANDARD_MODEL_HEADER } from "../../lib/billing/flags";
 import { MAX_LLM_CONTINUATIONS } from "../../features/tutor-session/constants";
 import { workColumnRoom, workColumnRows } from "../../features/tutor-session/lib/board/boardLayout";
 import { turnDoubtPage } from "../../features/tutor-session/lib/board/doubtPage";
@@ -953,13 +953,18 @@ async function doubtRunSelfCheck(): Promise<{ checks: number; failures: string[]
   };
   const scratch = mkdtempSync(join(tmpdir(), "doubt-run-check-"));
   const realFetch = globalThis.fetch;
+  const realLabToken = process.env.LECTURE_LAB_TOKEN;
+  process.env.LECTURE_LAB_TOKEN = "synthetic-offline-doubt-self-check";
   try {
     // The need check reserves through the round's cap, before dispatch.
     const origin = "http://lab.check";
     const body = { lessonQuestion: "A lesson.", doubt: "A doubt.", figure: { family: null, parts: [] } };
     const capRun = async (maxUsd: number) => {
       let sent = 0;
-      globalThis.fetch = (async () => { sent += 1; return Response.json({ decision: "new_figure", reason: "needs one" }); }) as typeof fetch;
+      globalThis.fetch = (async (_request: RequestInfo | URL, init?: RequestInit) => {
+        if (new Headers(init?.headers).get(LECTURE_LAB_HEADER) !== "synthetic-offline-doubt-self-check") throw new Error("offline self-check must use only its synthetic token");
+        sent += 1; return Response.json({ decision: "new_figure", reason: "needs one" });
+      }) as typeof fetch;
       const ledger = installBudgetedFetch({
         origin, cookie: "a=b", maxUsd, checkpointPath: join(scratch, `spend-${maxUsd}.json`), standardModelHeader: false,
         endpoint: {} as ReturnType<typeof resolveLlmEndpoint>, profile: {} as LabModelProfile, serverConfig: {} as LabBudgetServerConfig,
@@ -1048,6 +1053,7 @@ async function doubtRunSelfCheck(): Promise<{ checks: number; failures: string[]
     }
   } finally {
     globalThis.fetch = realFetch;
+    if (realLabToken === undefined) delete process.env.LECTURE_LAB_TOKEN; else process.env.LECTURE_LAB_TOKEN = realLabToken;
     rmSync(scratch, { recursive: true, force: true });
   }
   return { checks, failures };

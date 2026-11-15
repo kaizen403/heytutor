@@ -165,7 +165,7 @@ export function lessonRecoveryFromStoredTurns(
   const planSource = source ?? chain[0]!;
   const rawPlan = isRecord(planSource.sceneArtifacts) ? planSource.sceneArtifacts.turnPlan : null;
   const turnPlan = rawPlan ? validateTurnPlanV3(rawPlan, planSource.question).plan : null;
-  const codeLesson = storedCodeLessonPlan(planSource.sceneArtifacts) !== null;
+  const codeLesson = storedCodeLessonPlan(planSource.sceneArtifacts, planSource.question) !== null;
 
   let solverProjection: unknown = null;
   let hasResumeState = false;

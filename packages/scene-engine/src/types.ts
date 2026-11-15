@@ -201,6 +201,15 @@ export interface ValidationResult {
 }
 
 export interface CompileOptions {
+  /** Additional source obligations, checked in world geometry before layout.
+   * These can only add proof failures; they never replace document guards. */
+  sourceFunctionChecks?: ReadonlyArray<{
+    entityId: string;
+    expression: string;
+    adjunct?: { role: "tangent" | "normal"; at: number };
+    /** An additional Cartesian label obligation, including vertical x=c lines. */
+    equation?: { lhs: string; rhs: string };
+  }>;
   /** Explicit rollout override. Otherwise retain an admitted document's policy. */
   yieldPolicy?: "off" | "verified_parts";
   /**

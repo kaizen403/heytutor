@@ -1,3 +1,4 @@
+import { MAX_CONCURRENT_LECTURES } from "../admin/lectureConcurrency";
 import {
   GRANT_TTL_MS,
   TTS_CHARS_PER_LESSON,
@@ -83,11 +84,9 @@ export function getTurnGrant(userId: string): TurnGrant | null {
   return prune(userId);
 }
 
-const MAX_CONCURRENT_BYPASS_TRACES = 5;
-
 function reserveBypassTrace(grant: TurnGrant, traceId: string): boolean {
   if (!grant.activeBypassTraces.has(traceId)) {
-    if (grant.activeBypassTraces.size >= MAX_CONCURRENT_BYPASS_TRACES) return false;
+    if (grant.activeBypassTraces.size >= MAX_CONCURRENT_LECTURES) return false;
     grant.activeBypassTraces.set(traceId, 0);
   }
   grant.allowedTraceIds.add(traceId);

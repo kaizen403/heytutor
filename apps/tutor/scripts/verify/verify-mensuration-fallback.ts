@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { compileSceneDocument, synthesizeFamilyScene, validateSceneDocument } from "@heytutor/scene-engine";
+import { compileSceneDocument, synthesizeFamilyScene, validateSceneDocument, validateTurnPlanV3 } from "@heytutor/scene-engine";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import { selectVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
-import { verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
-import { buildSceneDocumentPlannerPrompt, inferSceneCapabilities, questionRequiresVisual } from "@heytutor/tutor-core";
+import { remainingDeferredAnnotations, verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
+import { buildSceneDocumentPlannerPrompt, createFallbackTurnPlanV3, inferSceneCapabilities, questionRequiresVisual } from "@heytutor/tutor-core";
 
 const question = "A solid consists of a cylinder of radius 3 cm and height 8 cm, topped by a cone of height 4 cm. Find its volume and total exposed surface area, including the bottom.";
 const figure = synthesizeFamilyScene({ question, families: ["solid_figure"] });
@@ -59,14 +59,15 @@ const exact = selectVerifiedRepresentation({
 });
 assert.equal(exact.tier, "exact_verified", "a scene with a real metric proof keeps its priority");
 assert.deepEqual(exact.renderScene, metricCompile.renderScene);
-for (const stem of [
-  "A cube has edge 5 cm. Find its volume and surface area.",
-  "A cuboid has length 8 cm, width 5 cm and height 3 cm. Find its surface area.",
-  "A square pyramid has base side 6 cm and height 4 cm. Find its volume.",
-  "A pyramid has a square base of side 6 cm and a perpendicular height of 4 cm. Find its volume and total surface area.",
-  "A regular hexagonal prism has base side 4 cm and height 10 cm. Find its volume.",
-  "A hollow cylinder has outer radius 5 cm, inner radius 3 cm and height 8 cm. Find its volume.",
-]) {
+const solids: [string, [string, number, string][]][] = [
+  ["A cube has edge 5 cm. Find its volume and surface area.", [["l", 5, "edge 5 cm"]]],
+  ["A cuboid has length 8 cm, width 5 cm and height 3 cm. Find its surface area.", [["l", 8, "length 8 cm"], ["w", 5, "width 5 cm"], ["h", 3, "height 3 cm"]]],
+  ["A square pyramid has base side 6 cm and height 4 cm. Find its volume.", [["s", 6, "base side 6 cm"], ["h", 4, "height 4 cm"]]],
+  ["A pyramid has a square base of side 6 cm and a perpendicular height of 4 cm. Find its volume and total surface area.", [["s", 6, "side 6 cm"], ["h", 4, "height of 4 cm"]]],
+  ["A regular hexagonal prism has base side 4 cm and height 10 cm. Find its volume.", [["s", 4, "base side 4 cm"], ["h", 10, "height 10 cm"]]],
+  ["A hollow cylinder has outer radius 5 cm, inner radius 3 cm and height 8 cm. Find its volume.", [["r", 5, "outer radius 5 cm"], ["r_i", 3, "inner radius 3 cm"], ["h", 8, "height 8 cm"]]],
+];
+for (const [stem, givens] of solids) {
   const problemIR = { entities: [{ id: "body", kind: "solid" }] };
   const capabilities = inferSceneCapabilities(stem, { problemIR });
   assert(questionRequiresVisual(stem), "complete source geometry must require its diagram even before a model plan arrives");
@@ -74,15 +75,21 @@ for (const stem of [
   const prompt = buildSceneDocumentPlannerPrompt(stem, capabilities);
   assert(prompt.includes('kind:"polyhedron"') && prompt.includes("innerRadius"), "the compact planner must receive both projection overloads");
   const result = selectVerifiedRepresentation({ question: stem, problemIR });
-  const board = buildVerifiedDiagramPresentation(result.sceneDocument, result.renderScene, { figureFamily: "solid_figure" });
+  const turnPlan = createFallbackTurnPlanV3(stem);
+  turnPlan.givens = givens.map(([symbol, value, sourceText]) => ({ id: symbol, symbol, value, unit: "cm", sourceText, provenance: "given" }));
+  assert(validateTurnPlanV3(turnPlan, stem).plan, "the opening receives an accepted source-bound plan");
+  const board = buildVerifiedDiagramPresentation(result.sceneDocument, result.renderScene, { figureFamily: "solid_figure", turnPlan });
   assert(board && verifiedDiagramHasDrawableInk(board.diagram), `${stem}: missing live board ink`);
   assert(board.diagram.anchors.some((anchor) => anchor.labels.some((label) => label.includes("cm"))), "dimensions must remain readable and focusable in the actual board representation");
-  if (result.sceneDocument.constructions.some((construction) => construction.inputs.kind === "polyhedron")) {
-    const introduced = new Set(board.diagram.reveals.flatMap((reveal) => reveal.commandIndices));
-    for (const [index, command] of board.diagram.commands.entries()) {
-      if (command.type !== "LABEL" || !command.text?.includes("cm")) continue;
-      assert(introduced.has(index), `${stem}: ${command.text} must be lettered during the figure introduction`);
-    }
+  const introduced = board.introSegments.flatMap(segment => segment.commands ?? []);
+  for (const [symbol, value] of givens) {
+    assert(introduced.some(command => command.type === "LABEL" && command.text === `${symbol} = ${value} cm`),
+      `${stem}: named source given ${symbol} remains available in the opening`);
+  }
+  const completed = [...introduced, ...remainingDeferredAnnotations(board.diagram)];
+  for (const primitive of result.renderScene.primitives.filter(p => p.kind === "label")) {
+    assert(completed.some(command => command.type === "LABEL" && command.text === primitive.text),
+      `${stem}: verified label ${primitive.text} survives completion`);
   }
 }
 const planar = inferSceneCapabilities("Find the area of the source region.", { problemIR: { entities: [{ kind: "region" }] } });

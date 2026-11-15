@@ -121,6 +121,10 @@ export interface FrozenStartupFixture {
   };
   /** Replay recorded teaching through the real DSA planner/handler/queue. */
   recordedCodeLesson?: { plan: CodeLessonPlan; response: string; continuationResponses?: string[]; revealCommittedCode?: boolean };
+  /** Only picture transports/assets are fake; the live doubt/reveal path runs. */
+  referencePictureTurn?: { response: unknown; doubtTitle: string; granted?: boolean; progressRequired?: boolean; finalDelayMs?: number; progressDelayMs?: number; asLesson?: boolean; readError?: boolean; stopAtMs?: number; supersedeAtMs?: number };
+  /** Replay resume markup through the real parser, queue and ink gate. */
+  resumeTeaching?: { responses: string[]; expectedWrites: number };
   /** A language selected since the previous turn, applied by the real handler. */
   voiceKey?: TutorVoiceKey;
   /** Require the real Given-row request and committed WRITE path, not a no-givens prompt. */
@@ -233,7 +237,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
   const boardId = `startup-${mode}`;
   const parentId = `${boardId}-stopped-parent`;
   const parentTraceId = `${boardId}-parent-trace`;
-  const timeoutSeed: StoredTurn[] = mode === "startup-timeout" ? [{
+  const timeoutSeed: StoredTurn[] = mode === "startup-timeout" || fixture?.referencePictureTurn ? [{
     id: parentId, orderIndex: 0, question, rawResponse: "", speedMultiplier: 1, traceId: parentTraceId,
     kind: "lesson", status: "stopped", persistedStatus: "stopped", sceneDocument: null, sceneEngineVersion: null,
     validationReport: null, visualStatus: "text_only", sceneArtifacts: null, resumeState: null,
@@ -265,6 +269,29 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
   const completion = (value: unknown) => Response.json({ choices: [{ message: { content: JSON.stringify(value) } }] });
   replace("fetch", async (url: string, init?: RequestInit) => {
     const headers = new Headers(init?.headers);
+    if (fixture?.referencePictureTurn && url.endsWith("/api/reference-picture")) {
+      record("reference-picture-request", JSON.parse(String(init?.body)));
+      const picture = fixture.referencePictureTurn;
+      if (picture.progressRequired !== undefined) {
+        let pictureResponseTimer: number;
+        let progressTimer: number | undefined;
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) {
+            const progress = () => controller.enqueue(encoder.encode(JSON.stringify({ type: "requirement", required: picture.progressRequired }) + "\n"));
+            if (picture.progressDelayMs) progressTimer = setTimer(progress, picture.progressDelayMs);
+            else progress();
+            pictureResponseTimer = setTimer(() => {
+              record("reference-picture-final");
+              if (picture.readError) { controller.error(new Error("synthetic connection reset")); return; }
+              controller.enqueue(encoder.encode(JSON.stringify({ type: "result", ...picture.response as object }) + "\n"));
+              controller.close();
+            }, picture.finalDelayMs ?? 0);
+          },
+          cancel() { timers.delete(pictureResponseTimer); if (progressTimer) timers.delete(progressTimer); record("reference-picture-reader-cancelled"); },
+        }), { headers: { "content-type": "application/x-ndjson" } });
+      }
+      return Response.json(picture.response);
+    }
     if (fixture?.openingPrefetchEnabled !== undefined && (url.endsWith("/api/chat") || url.endsWith("/api/visual-need"))) {
       const kind = url.endsWith("/api/visual-need") ? "visual-need"
         : headers.has("x-turn-planner-version") ? "turn-plan"
@@ -528,7 +555,8 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       };
       if (specifier === "@/lib/billing/billingClient") return {
         ...requireApp(path.join(app, "lib/billing/billingClient.ts")),
-        beginTurn: async () => { record("turn-admission"); return { ok: true }; },
+        beginTurn: async () => { record("turn-admission"); return { ok: true,
+          ...(fixture?.referencePictureTurn ? { referencePicture: fixture.referencePictureTurn.granted !== false } : {}) }; },
       };
       if (specifier === "@/lib/boards/boardsClient") return {
         ...requireApp(path.join(app, "lib/boards/boardsClient.ts")),
@@ -541,6 +569,9 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       }
       const target = specifier.startsWith("@/") ? path.join(app, specifier.slice(2))
         : specifier.startsWith(".") ? path.resolve(path.dirname(file), specifier) : specifier;
+      if (fixture?.referencePictureTurn && target.endsWith("/referencePicturePreload")) return {
+        ...requireApp(target), preloadReferencePictureWithin: async () => true,
+      };
       if (target.endsWith("/earlyLessonOpening")) return loadHook(`${target}.ts`);
       if (target.endsWith("/lessonOpeningPreparation")) {
         const actual = loadHook(`${target}.ts`);
@@ -627,9 +658,13 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       dispatchedQuestion = action.text;
       record("teach-again-dispatch", action);
     }
-    const turn = handler.handleQuestion(dispatchedQuestion, resume ? { resume } : undefined)
+    const pictureDoubt = fixture?.referencePictureTurn && !fixture.referencePictureTurn.asLesson ? {
+      title: fixture.referencePictureTurn.doubtTitle, prompt: fixture.referencePictureTurn.doubtTitle,
+      lessonQuestion: question, afterReplay: false,
+    } : undefined;
+    const turn = handler.handleQuestion(pictureDoubt?.title ?? dispatchedQuestion, pictureDoubt ? { doubt: pictureDoubt } : resume ? { resume } : undefined)
       .catch((error: unknown) => {
-        if ((!recoveryMode && !mode.startsWith("opening-prefetch-stop")) || !isBenignTurnAbort(error)) throw error;
+        if ((!recoveryMode && !mode.startsWith("opening-prefetch-stop") && fixture?.referencePictureTurn?.stopAtMs === undefined && fixture?.referencePictureTurn?.supersedeAtMs === undefined) || !isBenignTurnAbort(error)) throw error;
         record("stopped-planning-abort");
       }).finally(() => { done = true; });
     await flush();
@@ -797,6 +832,42 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       assert.equal(timers.size, 0);
       return { mode, startup: startupProjection() };
     }
+    if (fixture?.referencePictureTurn) {
+      const pictureControl = fixture.referencePictureTurn;
+      if (pictureControl.stopAtMs !== undefined || pictureControl.supersedeAtMs !== undefined) {
+        await advance(pictureControl.stopAtMs ?? pictureControl.supersedeAtMs!);
+        const ownedPage = lifecycle.boardPageRef.current;
+        const stopScene = structuredClone(ownedPage?.turn.scene);
+        if (pictureControl.stopAtMs !== undefined) renderControl().stopTurn({ keepVisibleBoard: true });
+        else {
+          lifecycle.turnGenerationRef.current++;
+          lifecycle.turnAbortRef.current?.abort();
+          lifecycle.boardPageRef.current = null;
+        }
+        await pump(() => done);
+        await turn;
+        const stoppedScene = JSON.stringify(ownedPage?.turn.scene);
+        await advance(60_000);
+        assert.equal(JSON.stringify(ownedPage?.turn.scene), stoppedScene, "late progress cannot mutate stopped/replaced page");
+        assert(events.some(event => event.name === "reference-picture-reader-cancelled"), "Stop/replacement cancels response reader");
+        return { mode, pictureEvents: events, pictureScene: stopScene, picturePage: ownedPage ? { ...ownedPage, turn: { ...ownedPage.turn, scene: stopScene ?? null } } : null, pictureRows: lifecycle.recordedSegmentsRef.current, pictureTeaching: teachingRequestBodies };
+      }
+      await pump(() => streams.length === 1 || done);
+      assert(!done, "picture follow-up reaches teaching");
+      content(0, "[STEP]The uterus has a muscular wall.[WRITE:The uterus has a muscular wall.][/STEP]");
+      finishStream(0);
+      await pump(() => done);
+      await turn;
+      await pump(() => lifecycle.pendingSegmentCountRef.current === 0);
+      assert(!events.some(event => event.name === "turn-error"));
+      assert.equal(lifecycle.turnActiveRef.current, false);
+      const completedScene = JSON.stringify(lifecycle.boardPageRef.current?.turn.scene);
+      await advance(60_000);
+      assert.equal(JSON.stringify(lifecycle.boardPageRef.current?.turn.scene), completedScene, "late picture cannot mutate a completed turn");
+      assert.equal(timers.size, 0);
+      return { mode, pictureEvents: events, pictureScene: lifecycle.boardPageRef.current?.turn.scene,
+        picturePage: lifecycle.boardPageRef.current, pictureRows: lifecycle.recordedSegmentsRef.current, pictureTeaching: teachingRequestBodies };
+    }
     if (fixture?.recordedCodeLesson) {
       await pump(() => streams.length === 1);
       content(0, fixture.recordedCodeLesson.response);
@@ -814,7 +885,8 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       assert.equal(lifecycle.turnActiveRef.current, false);
       assert.equal(lifecycle.phaseRef.current, "idle");
       assert.equal(timers.size, 0);
-      return { mode, recordedCodeEvents: events, recordedCodeTeachingRequests: teachingRequestBodies };
+      return { mode, recordedCodeEvents: events, recordedCodeTeachingRequests: teachingRequestBodies,
+        recordedCodeScene: lifecycle.boardPageRef.current?.turn.scene, recordedCodeRows: lifecycle.recordedSegmentsRef.current };
     }
     if (earlyMode) {
       const opening = buildEarlyLessonOpeningSegment();
@@ -1054,7 +1126,34 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       assert([...timers.values()].some((timer) => timer.at === 15_000), "control-only steps must keep the startup deadline armed");
     }
 
-    if (mode === "resume-no-ink") {
+    if (mode === "resume-no-ink" && fixture?.resumeTeaching) {
+      const replay = fixture.resumeTeaching;
+      for (let i = 0; i < replay.responses.length; i++) {
+        assert(streams[i], "resume replay owns its actual teaching request");
+        content(i, replay.responses[i]!);
+        finishStream(i);
+        await flush();
+        if (i < replay.responses.length - 1) await pump(() => done || Boolean(streams[i + 1]));
+        if (done) break;
+      }
+      await pump(() => done);
+      await turn;
+      const writes = events.filter(event => event.name === "board-command" && (event.data as DrawCommand).type === "WRITE");
+      assert.equal(writes.length, replay.expectedWrites, "replayed WRITE tags survive the real handler/parser/resume ink gate");
+      if (replay.expectedWrites > 0) {
+        assert(!events.some(event => event.name === "turn-error"), "valid repaired markup cannot fail resume-without-ink");
+        assert.equal(streams.length, 1, "existing protocol repairs must avoid the historical no-ink retry");
+      } else {
+        assert(events.some(event => event.name === "turn-error"), "refused ambiguous ink cannot complete the lesson");
+        assert.equal(outputs().length, 0, "refused ink releases neither narration nor invented ink");
+      }
+      assert.equal(lifecycle.turnAbortRef.current, null);
+      assert.equal(lifecycle.turnActiveRef.current, false);
+      assert.equal(lifecycle.pendingSegmentCountRef.current, 0);
+      assert.equal(timers.size, 0, "resume replay releases startup and playback timers");
+      for (const stream of streams) assert.equal(stream.response.body?.locked, false);
+      return { mode, writes: writes.length, requests: streams.length };
+    } else if (mode === "resume-no-ink") {
       content(0, "[STEP]We continue from the horizontal motion without writing anything.[/STEP]");
       finishStream(0);
       await flush();

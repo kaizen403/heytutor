@@ -59,12 +59,28 @@ const presentation = buildVerifiedDiagramPresentation(scene.document, scene.rend
 const intros = presentation.introSegments;
 const intro = intros[0]!;
 const introCommandCount = intros.reduce((total, beat) => total + beat.commands!.length, 0);
-// The body centre is a hidden force anchor. P uses a nearby label without a
-// callout and waits until named; the mass label and all force ink remain.
-// Label owner placement (Oct 2026) gives "mg sinθ" a leader to its own arrow
-// instead of a free slot nearer the incline and the angle mark than its own
-// arrow, so the third beat has 9 commands.
-assert.deepEqual(intros.map((beat) => beat.commands!.length), [14, 7, 9]);
+// This gate needs three independently interruptible beats and the engine's
+// verified ink, not a fixed number of label leaders or surface hatch strokes.
+const revealGroups = presentation.diagram.reveals.filter(reveal => reveal.kind === "reveal");
+assert.deepEqual(revealGroups.map(reveal => reveal.targetId), ["surface", "body_group", "forces"]);
+assert.equal(intros.length, revealGroups.length);
+const visibleMark = (command: Pick<DrawCommand, "type" | "params" | "text" | "semanticRef" | "visualStyle">) => ({
+  type: command.type, params: command.params, text: command.text,
+  semanticRef: command.semanticRef, visualStyle: command.visualStyle,
+});
+for (const [index, beat] of intros.entries()) {
+  assert(beat.verifiedDiagramIntro && beat.narration.trim() && beat.commands!.length > 1,
+    "each verified beat has narration and interruptible ink");
+  assert.deepEqual(beat.commands!.map(visibleMark), revealGroups[index]!.commandIndices.map(commandIndex =>
+    visibleMark(presentation.diagram.commands[commandIndex]!)), "intro preserves every verified reveal mark in order");
+}
+const introMarks = intros.flatMap(beat => beat.commands!);
+for (const entityId of ["incline", "ground", "rise", "angle", "body", "weight", "normal", "weight_along", "weight_perp"]) {
+  assert(introMarks.some(command => command.semanticRef?.entityId === entityId && command.type !== "LABEL"),
+    `the compiled ${entityId} geometry must reach the intro`);
+}
+assert.equal(new Set(revealGroups.flatMap(reveal => reveal.commandIndices)).size, introCommandCount,
+  "each intro mark is revealed once");
 const lesson: TutorSegment = { narration: "The net force equals mass times acceleration.", command: {
   type: "WRITE", text: "F = ma", params: [80, 150], charPosition: 0, narrationBefore: "The net force equals mass times acceleration.",
 } };
@@ -80,7 +96,7 @@ async function scenario(selectedMode: Mode) {
   const directProvider = ["later-new-turn", "later-doubt", "later-timeout", "later-failure", "later-no-audio", "later-stop", "later-draw-failure", "near", "late-grace", "late-grace-paused", "late-grace-stop", "ready-no-audio", "grace-expiry-race", "grace-expiry-handoff"].includes(mode);
   const lateRetry = mode === "retry-late-grace" || mode === "retry-late-grace-paused" || mode === "retry-grace-expiry-race";
   const expiryRace = ["grace-expiry-race", "grace-expiry-handoff", "retry-grace-expiry-race"].includes(mode);
-  const successful = ["browser-restart", "provider-restart", "near", "late-grace", "late-grace-paused", "retry-late-grace", "retry-late-grace-paused", "restart", "reject-pause", "grace-expiry-handoff"].includes(mode);
+  const successful = ["browser-restart", "provider-restart", "near", "late-grace", "late-grace-paused", "retry-late-grace", "retry-late-grace-paused", "restart", "reject-pause", "grace-expiry-handoff", "ready-no-audio", "grace-expiry-race"].includes(mode);
   let now = 0;
   let sequence = 0;
   const timers = new Map<number, { at: number; run: () => void }>();
@@ -297,6 +313,7 @@ async function scenario(selectedMode: Mode) {
     boardLayoutRef: ref<BoardLayoutState>({ rects: [], nextY: 100 }),
     boardPageRef: ref({ boardId: "offline-board", figureDrawn: false }),
     narrationDensityRef: ref(0), turnStatsRef: ref({ ttsChars: 0, drawMs: 0 }),
+    onVoiceDegraded: (degraded: boolean) => { if (degraded) record("voice-degraded"); },
     turnTelemetryRef: ref({ mark: record, span: () => ({ end() {} }), meta() {}, durationMs: () => now, flush: async () => {} }),
     whiteboardRef: ref({ beginDrawTransaction: () => {
       const id = registry.begin(); activeIntroTransaction = id; return id;
@@ -363,7 +380,14 @@ async function scenario(selectedMode: Mode) {
     assert.deepEqual(params.recordedSegmentsRef.current.map((row) => row.narration), intros.map((beat) => beat.narration),
       "every completed intro row is already captured at root commit, not just afterwards");
     for (const [index, row] of params.recordedSegmentsRef.current.entries()) {
-      assert((row.durationMs ?? 0) > 0, "every intro recording at commit has its complete speech duration");
+      const silentlyTaught = mode === "ready-no-audio" || mode === "grace-expiry-race" && index === 0;
+      if (silentlyTaught) {
+        assert.equal(row.audioBytes, null, "silent intro cannot claim provider audio at commit");
+        assert.equal(row.durationMs, null, "silent intro cannot invent a measured speech duration");
+        assert.equal(row.timings, null, "unheard provider alignment cannot masquerade as a spoken timeline");
+        continue;
+      }
+      assert((row.durationMs ?? 0) > 0, "every spoken intro recording at commit has its complete speech duration");
       const uncapturedBrowser = mode === "browser-restart" && index === 1 || mode === "grace-expiry-handoff" && index === 0;
       if (uncapturedBrowser) assert.equal(row.audioBytes, null, "browser speech does not invent captured bytes at commit");
       else assert((row.audioBytes?.length ?? 0) > 0, "provider bytes must exist before root commit");
@@ -708,10 +732,9 @@ async function scenario(selectedMode: Mode) {
         assert(ink.length > 0, "the pen must wait for the owned browser handoff instead of permanently skipping at grace expiry");
       } else {
         await advance(12_000);
-        assert.equal(settled, true, "expired provider plus silent browser must settle as failure");
-        assert(failure instanceof Error);
-        assert.equal(aborted, true, "deadline failure must abort the intro transaction");
-        assert.equal(ink.length, 0);
+        assert(events.some(event => event.name === "voice-degraded"), "expired provider and silent browser enter the visible silent-teaching path");
+        assert.equal(events.filter(event => event.name === "tts-start").length, 0,
+          "silent teaching never announces an audible start");
       }
     } else if (mode === "late-grace-paused" || mode === "late-grace-stop") {
       await advance(8_150); // Past the old ink deadline, but inside readiness grace.
@@ -742,7 +765,9 @@ async function scenario(selectedMode: Mode) {
         "repeated readiness cannot renew the 2500 active-ms allowance");
       jobs[0]!.options.onAudioReady?.(); jobs[0]!.options.onStart?.(); jobs[0]!.options.onEnd?.();
       await advance(12_000);
-      assert.equal(settled, true, "bytes without any audible provider/browser voice must fail within a bounded budget");
+      assert(events.some(event => event.name === "voice-degraded"), "readiness without a voice reaches visible silent teaching boundedly");
+      assert.equal(events.filter(event => event.name === "tts-start").length, 0,
+        "ready bytes and silent teaching never fabricate an audible start");
     } else if (mode === "late-grace") {
       await advance(8_884);
       assert.equal(ink.length, 0, "ready bytes and alignment cannot ink before actual speech start");
@@ -829,10 +854,17 @@ async function scenario(selectedMode: Mode) {
       assert.equal(params.boardPageRef.current.figureDrawn, true);
       assert.equal(params.cancelRef.current, false);
       const commit = events.find((event) => event.name === "intro-committed")!;
-      for (const beat of intros) {
+      for (const [beatIndex, beat] of intros.entries()) {
         const ended = events.filter((event) => event.name === "provider-end" && event.text === beat.narration.trim()).at(-1);
         if (ended) assert(ended.atMs <= commit.atMs, "atomic commit must join every intro narration's actual end");
-        else assert(events.some((event) => event.name === "browser-end" && event.atMs <= commit.atMs), "uncaptured browser narration still needs actual onEnd before commit");
+        else if (mode === "ready-no-audio" || mode === "grace-expiry-race") {
+          const degraded = events.find(event => event.name === "tts-voice-degraded" && event.segment_index === beatIndex);
+          assert(degraded, "each unheard beat enters explicit silent teaching");
+          assert(commit.atMs >= degraded.atMs + Number(degraded.estimated_ms) / 4,
+            "commit waits for the silently taught sentence's bounded reading time");
+          assert(ink.filter(row => beat.commands!.includes(row.command)).every(row => row.atMs >= degraded.atMs),
+            "unheard ink starts only after explicit recovery, never from readiness or a stale start");
+        } else assert(events.some((event) => event.name === "browser-end" && event.atMs <= commit.atMs), "uncaptured browser narration still needs actual onEnd before commit");
       }
       assert.deepEqual(visibleIntro().map((node) => node.command), intros.flatMap((beat) => beat.commands!),
         "success requires actual visible commands from ALL compiled beats in their authoritative order");
@@ -846,6 +878,10 @@ async function scenario(selectedMode: Mode) {
         assert((params.recordedSegmentsRef.current[browserRowIndex]!.durationMs ?? 0) > 0, "the browser row must reach its actual onEnd before recording");
         assert((params.recordedSegmentsRef.current.at(-1)!.audioBytes?.length ?? 0) > 0);
         assert(events.findIndex((event) => event.name === "browser-end") < events.findIndex((event) => event.name === "intro-committed"));
+      } else if (mode === "ready-no-audio" || mode === "grace-expiry-race") {
+        const silentRows = mode === "ready-no-audio" ? params.recordedSegmentsRef.current : params.recordedSegmentsRef.current.slice(0, 1);
+        assert(silentRows.every(row => !row.audioBytes), "silent teaching cannot fabricate provider clips");
+        if (mode === "ready-no-audio") assert.equal(events.filter(event => event.name === "tts-start").length, 0);
       } else {
         assert(params.recordedSegmentsRef.current.every((row) => (row.audioBytes?.length ?? 0) > 0), "only complete provider-captured rows are recorded");
         assert.equal(params.recordedSegmentsRef.current[0]!.durationMs, mathToSpeech(intro.narration.trim()).length * 86,
@@ -896,7 +932,7 @@ async function scenario(selectedMode: Mode) {
         assert.equal(successorLayout.nextY, 200 + TEXT_LAYOUT.lineHeight, "old rollback does not reset successor work placement");
       }
     }
-    if (!realCanvas && (successful || mode === "later-new-turn")) {
+    if (!realCanvas && mode !== "ready-no-audio" && (successful || mode === "later-new-turn")) {
       assert(events.some((event) => event.name === "runtime-point"), "the lesson must actually execute transient POINT after its intro transaction");
     }
     assert(ink.every((row) => row.command.type !== "POINT"), "cursor motion must never count as captured ink");

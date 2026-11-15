@@ -1,12 +1,15 @@
 import type { TutorPhase } from "@/features/tutor-session/types";
 import { finalizeBoardTitle } from "@/lib/boards/boardTitle";
+import { MAX_CONCURRENT_LECTURES } from "@/lib/admin/lectureConcurrency";
 import type { ProbeQuestion } from "./probes";
+
+export { MAX_CONCURRENT_LECTURES };
 
 export const EXPECTED_LECTURE_MS = 4 * 60 * 1000;
 export const JOB_TIMEOUT_MS = 10 * 60 * 1000;
 /** Browser + TTS + LLM budget for one tab. Select many; this many actually run together. */
-export const MAX_CONCURRENT_LECTURES = 5;
-export const CONCURRENCY_OPTIONS = [1, 2, 3, 4, 5] as const;
+export const DEFAULT_CONCURRENT_LECTURES = 5;
+export const CONCURRENCY_OPTIONS = Array.from({ length: MAX_CONCURRENT_LECTURES }, (_, index) => index + 1);
 
 export type LectureJobStatus = "queued" | "running" | "complete" | "failed";
 

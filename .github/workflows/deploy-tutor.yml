@@ -24,7 +24,8 @@ jobs:
   security:
     name: Security checks
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # The combined source and database regressions exceed the former 35-minute budget.
+    timeout-minutes: 60
     services:
       postgres:
         # Docker Official Image via Google's Docker Hub mirror; same pinned manifest as

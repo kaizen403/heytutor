@@ -82,6 +82,12 @@ export function storedTurnDrawsLessonFigure(turn: PageFigureTurn, isOpener: bool
 
 /** A continuation that drew its own verified figure in the zone. */
 export function storedTurnSwapsFigureIn(turn: PageFigureTurn): boolean {
+  // A judged reference picture drawn by an empty-zone doubt is its own
+  // source too. It stays text_only and gains no scene/geometry authority.
+  if (turn.kind === "doubt" && storedTurnContinuesBoard(turn) &&
+      isRecord(turn.sceneArtifacts) && isRecord(turn.sceneArtifacts.referencePicture) &&
+      turn.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command) &&
+        parseStoredSegmentCommands(segment.command).some((command) => command.type === "DRAW_PICTURE"))) return true;
   return storedTurnContinuesBoard(turn) &&
     doubtFigureOf(turn.sceneArtifacts) !== null &&
     turn.visualStatus === "validated" &&

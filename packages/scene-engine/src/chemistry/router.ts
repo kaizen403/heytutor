@@ -25,6 +25,7 @@ export const CHEMISTRY_SCENE_FAMILIES = [
   "chem_unit_cell",
   "chem_kinetics",
   "chem_thermo",
+  "chem_effusion",
   "chem_solutions",
   "chem_periodic",
   // Organic goes last: its cue fires on any compound name, while every family
@@ -48,6 +49,7 @@ export const CHEMISTRY_FAMILY_NAMES: Record<ChemistrySceneFamily, string> = {
   chem_unit_cell: "crystal unit cell",
   chem_kinetics: "chemical kinetics graph",
   chem_thermo: "reaction energy or thermodynamics graph",
+  chem_effusion: "Graham effusion comparison",
   chem_solutions: "titration or solution graph",
   chem_periodic: "periodic trend graph",
 };

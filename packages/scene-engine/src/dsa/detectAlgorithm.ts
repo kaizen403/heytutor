@@ -109,10 +109,65 @@ const PROBLEM_SHAPE: readonly RegExp[] = [
 
 /**
  * Does this read like a coding problem even though it names no algorithm?
- * Two independent structural markers is the bar — one alone ("given a
- * triangle...") is ordinary maths phrasing.
+ * Two structural markers also need a programming operation or concrete I/O.
+ * Lecture prose can contain both "Example:" and "target market", and a
+ * maths exercise can contain both "given a" and "Example:". Neither asks
+ * for a program. A return instruction names its computational operand, an
+ * instruction operates on a typed programming input, or paired Input/Output
+ * carries a concrete value/assignment. Operand names are not a closed list.
  */
 export function looksLikeCodingProblem(question: string): boolean {
+  const concreteIO = /\binput\s*:\s*(?:[a-zA-Z_]\w*\s*=|\[|["'\d-])[\s\S]*\boutput\s*:\s*\S/i.test(question);
+  // Measurements distinguish a physical string/array from program data.
+  // Quoted input values may themselves contain units; those are data rather
+  // than the setup. Explicit requests for code are handled by the caller.
+  const setup = question.split(/\b(?:constraints?|example\s*\d*|input|output)\s*:/i)[0]!
+    .replace(/"(?:\\.|[^"\\])*"|(?<!\w)'(?:\\.|[^'\\])*'(?!\w)/g, "");
+  // Execution limits also use time units. Other physical dimensions provide
+  // the disambiguation for an inferred programming input.
+  if (!concreteIO && /\b\d+(?:\.\d+)?[ \t]*(?:kg|mg|g|km|cm|mm|m|Hz|Pa|N|J|W|V|A|K|meters?|metres?|newtons?|degrees?|radians?)\b/.test(setup)) return false;
+  const computation = /\breturn\s+(?:the\s+|an?\s+|all\s+|any\s+)?(?:true|false|indices|index|maximum|minimum|number|length|sum|count|result|array|string|list|root|head|value|total|smallest|largest|kth)\b/i.test(question);
+  // Bounded modifiers allow qualified type declarations. Connectors and
+  // operations end the declaration before later lecture prose.
+  const typedInput = /\bgiven\s+(?:(?:an?|the|two)\s+)?(?:(?:head|root)\s+of\s+(?:an?|the)\s+)?(?:(?!(?:of|under|with|in|at|on|whose|which|that|is|has|and|or|about|for|to|from|return|remove|replace|reverse|sort|merge|filter|compute|calculate|find|count|determine|check)\b)[a-z0-9_-]+\s+){0,6}(arrays?|strings?|integers?|lists?|booleans?|matri(?:x|ces)|grids?|(?:(?:singly|doubly)\s+)?linked\s+lists?|(?:binary\s+)?trees?)\b/i.exec(question);
+  // Match paired inline formatting before testing the input name, so both
+  // `value` and value work while an emphasized physical preposition stays one.
+  const afterType = typedInput ? question.slice(typedInput.index + typedInput[0].length) : "";
+  const inputName = typedInput && /^\s+(?:(`+|\*{1,2}|_{1,2}|\$)([a-zA-Z_]\w*)\1(?=\W|$)|([a-zA-Z_]\w*)\b)/.exec(afterType);
+  const binding = inputName && (inputName[2] ?? inputName[3]);
+  const afterName = typedInput && inputName ? question.slice(typedInput.index + typedInput[0].length + inputName[0].length) : "";
+  const namedInput = binding && !/^(?:of|under|with|in|at|on|whose|which|that|is|has)\b/i.test(binding) &&
+    /^(?:\s*[,.;:=([\]{}]|\s*$|\s+(?:and|where|of|with|whose|which|that|is|has|containing|return|remove|replace|reverse|sort|merge|filter|compute|calculate|find|count|determine|check)\b)/i.test(afterName);
+  const collectionInput = typedInput && /array|list|matri|grid|tree/i.test(typedInput[1]!);
+  const declaredInput = namedInput || collectionInput || /^\s*[,;:"'[]/.test(afterType);
+  // "String" also names a physical object. A qualified description and a
+  // generic calculation do not establish program data, even without units.
+  // Require text-data evidence, structured program input, or an explicit
+  // return instruction. Ordinary unnamed string transformations remain valid.
+  const stringInput = typedInput && /^strings?$/i.test(typedInput[1]!);
+  const modifiers = typedInput?.[0].slice(0, -typedInput[1]!.length)
+    .replace(/^given\s+(?:(?:an?|the|two)\s+)?/i, "").trim();
+  const boundExpression = namedInput && binding && new RegExp(
+    "(?:^|[^\\w./:])" + binding + "\\s*(?:\\.[a-zA-Z_]\\w*|\\[[^\\]\\n]+\\])",
+  ).test(question);
+  const stringData = concreteIO ||
+    /^\s*(?:[a-zA-Z_]\w*\s*=\s*)?["'[]/.test(afterType) ||
+    /\b(?:characters?|letters?|digits?|vowels?|consonants?|substrings?|subsequences?|palindromes?|anagrams?|uppercase|lowercase|alphanumeric|binary|unicode|ascii)\b/i.test(question) ||
+    // Removing textual separators is a data operation even without an
+    // example, return clause, or member access. The operation and its operand
+    // are both required; physical spacing alone supplies no such evidence.
+    /\b(?:remove|replace|filter)\s+(?:(?:all|any|the|leading|trailing|and|repeated)\s+)*(?:spaces?|white[ -]?space|tabs?|newlines?|punctuation)\b/i.test(question) ||
+    /\b(?:time|space)\s+complexity\b|\bO\(\s*(?:n|1|log\s*n)/i.test(question) ||
+    boundExpression ||
+    /\breturn\s+\S/i.test(question) ||
+    (!modifiers && /\b(?:reverse|sort|merge|filter)\s+\S/i.test(question)) ||
+    (!modifiers && namedInput && /\b(?:find|calculate|compute|determine)\s+(?:(?:the|its|their)\s+)?(?:length|size)\b/i.test(question));
+  if (stringInput && !stringData) return false;
+  const inputOperation = typedInput && declaredInput && /\b(?:return|remove|replace|reverse|sort|merge|filter|compute|calculate|find|count|determine|check)\s+\S/i.test(question);
+  // Generic calculations need a declared name or a collection input. Bare
+  // numeric givens in an arithmetic exercise do not establish programming.
+  if (inputOperation) return true;
+  if (!computation && !concreteIO) return false;
   let hits = 0;
   for (const pattern of PROBLEM_SHAPE) {
     if (pattern.test(question)) hits += 1;

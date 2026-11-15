@@ -138,7 +138,10 @@ export function readExtractionChoice(choice: unknown): ExtractionReply {
       ? choice.finish_reason
       : null;
   const reply = readExtractedContent(message.content);
-  const refusal = typeof message.refusal === "string" ? message.refusal.trim() : "";
+  const refusal = typeof message.refusal === "string" ? message.refusal.trim()
+    : Array.isArray(message.content) ? message.content.flatMap(part =>
+      isRecord(part) && part.type === "refusal" && typeof part.refusal === "string" ? [part.refusal] : [],
+    ).join("\n").trim() : "";
   if (!reply.trim() && refusal) {
     return { question: null, reason: "refusal", reply: refusal, finishReason };
   }

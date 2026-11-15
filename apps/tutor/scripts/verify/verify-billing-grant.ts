@@ -153,10 +153,10 @@ const staffActor = {
   skipGates: true,
 };
 // Real admission path: narration ends before its remaining audio / picture
-// requests arrive. Those requests must not leave five zero-use reservations
+// requests arrive. Those requests must not leave ten zero-use reservations
 // behind and reject both subsequent batches before any provider dispatch.
 for (let batch = 0; batch < 3; batch++) {
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 10; i++) {
     const traceId = `recording-${batch}-${i}`;
     const turn = await beginTurnForActor(requestActor, { traceId, kind: "lesson" });
     assert(!(turn instanceof Response), `recording batch ${batch + 1} must start without a stale-slot 429`);
@@ -172,19 +172,19 @@ for (let batch = 0; batch < 3; batch++) {
       "audio / policy admission after chat EOF must not leak a recording slot");
   }
 }
-for (let i = 0; i < 5; i++) {
+for (let i = 0; i < 10; i++) {
   const turn = await beginTurnForActor(requestActor, { traceId: `current-${i}`, kind: "lesson" });
-  assert(!(turn instanceof Response), "five fresh recordings can reserve slots after previous batches");
+  assert(!(turn instanceof Response), "ten fresh recordings can reserve slots after previous batches");
 }
 const oldRequest = () => new Request("https://example.test/api/chat", {
   headers: { "x-heytutor-trace-id": "recording-0-0" },
 });
 const resumedChat = await requireLessonGrant(oldRequest(), { reserveBypassSlot: true });
 assert(resumedChat instanceof Response && resumedChat.status === 429,
-  "an old authorized chat still cannot become a sixth recording");
+  "an old authorized chat still cannot become an eleventh recording");
 const tailAudio = await requireLessonGrant(oldRequest());
-assert(!(tailAudio instanceof Response) && tailAudio.grant.activeBypassTraces.size === 5,
-  "remaining authorized audio does not take a sixth slot or evict a current recording");
+assert(!(tailAudio instanceof Response) && tailAudio.grant.activeBypassTraces.size === 10,
+  "remaining authorized audio does not take an eleventh slot or evict a current recording");
 resetTurnGrantsForTests();
 const [firstStaffTurn, secondStaffTurn] = await Promise.all([
   beginTurnForActor(staffActor, { traceId: "staff-1", kind: "lesson" }),
@@ -195,7 +195,7 @@ assert(!(secondStaffTurn instanceof Response), "staff's second lesson starts bef
 assert(secondStaffTurn.grant === firstStaffTurn.grant, "concurrent staff begins do not replace the shared grant");
 assert(secondStaffTurn.grant.allowedTraceIds.has("staff-1"), "the first trace survives an immediate second begin-turn");
 markGrantInUse(firstStaffTurn.grant, 1);
-for (let i = 3; i <= 5; i += 1) {
+for (let i = 3; i <= 10; i += 1) {
   const turn = await beginTurnForActor(staffActor, { traceId: `staff-${i}`, kind: "lesson" });
   assert(!(turn instanceof Response), `staff lesson ${i} runs while the same account is busy`);
   assert(turn.grant === firstStaffTurn.grant, "parallel staff lessons share the existing grant");
@@ -203,22 +203,22 @@ for (let i = 3; i <= 5; i += 1) {
 }
 assert(firstStaffTurn.grant.inUse === 1, "parallel begin-turn does not clear in-flight work");
 assert(firstStaffTurn.grant.allowedTraceIds.has("staff-1"), "the original staff trace remains authorized");
-const sixthStaffTurn = await beginTurnForActor(staffActor, { traceId: "staff-6", kind: "lesson" });
-assert(sixthStaffTurn instanceof Response && sixthStaffTurn.status === 429,
-  "a sixth simultaneous staff lesson is rejected before its first paid call");
-assert(!firstStaffTurn.grant.allowedTraceIds.has("staff-6"), "denied staff trace is not authorized");
-assert(ensureBypassGrant({ userId: "staff-user", traceId: "staff-direct-6" }) === null,
-  "a sixth direct staff paid call cannot bypass the begin-turn cap");
+const eleventhStaffTurn = await beginTurnForActor(staffActor, { traceId: "staff-11", kind: "lesson" });
+assert(eleventhStaffTurn instanceof Response && eleventhStaffTurn.status === 429,
+  "an eleventh simultaneous staff lesson is rejected before its first paid call");
+assert(!firstStaffTurn.grant.allowedTraceIds.has("staff-11"), "denied staff trace is not authorized");
+assert(ensureBypassGrant({ userId: "staff-user", traceId: "staff-direct-11" }) === null,
+  "an eleventh direct staff paid call cannot bypass the begin-turn cap");
 const unboundDoubt = await beginTurnForActor(staffActor, { traceId: "unbound-doubt", kind: "doubt" });
 assert(unboundDoubt instanceof Response && unboundDoubt.status === 429,
-  "an unbound follow-on cannot evade a full five-lesson reservation");
+  "an unbound follow-on cannot evade a full ten-lesson reservation");
 const inventedParent = await beginTurnForActor(staffActor, { traceId: "invented-doubt", kind: "doubt", parentTraceId: "fake-lesson" });
 assert(inventedParent instanceof Response && inventedParent.status === 429,
   "a forged parent trace cannot evade the staff lesson cap");
 const staffDoubt = await beginTurnForActor(staffActor, { traceId: "staff-1-doubt", kind: "doubt", parentTraceId: "staff-1" });
-assert(!(staffDoubt instanceof Response), "a follow-up to a running staff lesson is allowed at the five-lesson cap");
+assert(!(staffDoubt instanceof Response), "a follow-up to a running staff lesson is allowed at the ten-lesson cap");
 assert(ensureBypassGrant({ userId: "staff-user", traceId: "staff-1-doubt" }) !== null,
-  "the follow-up's direct paid call reuses the grant without taking a sixth lesson slot");
+  "the follow-up's direct paid call reuses the grant without taking an eleventh lesson slot");
 const childDoubt = await beginTurnForActor(staffActor, { traceId: "staff-1-child", kind: "resume", parentTraceId: "staff-1-doubt" });
 assert(!(childDoubt instanceof Response), "a resume can follow a bound doubt without taking a slot");
 assert(ensureBypassGrant({ userId: "staff-user", traceId: "staff-1-child" }) !== null,
@@ -228,40 +228,40 @@ assert(!(await beginTurnForActor(staffActor, { traceId: "staff-5", kind: "lesson
 markGrantInUse(firstStaffTurn.grant, 1, "staff-1");
 markGrantInUse(firstStaffTurn.grant, 1, "staff-1");
 markGrantInUse(firstStaffTurn.grant, -1, "staff-1");
-assert((await beginTurnForActor(staffActor, { traceId: "staff-6", kind: "lesson" }) instanceof Response),
+assert((await beginTurnForActor(staffActor, { traceId: "staff-11", kind: "lesson" }) instanceof Response),
   "one completed request does not release a trace with a second request still running");
 markGrantInUse(firstStaffTurn.grant, -1, "staff-1");
-assert(!(await beginTurnForActor(staffActor, { traceId: "staff-6", kind: "lesson" }) instanceof Response),
+assert(!(await beginTurnForActor(staffActor, { traceId: "staff-11", kind: "lesson" }) instanceof Response),
   "once a staff trace finishes, its slot admits another lesson");
-markGrantInUse(firstStaffTurn.grant, 1, "staff-6");
+markGrantInUse(firstStaffTurn.grant, 1, "staff-11");
 const pendingStream = new ReadableStream<Uint8Array>({
   pull(controller) {
     controller.enqueue(new Uint8Array([1]));
   },
 });
-const heldStream = holdGrantUntilStreamEnds(firstStaffTurn.grant, "staff-6", pendingStream);
+const heldStream = holdGrantUntilStreamEnds(firstStaffTurn.grant, "staff-11", pendingStream);
 const heldReader = heldStream.getReader();
 assert(!(await heldReader.read()).done, "staff chat returns a streaming first chunk");
-assert((await beginTurnForActor(staffActor, { traceId: "staff-7", kind: "lesson" }) instanceof Response),
+assert((await beginTurnForActor(staffActor, { traceId: "staff-12", kind: "lesson" }) instanceof Response),
   "the streaming staff trace still occupies its slot after HTTP headers return");
 await heldReader.cancel();
-assert(!(await beginTurnForActor(staffActor, { traceId: "staff-7", kind: "lesson" }) instanceof Response),
+assert(!(await beginTurnForActor(staffActor, { traceId: "staff-12", kind: "lesson" }) instanceof Response),
   "cancelling a stream releases its staff trace slot");
-markGrantInUse(firstStaffTurn.grant, 1, "staff-7");
-const completeStream = holdGrantUntilStreamEnds(firstStaffTurn.grant, "staff-7", new ReadableStream<Uint8Array>({
+markGrantInUse(firstStaffTurn.grant, 1, "staff-12");
+const completeStream = holdGrantUntilStreamEnds(firstStaffTurn.grant, "staff-12", new ReadableStream<Uint8Array>({
   start(controller) { controller.close(); },
 }));
 assert((await completeStream.getReader().read()).done, "completed streaming response reaches EOF");
-assert(ensureBypassGrant({ userId: "staff-user", traceId: "staff-direct-8" }) !== null,
+assert(ensureBypassGrant({ userId: "staff-user", traceId: "staff-direct-13" }) !== null,
   "completed staff chat stream also frees its trace slot for a direct paid call");
 assert(!createLessonGrant({ userId: "staff-user", traceId: "ordinary", skipGates: false }).ok,
   "an ordinary call cannot take over a busy privileged grant");
 markGrantInUse(firstStaffTurn.grant, -1);
 
 resetTurnGrantsForTests();
-for (let i = 1; i <= 5; i++) {
+for (let i = 1; i <= 10; i++) {
   assert(!(await beginTurnForActor(staffActor, { traceId: `reserved-${i}`, kind: "lesson" }) instanceof Response),
-    "five recording slots are reserved before paid calls");
+    "ten recording slots are reserved before paid calls");
 }
 const bound = await beginTurnForActor(staffActor, {
   traceId: "bound-doubt", kind: "doubt", parentTraceId: "reserved-1",
@@ -270,10 +270,10 @@ assert(!(bound instanceof Response), "bound doubt joins the original recording")
 markGrantInUse(bound.grant, 1, "reserved-1");
 markGrantInUse(bound.grant, 1, "bound-doubt");
 markGrantInUse(bound.grant, -1, "reserved-1");
-assert((await beginTurnForActor(staffActor, { traceId: "sixth-during-doubt", kind: "lesson" }) instanceof Response),
+assert((await beginTurnForActor(staffActor, { traceId: "eleventh-during-doubt", kind: "lesson" }) instanceof Response),
   "a child stream holds its parent reservation when original chat EOF arrives first");
 markGrantInUse(bound.grant, -1, "bound-doubt");
-assert(!(await beginTurnForActor(staffActor, { traceId: "sixth-after-doubt", kind: "lesson" }) instanceof Response),
+assert(!(await beginTurnForActor(staffActor, { traceId: "eleventh-after-doubt", kind: "lesson" }) instanceof Response),
   "the last child stream releases its parent's slot");
 
 // A server restart forgets every grant. A stopped lesson resumed after it, or

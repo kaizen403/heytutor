@@ -6,9 +6,10 @@ import path from "node:path";
 import ts from "typescript";
 import * as core from "@heytutor/tutor-core";
 import { isExplanationOnlyDsaQuestion } from "../../../../packages/tutor-core/src/code/codeLessonPlan";
-import { getSegmentCommands, isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands, type DrawCommand, type TutorSegment } from "@heytutor/drawing";
+import { getSegmentCommands, isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands, type DrawCommand, type TutorSegment, type VerifiedDiagram } from "@heytutor/drawing";
 import { CodeLessonController } from "../../features/tutor-session/lib/code-lesson/codeLessonController";
 import { resolveDsaFrames, restoreDsaFrames } from "../../features/tutor-session/lib/code-lesson/dsaFrames";
+import { storedPageFigureChange, syncStoredPageFigure } from "../../features/tutor-session/lib/replay/pageFigureSync";
 import { LiveTurnSaveRegistry } from "../../features/tutor-session/lib/turn/liveTurnSave";
 import { LessonAdmission } from "../../features/tutor-session/lib/turn/lessonOwnership";
 import { partialTurnScene, partialTurnSegments, type PausedLessonRequest } from "../../features/tutor-session/lib/turn/doubtTurn";
@@ -227,7 +228,7 @@ async function completeCase(mode: "same-context" | "reload" | "already-drawn" | 
   assert.equal(typeRows.length, 8, "Python implementation retains all eight actually executed TYPE beats");
   assert.equal(f.controller.frames.current()?.id, "reversed", "actual executor lands on the last narrated frame");
   const canonical = await canonicalizeTurnSceneMetadata({ ...f.snapshot.turn, question,
-    segments: f.snapshot.rows.map(({ durationMs, ...row }) => ({ ...row, ...(durationMs == null ? {} : { durationMs }) })) });
+    segments: f.snapshot.rows.map(({ durationMs, ...row }) => ({ ...row, ...(durationMs == null ? {} : { durationMs }) })) }, { kind: "resume" });
   assert(canonical.ok, `actual server compiler admits the captured scene: ${canonical.ok ? "" : canonical.error}`);
   const resumed: StoredTurn = { ...canonical.value, id: "saved-resume", orderIndex: 1, kind: "resume", question, rawResponse: "Recorded complete code lesson", speedMultiplier: 1, traceId: null,
     status: "complete", persistedStatus: "complete", segments: canonical.value.segments.map((row, index) => ({ ...row, command: storedCommand(row.command), id: `resume-${index}`, audioUrl: null, durationMs: 1_000, timings: null })) };
@@ -240,7 +241,7 @@ async function completeCase(mode: "same-context" | "reload" | "already-drawn" | 
   assert.equal(codeLessonFrameSpec(track, stoppedPrefix.totalMs - 1).revealedChars, mode === "partial-code" ? f.partial : 0,
     "the stopped prefix cannot borrow the later resume's code");
   const replayController = new CodeLessonController(); replayController.commit(plan); restoreDsaFrames(replayController, f.savedParent, plan);
-  const replayParams = { ...f.values, codeLessonControllerRef: ref(replayController), cancelRef: ref(false), activeVerifiedDiagramRef: ref(frames.frames[0]!.presentation.diagram) };
+  const replayParams = { ...f.values, codeLessonControllerRef: ref(replayController), cancelRef: ref(false), activeVerifiedDiagramRef: ref<VerifiedDiagram | null>(frames.frames[0]!.presentation.diagram) };
   const replayExecute = (load("features/tutor-session/hooks/useCommandExecution.ts").useCommandExecution as typeof import("../../features/tutor-session/hooks/useCommandExecution").useCommandExecution)(replayParams as never).executeCommand;
   let previous = -1;
   if (mode !== "already-drawn") {
@@ -256,8 +257,18 @@ async function completeCase(mode: "same-context" | "reload" | "already-drawn" | 
   }
   await drawReplayDiagramTimeline({ cues: timeline.cues, getClockMs: () => Number.POSITIVE_INFINITY, waitForAdvance: async () => {}, shouldCancel: () => false,
     executeCommand: (command, options) => replayExecute(command, { ...options, durationScale: 0 }), getTurn: index => [f.savedParent, resumed][index], getDiagram: () => replayParams.activeVerifiedDiagramRef.current,
-    onCueStart: async cue => { assert(await resetReplayPageAtTurn({ turn: [f.savedParent, resumed][cue.turnIndex], previousTurnIndex: previous, turnIndex: cue.turnIndex,
-      whiteboard: f.values.whiteboardRef.current as never, resetBoardLayout: noop, shouldCancel: () => false })); previous = cue.turnIndex; } });
+    onCueStart: async cue => {
+      assert(await resetReplayPageAtTurn({ turn: [f.savedParent, resumed][cue.turnIndex], previousTurnIndex: previous, turnIndex: cue.turnIndex,
+        whiteboard: f.values.whiteboardRef.current as never, resetBoardLayout: noop, shouldCancel: () => false }));
+      if (cue.turnIndex !== previous && cue.turnIndex === 1) {
+        if (mode !== "already-drawn") assert.equal(storedPageFigureChange([f.savedParent, resumed], cue.turnIndex).kind, "install");
+        const figure = await syncStoredPageFigure({ turns: [f.savedParent, resumed], turnIndex: cue.turnIndex,
+          whiteboard: f.values.whiteboardRef.current as never, executeCommand: replayExecute, shouldCancel: () => false,
+          codeLessonController: replayController });
+        if (figure.changed && !figure.cancelled) replayParams.activeVerifiedDiagramRef.current = figure.diagram;
+      }
+      previous = cue.turnIndex;
+    } });
   assert.equal(replayController.frames.current()?.id, "reversed", "actual Replay/End dispatcher retains the last executed linked-list frame");
 }
 async function noFigureCase(mode: "unsupported" | "declined-presentation" | "empty-presentation") {

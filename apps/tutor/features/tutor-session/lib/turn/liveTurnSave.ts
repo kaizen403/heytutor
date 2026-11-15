@@ -41,7 +41,7 @@ import {
 import { parseStoredSegmentCommands, serializeSegmentCommands, type DrawCommand } from "@heytutor/drawing";
 import {
   doubtFigureSaveScene,
-  doubtTurnScene,
+  doubtSaveScene,
   partialTurnScene,
   partialTurnSegments,
   textOnlyTurnScene,
@@ -49,7 +49,6 @@ import {
   type PersistedTurnScene,
 } from "./doubtTurn";
 import { IDLE_SAVE, type SaveStatus } from "./saveStatus";
-import { doubtFigureRefOf } from "@/lib/boards/doubtFigureRef";
 import { boardContinuationArtifacts, boardContinuationOf } from "@/lib/boards/boardContinuation";
 import { readFailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 
@@ -351,8 +350,7 @@ function baseLiveTurnScene(input: {
   if (doubtFigure) return doubtFigure;
   if (input.kind === "doubt" || page?.turn.kind === "doubt") {
     // The figure the doubt pointed at rides only on a doubt that kept the page.
-    const pointsAtFigure = page?.turn.kind === "doubt" ? doubtFigureRefOf(page.turn.scene?.sceneArtifacts) : null;
-    return doubtTurnScene(page?.lessonQuestion ?? input.preview, !input.opensPage, undefined, pointsAtFigure);
+    return doubtSaveScene(page, { lessonQuestion: page?.lessonQuestion ?? input.preview, continuesBoard: !input.opensPage, textOnly: input.textOnly });
   }
   if (!page) return textOnlyTurnScene();
   if (input.textOnly) {

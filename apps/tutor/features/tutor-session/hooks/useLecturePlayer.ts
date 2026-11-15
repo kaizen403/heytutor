@@ -427,6 +427,7 @@ export function useLecturePlayer({
           executeCommand: executeRef.current,
           shouldCancel,
           lessonFigures: lessonFiguresRef.current,
+          codeLessonController: controllerRef.current,
         });
         if (figure.changed) {
           if (figure.cancelled) return false;
@@ -437,7 +438,7 @@ export function useLecturePlayer({
       }
       questionRef.current = turn?.question ?? "";
       const controller = controllerRef.current!;
-      const plan = turn ? storedCodeLessonPlan(turn.sceneArtifacts) : null;
+      const plan = turn ? storedCodeLessonPlan(turn.sceneArtifacts, turn.question) : null;
       if (plan) controller.commit(plan);
       else controller.reset();
       restoreDsaFrames(controller, turn, plan);

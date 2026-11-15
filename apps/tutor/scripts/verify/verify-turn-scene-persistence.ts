@@ -326,6 +326,10 @@ assert(isRecord(forgedFallback.sceneDocument) && Array.isArray(forgedFallback.sc
 assert(isRecord(forgedFallback.sceneDocument.entities[0]), "fixture needs first fallback entity");
 forgedFallback.sceneDocument.entities[0].label = "invented label";
 const forgedFallbackResult = await canonicalizeTurnSceneMetadata(forgedFallback);
+assert(
+  !forgedFallbackResult.ok && /source_function_inventory_unmet/.test(forgedFallbackResult.error),
+  "a changed native display program must not retain its independently regenerated proof",
+);
 // P1: persist recompiles the accepted document that was taught instead of
 // re-inferring a representation from the question (the live-only family and
 // ProblemIR context is unavailable here, so re-inference could produce a
@@ -333,9 +337,35 @@ const forgedFallbackResult = await canonicalizeTurnSceneMetadata(forgedFallback)
 // validates and compiles the submitted document — the persisted document and
 // its regenerated intro ink come from that server compile of the accepted
 // document, so replay matches what was taught.
-assert(forgedFallbackResult.ok, "the accepted fallback document is recompiled at persist time, not re-inferred");
+const taughtCurve: SceneDocument = {
+  schemaVersion: "scene-document/v2",
+  visualDecision: { mode: "scene", reason: "A source-bound curve with the taught notation." },
+  source: { question: fallbackQuestion, representationTier: "qualitative_verified", nonMetric: true },
+  quantities: [],
+  entities: [
+    { id: "taught_axes", kind: "axes", role: "Cartesian axes" },
+    { id: "taught_curve", kind: "polyline", role: "function curve", label: "y=x*x" },
+  ],
+  constructions: [
+    { id: "make_axes", operator: "axes", inputs: { xMin: -2, xMax: 2, yMin: 0, yMax: 4 }, outputs: ["taught_axes"] },
+    { id: "make_curve", operator: "function_curve", inputs: { expression: "x*x", variable: "x", xMin: -2, xMax: 2, samples: 65 }, outputs: ["taught_curve"] },
+  ],
+  relations: [], assertions: [], annotations: [], requiredEntityIds: ["taught_axes", "taught_curve"],
+  revealGroups: [{ id: "setup", entityIds: ["taught_axes", "taught_curve"], dependsOn: [], narrationCue: "Draw the curve." }],
+  teachingTimeline: [],
+};
+const taughtCompile = compileSceneDocument(taughtCurve, { figureConsistency: true });
+assert(taughtCompile.ok && taughtCompile.renderScene, "the accepted taught program must pass the engine");
+const taughtPresentation = buildVerifiedDiagramPresentation(taughtCurve, taughtCompile.renderScene);
+const taughtResult = await canonicalizeTurnSceneMetadata(metadataFor(
+  fallbackQuestion, taughtCurve,
+  { ...fallbackArtifacts, representationTier: "qualitative_verified", nonMetric: true },
+  taughtPresentation.introSegments,
+));
+assert(taughtResult.ok, `the accepted fallback document is recompiled at persist time, not re-inferred: ${taughtResult.ok ? "" : taughtResult.error}`);
 assert(
-  forgedFallbackResult.value.sceneDocument?.entities[0]?.label === "invented label",
+  taughtResult.value.sceneDocument?.entities.find(entity => entity.id === "taught_curve")?.label === "y=x*x" &&
+    taughtResult.value.sceneDocument.constructions.find(construction => construction.outputs.includes("taught_curve"))?.inputs.expression === "x*x",
   "the persisted document must be the accepted taught document, not a question re-inference",
 );
 

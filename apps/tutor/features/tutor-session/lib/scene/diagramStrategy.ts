@@ -110,7 +110,7 @@ export function strictAdmitsOwningOpticsArchetype(decision: DiagramStrategyDecis
   return decision.strategy === "strict" && decision.opticsArchetypeInStrict === true;
 }
 
-/** Independently compiled complete linear source programs and verified recovery remain available in strict. */
+/** Complete source programs cross their own admission boundary; ordinary families stay suppressed in strict. */
 export function diagramStrategyAllowsFigureSource(
   decision: DiagramStrategyDecision,
   source: FigureSource,
@@ -120,5 +120,6 @@ export function diagramStrategyAllowsFigureSource(
     source === "planner" ||
     source === "verified_recovery" ||
     source === "linear_source" ||
+    source === "circular_source" ||
     source === "text_only";
 }

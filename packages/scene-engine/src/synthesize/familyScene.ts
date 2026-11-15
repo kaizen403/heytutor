@@ -3108,7 +3108,8 @@ function isRelativeVelocityStem(question: string): boolean {
 
 function isProjectileStem(question: string): boolean {
   const stem = normalizeStem(question);
-  if (/\bnot a projectile\b/i.test(stem)) return false;
+  // A negated motion model must not block the source's explicit curve.
+  if (/\bnot (?:a )?projectile(?: motion)?\b/i.test(stem)) return false;
   return /(?:\bprojectile\b|projected from|thrown horizontally|maximum height of)/i.test(stem);
 }
 

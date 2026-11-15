@@ -200,7 +200,7 @@ export function lectureInstalledDiagramByTurn(
       if (cue.turnIndex !== previousTurn) {
         const turn = turns[cue.turnIndex];
         if (turn && !storedTurnContinuesBoard(turn)) {
-          restoreDsaFrames(controller, turn, storedCodeLessonPlan(turn.sceneArtifacts));
+          restoreDsaFrames(controller, turn, storedCodeLessonPlan(turn.sceneArtifacts, turn.question));
           installedDiagram = Boolean(controller.frames.current()?.presentation.diagram ??
             restoreVerifiedDiagramFromTurn(turn) ?? restoreReferencePictureFromTurn(turn));
         } else if (turn) {

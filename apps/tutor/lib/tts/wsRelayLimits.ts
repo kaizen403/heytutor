@@ -1,8 +1,10 @@
+import { MAX_CONCURRENT_LECTURES } from "../admin/lectureConcurrency";
+
 /** Hard cap so a stolen ticket cannot stream unbounded speech-provider spend. */
 const TTS_WS_MAX_CHARS_PER_CONNECTION = 48_000;
 export const TTS_WS_IDLE_MS = 120_000;
 export const TTS_WS_MAX_CONNECTIONS_PER_USER = 3;
-export const TTS_WS_MAX_CONNECTIONS_WITH_BYPASS = 5;
+export const TTS_WS_MAX_CONNECTIONS_WITH_BYPASS = MAX_CONCURRENT_LECTURES;
 export const TTS_WS_MAX_MESSAGE_CHARS = 8_000;
 
 const connectionsByUser = new Map<string, number>();

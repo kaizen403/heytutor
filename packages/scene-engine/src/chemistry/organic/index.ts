@@ -360,7 +360,9 @@ function prepareSlot(molecule: Molecule, cue: string): Slot | null {
 
 function factsLine(stem: string, molecule: Molecule): string {
   const facts = organicFacts(molecule);
-  const parts: string[] = [`${molecule.name ?? "compound"} ${facts.formulaPlain}`];
+  // Captions use the same script notation as atom labels: C6H6 otherwise
+  // reads as a measured 6 H6 (henries) at the live/save numeric boundary.
+  const parts: string[] = [`${molecule.name ?? "compound"} ${facts.formula}`];
   if (/hybridi[sz]|\bsp\b|sp2|sp3/.test(stem)) parts.push(`sp ${facts.counts.sp}, sp2 ${facts.counts.sp2}, sp3 ${facts.counts.sp3} carbons`);
   if (/unsaturation|double bond equivalent|\bdbe\b/.test(stem)) parts.push(`degree of unsaturation ${facts.degreeOfUnsaturation}`);
   if (/chiral|stereocent|asymmetric carbon|optical/.test(stem)) parts.push(`chiral centres ${facts.chiralCentres.length}`);
@@ -458,7 +460,7 @@ export function buildOrganicScene(question: string, _quantities: ChemPlanQuantit
       if (!slot) return null;
       slots.push(slot);
     }
-    caption = `${isomerAsk.members.length} isomers of ${isomerAsk.formula}: ${isomerAsk.members.map((entry) => entry.name).join(", ")}`;
+    caption = `${isomerAsk.members.length} isomers of ${organicFacts(slots[0]!.laid.molecule).formula}: ${isomerAsk.members.map((entry) => entry.name).join(", ")}`;
     return assembleRow(c, slots, caption);
   }
 
@@ -522,7 +524,7 @@ export function buildOrganicScene(question: string, _quantities: ChemPlanQuantit
       const cisSlot = prepareSlot(cis, `cis isomer of ${base.molecule.name ?? base.text}`);
       const transSlot = prepareSlot(trans, `trans isomer of ${base.molecule.name ?? base.text}`);
       if (!cisSlot || !transSlot) return null;
-      return assembleRow(c, [cisSlot, transSlot], `${cis.name} and ${trans.name}: the two geometrical isomers of ${base.molecule.name ?? base.text}, ${organicFacts(base.molecule).formulaPlain}`);
+      return assembleRow(c, [cisSlot, transSlot], `${cis.name} and ${trans.name}: the two geometrical isomers of ${base.molecule.name ?? base.text}, ${organicFacts(base.molecule).formula}`);
     }
   }
   if (mentions.length > MAX_MOLECULES) mentions = mentions.slice(0, MAX_MOLECULES);

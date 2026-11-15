@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import * as core from "@heytutor/tutor-core";
-import { parseStoredSegmentCommands, type TutorSegment } from "@heytutor/drawing";
+import { buildLessonSegments, parseStoredSegmentCommands, type TutorSegment } from "@heytutor/drawing";
 import type { ExecuteCommandOptions } from "../../features/tutor-session/hooks/turn/types";
 
 const app = fileURLToPath(new URL("../../", import.meta.url));
@@ -17,7 +17,9 @@ const requireApp = createRequire(path.join(app, "package.json"));
 const runnerPath = path.join(app, "features/tutor-session/hooks/turn/useSegmentRunner.ts");
 const savePath = path.join(app, "features/tutor-session/lib/turn/liveTurnSave.ts");
 const clientPath = fileURLToPath(new URL("../../../../packages/tutor-core/src/tts/streamingSpeechClient.ts", import.meta.url));
-const cases = ["recover", "healthy", "start", "capture", "ws-capture", "stall-all", "partial", "pause", "cancel", "capture-cancel", "successor", "runner-positive", "runner-zero", "runner-intro", "runner-stop", "runner-stale", "runner-healthy", "runner-slow", "capture-cancel-http", "healthy-pause", "prefetch-cancel", "ws-prefetch-cancel", "ended-zero", "runner-error", "cancel-retry", "ws-no-final", "ws-no-final-healthy", "runner-ws-positive", "runner-ws-healthy", "ws-no-final-webaudio", "ws-no-final-webaudio-healthy", "gesture-delay", "gesture-zero-repeated", "relay-final-skip", "relay-final-error", "relay-final-close", "relay-final-pause", "relay-final-stop", "relay-final-successor", "relay-final-zero", "relay-final-decode-error", "relay-final-media-error", "relay-unfinished-skip", "relay-old-close-owner", "relay-prefetch-pump-race", "browser-paused-resume", "browser-paused-wedged"];
+const boundedCases = ["whitespace", "control", "control-string", "malformed", "malformed-nested", "malformed-key", "continuous", "stalled", "size", "stop", "replace"]
+  .flatMap(kind => [`runner-http-drip-${kind}`, `runner-http-prefetch-drip-${kind}`]);
+const cases = [...boundedCases, "runner-http-split-json", "runner-http-prefetch-split-json", "http-drip-unclaimed", "http-drip-retry-time", "http-drip-retry-size", "runner-http-context-interrupted", "runner-http-context-stop", "runner-http-context-stale", "runner-http-context-pause", "runner-http-download-context", "runner-http-prefetch-download", "runner-http-prefetch-stop", "runner-http-downloading", "runner-http-slow-download", "runner-http-stalled-download", "runner-http-download-pause", "runner-http-download-stop", "runner-http-download-gesture", "recover", "healthy", "start", "capture", "ws-capture", "stall-all", "partial", "pause", "cancel", "capture-cancel", "successor", "runner-positive", "runner-zero", "runner-intro", "runner-stop", "runner-stale", "runner-healthy", "runner-slow", "capture-cancel-http", "healthy-pause", "prefetch-cancel", "ws-prefetch-cancel", "ended-zero", "runner-error", "cancel-retry", "ws-no-final", "ws-no-final-healthy", "runner-ws-positive", "runner-ws-healthy", "ws-no-final-webaudio", "ws-no-final-webaudio-healthy", "gesture-delay", "gesture-zero-repeated", "relay-final-skip", "relay-final-error", "relay-final-close", "relay-final-pause", "relay-final-stop", "relay-final-successor", "relay-final-zero", "relay-final-decode-error", "relay-final-media-error", "relay-unfinished-skip", "relay-old-close-owner", "relay-prefetch-pump-race", "browser-paused-resume", "browser-paused-wedged"];
 const noop = () => {};
 const ref = <T,>(current: T) => ({ current });
 
@@ -58,7 +60,20 @@ async function main() {
   const durationSec = (wav.length - 44) / 48_000;
   assert.equal(Buffer.from(wav).toString("ascii", 0, 4), "RIFF");
   assert(wav.slice(44).some(value => value !== 0), "fixture contains non-silent PCM");
-  const narration = "Force equals mass times acceleration.";
+  // Optional private Langfuse replay: only narration enters the synthetic
+  // transport/runner. No student output, identifiers or original audio is saved.
+  let narration = "Force equals mass times acceleration.";
+  if (process.env.NATIVE_AUDIO_LANGFUSE_FILE) {
+    const evidence = JSON.parse(readFileSync(process.env.NATIVE_AUDIO_LANGFUSE_FILE, "utf8")) as {
+      observations: Array<{ name: string; output?: unknown }>;
+    };
+    const generation = evidence.observations.find(observation => observation.name === "fireworks-llm");
+    assert.equal(typeof generation?.output, "string", "private replay requires recovered teaching output");
+    const spoken = buildLessonSegments(generation!.output as string).filter(segment => segment.narration.trim());
+    const segment = spoken[Number(process.env.NATIVE_AUDIO_LANGFUSE_SEGMENT ?? 0)];
+    assert(segment, "private replay requires a real parsed narration segment");
+    narration = segment.narration;
+  }
   let now = 1_000, sequence = 0, fetches = 0, decoded = 0;
   const timers = new Map<number, { at: number; run: () => void }>();
   const originals = new Map<string, PropertyDescriptor | undefined>();
@@ -80,13 +95,21 @@ async function main() {
     }
     now = until; await flush();
   };
-  const gestureCase = selected.startsWith("gesture-");
-  let gesturePermitted = !gestureCase;
+  const contextBlocked = selected === "runner-http-download-context" || selected.startsWith("runner-http-context-");
+  const gestureCase = selected.startsWith("gesture-") || selected === "runner-http-download-gesture";
+  let gesturePermitted = !gestureCase && !contextBlocked;
   const relayCase = selected.startsWith("relay-");
   let rejectDecode: ((error: Error) => void) | undefined;
   // v3 p4e1-t2: the browser paused a fully local clip by itself at 1.6 s.
   const browserPaused = selected.startsWith("browser-paused");
-  const healthy = relayCase || browserPaused || ["healthy", "healthy-pause", "runner-healthy", "runner-slow", "ws-no-final-healthy", "ws-no-final-webaudio-healthy", "runner-ws-healthy", "gesture-delay"].includes(selected);
+  const downloading = selected.startsWith("runner-http-") || selected.startsWith("http-drip-");
+  const stalledDownload = selected === "runner-http-stalled-download";
+  const slowDownload = selected === "runner-http-slow-download" || selected.endsWith("split-json");
+  const prefetchDownload = selected.startsWith("runner-http-prefetch-");
+  const boundedDownload = selected.includes("-drip-");
+  const dripKind = selected.split("-drip-")[1];
+  let bodyCancelled = 0, transitNotices = 0;
+  const healthy = downloading || relayCase || browserPaused || ["healthy", "healthy-pause", "runner-healthy", "runner-slow", "ws-no-final-healthy", "ws-no-final-webaudio-healthy", "runner-ws-healthy", "gesture-delay"].includes(selected);
   const allStalled = selected === "relay-final-zero" || selected === "stall-all" || selected.startsWith("runner-") && !healthy;
   const positivePlateau = ["runner-positive", "runner-ws-positive", "runner-intro", "runner-stop", "runner-stale"].includes(selected);
   class NativeAudio {
@@ -128,9 +151,9 @@ async function main() {
     load() {}
   }
   class RunningContext {
-    state = "running"; sampleRate = 24_000; destination = {}; started = now;
+    state = contextBlocked ? selected.endsWith("interrupted") ? "interrupted" : "suspended" : "running"; sampleRate = 24_000; destination = {}; started = now;
     get currentTime() { return (now - this.started) / 1_000; }
-    async resume() { this.state = "running"; } async suspend() { this.state = "suspended"; } async close() { this.state = "closed"; }
+    async resume() { if (gesturePermitted) { if (this.state !== "running") this.started = now; this.state = "running"; } } async suspend() { this.state = "suspended"; } async close() { this.state = "closed"; }
     async decodeAudioData(bytes: ArrayBuffer) {
       assert.equal(createHash("sha256").update(new Uint8Array(bytes)).digest("hex"), digest); decoded++;
       if (selected === "relay-final-decode-error") await new Promise<never>((_resolve, reject) => { rejectDecode = reject; });
@@ -144,7 +167,7 @@ async function main() {
     }
   }
   replace("performance", { now: () => now }); replace("setTimeout", schedule); replace("clearTimeout", (id: number) => timers.delete(id));
-  replace("window", globalThis); replace("Audio", selected.includes("webaudio") || selected === "relay-final-decode-error" ? undefined : NativeAudio); replace("AudioContext", RunningContext);
+  replace("window", globalThis); replace("Audio", contextBlocked || selected.includes("webaudio") || selected === "relay-final-decode-error" ? undefined : NativeAudio); replace("AudioContext", RunningContext);
   replace("location", { protocol: "http:", host: "offline.invalid", origin: "http://offline.invalid" });
   const chunk = { audio_base64: Buffer.from(wav).toString("base64"), alignment: {
     character_start_times_seconds: [...narration].map((_, i) => i * durationSec / narration.length),
@@ -153,6 +176,65 @@ async function main() {
   replace("fetch", async (input: unknown) => {
     if (String(input).endsWith("/api/tts/ws-ticket")) return ["ws-capture", "capture-cancel", "ws-prefetch-cancel", "ws-no-final", "ws-no-final-healthy", "runner-ws-positive", "runner-ws-healthy", "ws-no-final-webaudio", "ws-no-final-webaudio-healthy"].includes(selected) || relayCase ? Response.json({ ticket: "offline" }) : new Response(null, { status: 401 });
     assert(String(input).endsWith("/api/tts/stream"), "external/provider dispatch forbidden"); fetches++;
+    if (selected.startsWith("http-drip-retry-")) {
+      const ids: number[] = [], attempt = fetches;
+      return new Response(new ReadableStream<Uint8Array>({ start(controller) {
+        const emit = (text: string, ms: number) => ids.push(schedule(() => controller.enqueue(new TextEncoder().encode(text)), ms));
+        emit('{"audio_base64":"', 10);
+        if (selected.endsWith("size")) {
+          for (let i = 0; i < 13; i++) emit("A".repeat(1024 * 1024), 20 + i * 20);
+          if (attempt === 1) ids.push(schedule(() => controller.error(new TypeError("offline network interruption")), 300));
+        } else {
+          for (let i = 0; i < (attempt === 1 ? 4 : 26); i++) emit("AAAA", 1_000 + i * 5_000);
+          if (attempt === 1) ids.push(schedule(() => controller.error(new TypeError("offline network interruption")), 20_000));
+        }
+      }, cancel() { bodyCancelled++; for (const id of ids) timers.delete(id); } }));
+    }
+    if (boundedDownload && fetches === 1) {
+      const ids: number[] = [];
+      return new Response(new ReadableStream<Uint8Array>({ start(controller) {
+        const emit = (data: string, delay: number) => ids.push(schedule(() => controller.enqueue(new TextEncoder().encode(data)), delay));
+        if (dripKind === "size") {
+          // Many reads, each below the server's 24 MiB event limit.
+          emit('{"audio_base64":"', 10);
+          for (let i = 0; i < 25; i++) emit("A".repeat(1024 * 1024), 20 + i * 20);
+        } else {
+          if (dripKind === "malformed-nested") emit('{"metadata":[true nope],"audio_base64":"', 1_000);
+          if (dripKind === "malformed-key") emit('{"audio_base64"::"', 1_000);
+          if (dripKind === "malformed") emit('{"audio_base64" invalid :"', 1_000);
+          if (["continuous", "stalled", "stop", "replace"].includes(dripKind)) emit('data: {"alignment":{},"audio_base64":"', 1_000);
+          for (let i = 0; i < 26; i++) {
+            if (dripKind === "stalled" && i > 0) break;
+            emit(dripKind === "whitespace" ? "\n" : dripKind === "control" ? '{"type":"heartbeat","isFinal":false}\n' :
+              dripKind === "control-string" ? '{"message":"\\\"audio_base64\\\":\\\"AAAA"}\n' : "AAAA", 2_000 + i * 5_000);
+          }
+        }
+      }, cancel() { bodyCancelled++; for (const id of ids) timers.delete(id); } }));
+    }
+    if (selected.endsWith("split-json")) {
+      const ids: number[] = [];
+      // Alternate audio key, SSE prefix, preceding nested metadata/control
+      // strings, a key split across reads, and a value split across reads.
+      const audio = chunk.audio_base64;
+      const prefix = 'data: {"metadata":{"audio":"ignored","values":[true,false,null,1.5,{"text":"\\u0041"}]},"message":"audio_base64", "aud';
+      const pieces = [prefix, 'io":"' + audio.slice(0, 64), audio.slice(64, 70_000), audio.slice(70_000, 140_000),
+        audio.slice(140_000, 210_000), audio.slice(210_000) + '","alignment":' + JSON.stringify(chunk.alignment) + '}\n'];
+      return new Response(new ReadableStream<Uint8Array>({ start(controller) {
+        pieces.forEach((piece, i) => ids.push(schedule(() => {
+          controller.enqueue(new TextEncoder().encode(piece)); if (i === pieces.length - 1) controller.close();
+        }, i === 0 ? 1_000 : 2_000 + (i - 1) * 5_000)));
+      }, cancel() { for (const id of ids) timers.delete(id); } }));
+    }
+    if (downloading && !boundedDownload) {
+      const ids: number[] = [];
+      return new Response(new ReadableStream({ start(controller) {
+        const body = new TextEncoder().encode(JSON.stringify(chunk) + "\n");
+        for (let i = 0; i < (stalledDownload ? 1 : 4); i++) ids.push(schedule(() => {
+          controller.enqueue(body.slice(Math.floor(i * body.length / 4), Math.floor((i + 1) * body.length / 4)));
+          if (i === 3) controller.close();
+        }, (i + 1) * (slowDownload ? 5_000 : 2_000)));
+      }, cancel() { for (const id of ids) timers.delete(id); } }));
+    }
     return (selected.startsWith("ws-no-final") && !selected.endsWith("healthy")) || ["relay-unfinished-skip", "relay-final-decode-error"].includes(selected) ? new Response(null, { status: 503 }) : new Response(JSON.stringify(chunk) + "\n");
   });
   class OfflineSocket {
@@ -182,6 +264,26 @@ async function main() {
   URL.revokeObjectURL = url => { revokedUrls.add(url); };
   const client = new StreamingSpeechClient(); client.setPlaybackRate(selected === "runner-slow" ? 0.5 : 1.25);
   try {
+    if (selected.startsWith("http-drip-retry-")) {
+      let state = "pending", starts = 0, captures = 0;
+      const speech = client.speakSegment(narration, { onStart: () => starts++, onAudioCaptured: () => captures++ });
+      void speech.then(() => { state = "resolved"; }, () => { state = "rejected"; });
+      await advance(selected.endsWith("size") ? 2_000 : 60_100);
+      assert.equal(state, "rejected", "a retry cannot reset the cumulative download budget");
+      await assert.rejects(speech, /download exceeded/);
+      assert.equal(fetches, 2, "existing one network retry remains bounded");
+      assert.equal(starts, 0); assert.equal(captures, 0); assert.equal(NativeAudio.instances.length, 0);
+      assert.equal(bodyCancelled, 1, "the surviving retry body is cancelled"); return;
+    }
+    if (selected === "http-drip-unclaimed") {
+      client.prefetchSegment(narration);
+      await advance(60_100);
+      assert.equal(bodyCancelled, 1, "unclaimed lookahead has its own bounded body lifetime");
+      assert.equal(Reflect.get(client, "httpGate").inFlight, 0, "unclaimed failure releases the concurrency slot");
+      await assert.rejects(client.speakSegment(narration), /download exceeded/);
+      assert.equal(fetches, 1, "claiming expired lookahead cannot synthesize again");
+      assert.equal(NativeAudio.instances.length, 0); return;
+    }
     if (relayCase) {
       const warm = client.prewarm(); await advance(100); await warm;
       let starts = 0, ends = 0, captures = 0;
@@ -266,7 +368,7 @@ async function main() {
       assert.equal(captures, 1); assert.equal(NativeAudio.instances.length, 1); assert.equal(fetches, 0, "complete current is not resynthesized");
       return;
     }
-    if (gestureCase) {
+    if (selected.startsWith("gesture-")) {
       let starts = 0, ends = 0, blocked: string | null = null;
       let outcome: "pending" | "resolved" | "rejected" = "pending";
       const job = client.speakSegment(narration, {
@@ -314,7 +416,7 @@ async function main() {
       const registry = new LiveTurnSaveRegistry({ transport: { checkpoint: async () => { throw new Error("offline checkpoint forbidden"); }, close: async () => { throw new Error("offline close forbidden"); } },
         now: () => now, isOnline: () => false, mintId: () => `offline-${++mint}`, setTimer: schedule, clearTimer: id => timers.delete(id as number) });
       const originalSpeak = client.speakSegment.bind(client);
-      client.speakSegment = (text, options = {}) => originalSpeak(text, { ...options, onAudioCaptured: audio => { captured++; options.onAudioCaptured?.(audio); } });
+      client.speakSegment = (text, options = {}) => originalSpeak(text, { ...options, onAudioInTransit: () => { if (text === narration) transitNotices++; options.onAudioInTransit?.(); }, onAudioCaptured: audio => { captured++; options.onAudioCaptured?.(audio); } });
       class BrowserVoice {
         setPlaybackRate() {} stop() {} pause() {} resume() {}
         async speakSegment() { throw new Error("offline browser speech unavailable"); }
@@ -332,12 +434,15 @@ async function main() {
       const drawn: string[] = [];
       const executed: Array<{ command: NonNullable<TutorSegment["command"]>; options: ExecuteCommandOptions }> = [];
       const voiceDegradedFlags: boolean[] = [];
+      const telemetry: string[] = [];
+      const startup = { status: null as Parameters<NonNullable<import("../../features/tutor-session/hooks/turn/types").UseSegmentRunnerParams["onSpeechStartupStatus"]>>[0] };
       const params = {
         sessionId: "offline-native-audio", ensureTTSClient: () => client, activeVerifiedDiagramRef: ref(null),
         cancelRef: ref(false), isPausedRef: ref(false), turnActiveRef: ref(true), turnGenerationRef: ref(1),
         recordedSegmentsRef: ref<import("../../features/tutor-session/hooks/turn/types").UseTurnLifecycleParams["recordedSegmentsRef"]["current"]>([]),
         narrationSinceEpochRef: ref(""), currentTraceIdRef: ref(null), narrationDensityRef: ref(0), drawChainRef: ref(Promise.resolve()),
-        turnStatsRef: ref({ drawMs: 0, ttsChars: 0 }), turnTelemetryRef: ref({ mark: noop, span: () => ({ end: noop }) }),
+        turnStatsRef: ref({ drawMs: 0, ttsChars: 0 }), turnTelemetryRef: ref({ mark: (name: string) => telemetry.push(name), span: () => ({ end: noop }) }),
+        onSpeechStartupStatus: (status: typeof startup.status) => { startup.status = status; },
         applyTurnPhase: noop, setCurrentSegmentText: noop, onVoiceDegraded: (degraded: boolean) => { voiceDegradedFlags.push(degraded); }, cancellableDelay: (ms: number) => new Promise<void>(resolve => schedule(resolve, ms)),
         raceWithCancel: async <T,>(promise: Promise<T>) => promise,
         reserveTextCommandPlacements: async (command: NonNullable<TutorSegment["command"]>) => [command],
@@ -353,16 +458,115 @@ async function main() {
       const runner = hooks.useSegmentRunner(params as unknown as Parameters<typeof hooks.useSegmentRunner>[0]);
       const segment: TutorSegment = { narration, command: { type: "WRITE", text: "F = ma", params: [90, 142], charPosition: 0, narrationBefore: narration },
         ...(selected === "runner-intro" ? { verifiedDiagramIntro: true } : {}) };
+      if (prefetchDownload) { client.prefetchSegment(narration, { voiceSettings: core.voiceSettingsForDelivery() }); await advance(100); }
       let outcome: Error | null | undefined;
       void runner.runSegment(segment, 0, [segment], 1).then(() => { outcome = null; }, error => { outcome = error; });
       await advance(100);
-      assert.equal(captured, 1, "complete bytes captured once before stalled native playback");
+      if (boundedDownload) {
+        if (["stop", "replace"].includes(dripKind)) {
+          await advance(3_000);
+          if (dripKind === "stop") params.cancelRef.current = true;
+          else params.turnGenerationRef.current = 2;
+          handle.close(); runner.stopFallbackSpeech(); client.stop();
+          await advance(500);
+          assert.equal(outcome, null, "Stop/replaced runner settles before the download bound");
+          assert.equal(bodyCancelled, 1, "Stop releases the pending body read");
+          assert.equal(transitNotices > 0, true, "cancellation interrupts an actual partial audio download");
+          const oldNotices = transitNotices;
+          if (dripKind === "replace") {
+            let starts = 0;
+            const successor = client.speakSegment("Replacement sentence.", { onStart: () => starts++ });
+            await advance(8_000); await successor;
+            assert.equal(starts, 1, "replacement owns healthy audio");
+          }
+          await advance(65_000);
+          assert.equal(transitNotices, oldNotices, "cancelled body cannot renew a replacement owner");
+          assert.equal(drawn.length, 0); assert.equal(params.recordedSegmentsRef.current.length, 0);
+          assert.equal(captured, dripKind === "replace" ? 1 : 0);
+        } else {
+          const noAudioTraffic = ["whitespace", "control", "control-string", "malformed", "malformed-nested", "malformed-key"].includes(dripKind);
+          await advance(noAudioTraffic || dripKind === "size" ? 7_000 : dripKind === "stalled" ? 16_000 : 62_000);
+          assert(telemetry.includes("tts-browser-recovery"), "network wait ends by its bound");
+          await advance(5_000);
+          assert.equal(outcome, null, "bounded network failure reaches runner recovery");
+          assert(telemetry.includes("tts-browser-recovery"), "actual runner hands off the unheard voice");
+          assert.equal(captured, 0, "network bytes never prove complete audio");
+          assert.deepEqual(drawn, ["F = ma"], "existing silent teaching continues only after bounded recovery");
+          assert(voiceDegradedFlags.includes(true), "silent recovery tells the student the voice failed");
+          assert(params.recordedSegmentsRef.current.every(row => !row.audioBytes), "silent recovery never publishes partial audio");
+          assert.equal(NativeAudio.instances.length, 0, "partial/oversized clips cannot play");
+          assert.equal(fetches, 1, "failed bounded download never repeats paid synthesis");
+          assert.equal(bodyCancelled, 1, "recovery cancels and releases the actual stream reader");
+          if (noAudioTraffic) assert.equal(transitNotices, 0, "whitespace/control traffic never announces audio progress");
+          if (["continuous", "stalled"].includes(dripKind)) assert(transitNotices > 0, "partial audio JSON retains legitimate progress");
+        }
+        console.log(`native audio ${selected}: GREEN; elapsed=${now - 1_000}ms; no providers`); return;
+      }
+      if (downloading) {
+        await advance(6_900);
+        assert(!telemetry.includes("tts-browser-recovery"), "provider bytes arriving over HTTP must keep the real voice, not hand off to dead browser speech");
+        assert.equal(captured, 0, "partial provider bytes cannot be saved as a complete clip");
+        assert.equal(drawn.length, 0, "download progress is not audibility or board ink");
+        if (["runner-http-download-stop", "runner-http-prefetch-stop"].includes(selected)) {
+          params.cancelRef.current = true; handle.close(); client.stop();
+          await advance(20_000);
+          assert.equal(NativeAudio.instances.length, 0, "Stop during download forbids late media");
+          assert.equal(drawn.length, 0); assert.equal(captured, 0); assert.equal(outcome, null); console.log(`native audio ${selected}: GREEN, no providers`); return;
+        }
+        if (selected === "runner-http-download-pause") {
+          params.isPausedRef.current = true; runner.pauseFallbackSpeech(); client.pause();
+          await advance(20_000);
+          assert.equal(outcome, undefined); assert.equal(NativeAudio.instances.length, 0);
+          assert.equal(drawn.length, 0, "bytes completing during Pause cannot release ink");
+          params.isPausedRef.current = false; runner.resumeFallbackSpeech(); client.resume();
+        }
+        if (gestureCase || contextBlocked) {
+          await advance(20_000);
+          assert(startup.status, "blocked complete provider audio uses the existing retry UX");
+          assert.equal(outcome, undefined); assert.equal(drawn.length, 0);
+          assert.equal(captured, 1, "gesture-blocked WebAudio/native output must retain the complete provider clip");
+          assert(!telemetry.includes("tts-browser-recovery"), "permission wait retains provider voice");
+          if (["runner-http-context-stop", "runner-http-context-stale"].includes(selected)) {
+            const lateEnable = startup.status.enableAudio;
+            if (selected.endsWith("stop")) params.cancelRef.current = true;
+            else params.turnGenerationRef.current = 2;
+            handle.close(); runner.stopFallbackSpeech(); client.stop();
+            gesturePermitted = true; lateEnable(); await advance(20_000);
+            assert.equal(outcome, null); assert.equal(drawn.length, 0); assert.equal(decoded, 1);
+            assert.equal(params.recordedSegmentsRef.current.length, 0, "cancelled unheard clip cannot become completed speech");
+            console.log(`native audio ${selected}: GREEN, no providers`); return;
+          }
+          if (selected === "runner-http-context-pause") {
+            params.isPausedRef.current = true; runner.pauseFallbackSpeech(); client.pause();
+            gesturePermitted = true; startup.status.enableAudio(); await advance(20_000);
+            assert.equal(outcome, undefined); assert.equal(drawn.length, 0, "Enable audio cannot override deliberate Pause");
+            params.isPausedRef.current = false; runner.resumeFallbackSpeech(); client.resume();
+          } else {
+            gesturePermitted = true; startup.status.enableAudio();
+          }
+        }
+      } else assert.equal(captured, 1, "complete bytes captured once before stalled native playback");
       if (["runner-stop", "runner-stale"].includes(selected)) {
         if (selected === "runner-stop") params.cancelRef.current = true;
         else params.turnGenerationRef.current = 2;
         handle.close(); client.stop();
       }
       await advance(20_000);
+      if (downloading) {
+        assert.equal(fetches, 1, "claimed HTTP download and gesture recovery never resynthesize");
+        if (stalledDownload) {
+          assert(telemetry.includes("tts-browser-recovery"), "a stopped download still fails boundedly");
+          assert.equal(captured, 0, "partial bytes cannot become replayable audio");
+          assert.equal(NativeAudio.instances.length, 0, "partial clips never play");
+        } else {
+          assert(!telemetry.includes("tts-browser-recovery"), "continuous HTTP download must preserve the provider voice");
+          assert.equal(captured, 1); assert(!voiceDegradedFlags.includes(true));
+          assert.equal(params.recordedSegmentsRef.current.length, 1);
+          assert.deepEqual(params.recordedSegmentsRef.current[0]?.audioBytes, wav, "complete retained provider clip remains replayable byte for byte");
+          assert.deepEqual(drawn, ["F = ma"], "only original work-area ink is released after actual voice starts");
+        }
+        assert.equal(outcome, null); console.log(`native audio ${selected}: GREEN, no providers`); return;
+      }
       assert.notEqual(outcome, undefined, "actual runner finishes boundedly");
       assert.equal(fetches, selected.startsWith("runner-ws") ? 0 : 1, "native recovery consumes existing bytes without another synthesis");
       const allRows = handle.submittedRows();

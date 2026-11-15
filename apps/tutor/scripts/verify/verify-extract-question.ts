@@ -142,6 +142,8 @@ assert(
   structuredRefusal.reason === "refusal" && structuredRefusal.reply === "Synthetic refusal.",
   "message.refusal with null content is a refusal, not an empty page",
 );
+const partRefusal = readExtractionChoice({ message: { content: [{ type: "refusal", refusal: "Synthetic refusal." }] } });
+assert(partRefusal.reason === "refusal" && partRefusal.reply === "Synthetic refusal.", "a valid refusal content part remains a refusal");
 const truncated = readExtractionChoice({ message: { content: "" }, finish_reason: "length" });
 assert(truncated.reason === "empty" && truncated.finishReason === "length", "finish_reason is kept for the trace");
 assert(readExtractionChoice(undefined).reason === "empty", "a missing choice is an empty reply");

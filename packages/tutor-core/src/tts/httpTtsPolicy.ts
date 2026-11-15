@@ -6,6 +6,9 @@
  */
 export const MAX_HTTP_PREFETCH = 1;
 export const MAX_CONCURRENT_HTTP_TTS = 2;
+/** Match the server request lifetime and normalized speech event ceiling. */
+export const HTTP_TTS_DOWNLOAD_TIMEOUT_MS = 60_000;
+export const HTTP_TTS_MAX_DOWNLOAD_BYTES = 24 * 1024 * 1024;
 
 export function parseRetryAfterSec(header: string | null | undefined): number | undefined {
   if (!header) return undefined;

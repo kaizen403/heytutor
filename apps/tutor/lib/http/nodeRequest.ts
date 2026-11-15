@@ -7,7 +7,18 @@ let uploads = 0;
 /** Intercept native data delivery before Next/Auth.js attach parsers. Node's
  * socket reader remains intact, including backpressure and aborted signals. */
 export function protectNodeRequest(req: IncomingMessage, res: ServerResponse, options: { maxBytes?: number } = {}): boolean {
-  const path = new URL(req.url ?? "/", "http://localhost").pathname;
+  let path: string;
+  try {
+    path = new URL(req.url ?? "/", "http://localhost").pathname;
+  } catch {
+    // Node accepts request targets that WHATWG URL cannot parse (e.g. //).
+    // Reject before acquiring a slot or attaching Next's body readers.
+    req.pause();
+    res.once("finish", () => req.destroy());
+    res.writeHead(400, { "content-type": "application/json", "connection": "close", "cache-control": "no-store" });
+    res.end(JSON.stringify({ error: "Invalid request URL." }));
+    return false;
+  }
   const maxBytes = options.maxBytes ?? requestBodyLimitForPath(path);
   const large = !["GET", "HEAD"].includes(req.method ?? "GET") && maxBytes > MAX_JSON_BODY_BYTES;
   let rejected = false;

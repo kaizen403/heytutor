@@ -68,20 +68,23 @@ export interface BoardDetail {
   turns: StoredTurn[];
 }
 
-export async function fetchBoards(): Promise<BoardEntry[]> {
+export async function fetchBoards(options?: { signal?: AbortSignal }): Promise<BoardEntry[]> {
   const boards: BoardEntry[] = [];
   let page = 0;
   // Each response is bounded. The server caps accounts at 200 boards; the
   // extra iteration accommodates pre-migration accounts without an open loop.
   for (let attempt = 0; attempt < 20; attempt++) {
-    const res = await fetch(resolveApiUrl(`/api/boards?page=${page}`));
-    if (!res.ok) return boards;
+    const res = await fetch(resolveApiUrl(`/api/boards?page=${page}`), options?.signal ? { signal: options.signal } : undefined);
+    if (!res.ok) throw Object.assign(new Error("Could not load boards"), { status: res.status });
     const data = await res.json() as { boards?: BoardEntry[]; nextPage?: number | null };
-    boards.push(...(data.boards ?? []));
-    if (typeof data.nextPage !== "number" || data.nextPage <= page) break;
+    options?.signal?.throwIfAborted();
+    if (!data || !Array.isArray(data.boards)) throw new Error("Invalid boards response");
+    boards.push(...data.boards);
+    if (data.nextPage == null) return boards;
+    if (!Number.isSafeInteger(data.nextPage) || data.nextPage <= page) throw new Error("Invalid boards page");
     page = data.nextPage;
   }
-  return boards;
+  throw new Error("Board list exceeded the page limit");
 }
 
 export async function createBoard(id?: string): Promise<BoardEntry | null> {

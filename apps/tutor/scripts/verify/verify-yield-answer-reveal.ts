@@ -89,12 +89,10 @@ const ordinary = buildVerifiedDiagramPresentation(
   render,
 );
 assert(ordinary.diagram.promptAddon.includes('"R=80 m" = [FOCUS:range]'), "ordinary labels stay in the readable-parts list");
-assert(
-  ordinary.introSegments
-    .flatMap((s) => s.commands ?? [])
-    .some((c) => c.text === "R=80 m"),
-  "off behavior unchanged",
-);
+assert(!ordinary.introSegments.flatMap(s => s.commands ?? []).some(c => c.text === "R=80 m"),
+  "a value without explicit answer staging still waits for teaching");
+assert(takeDeferredAnnotations(ordinary.diagram, { entityIds: ["range"] }).some(c => c.text === "R=80 m"),
+  "an ordinary value can be released when taught, unlike a staged answer");
 // Annotation primitives carry their own id, not the group's entity id.
 const annotatedDocument: SceneDocument = {
   ...document,
@@ -194,7 +192,7 @@ assert(
   assert(unstaged.introSegments.some((segment) => segment.narration.includes("range of the projectile")), "an ordinary caption is still spoken");
 }
 console.log(
-  "yield-answer-reveal: geometry now, answers after teaching, no focus/tour leak, off unchanged",
+  "yield-answer-reveal: neutral setup, ordinary values when taught, staged answers at completion",
 );
 
 // Compiler-generated values must pass the same end-to-end staging boundary.

@@ -5,7 +5,8 @@ import { buildLecturePlayerTrack, getLecturePlayerTrack, type LecturePlayerTrack
 import type { DrawCommand } from "@heytutor/drawing";
 import Konva from "konva";
 import { captureCommandInk, textToStrokePaths, textToStrokePathsSync, getSegmentCommands, isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
-import { compileSceneDocument, type SceneDocument } from "@heytutor/scene-engine";
+import { compileSceneDocument, synthesizeDsaScene, type SceneDocument } from "@heytutor/scene-engine";
+import { DSA_DIAGRAM_ZONE } from "../../features/tutor-session/constants";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
 import { getMockCodeLessonPlan } from "@heytutor/tutor-core";
@@ -858,9 +859,25 @@ async function main() {
       await review(player, 1); assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "New" }]);
     });
     const codeQuestion = "Explain binary search. nums = [2, 5, 8, 12, 16, 23, 38], target = 16.";
-    const codeTurn = { ...turn, question: codeQuestion, sceneArtifacts: { codeLesson: getMockCodeLessonPlan(codeQuestion) } };
+    const codePlan = getMockCodeLessonPlan(codeQuestion);
+    const planOnly = { ...turn, question: codeQuestion, sceneArtifacts: { codeLesson: codePlan } };
+    await reviewCase("code-plan-only-no-owner", [stored("code-plan-only-no-owner", [oldRow, eraseRow, newRow], planOnly)], async (player) => {
+      assert.equal(player.store.getSnapshot().workPages?.length, 1, "a saved code plan without an earned scene installs no diagram authority");
+      await review(player, 0); assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "New" }]);
+      assert(!board.getDrawLayer()!.getChildren().some(node => node.getAttrs().htInk === "scene"));
+    });
+    const codeScene = synthesizeDsaScene(codePlan.diagramHint, { question: codeQuestion, compile: { viewport: DSA_DIAGRAM_ZONE } });
+    assert(codeScene, "the source-bound code example must compile before it can own the diagram zone");
+    const canonicalCode = await canonicalizeTurnSceneMetadata({
+      question: codeQuestion, visualStatus: "validated",
+      sceneDocument: { ...codeScene.document, source: { ...codeScene.document.source, nonMetric: true, representationTier: codeScene.tier } },
+      sceneArtifacts: { schemaVersion: "scene-artifacts/v3", codeLesson: codePlan, turnPlan: null, nonMetric: true, representationTier: codeScene.tier, diagramResultStatus: "ready", figureSource: "dsa_trace" },
+      segments: [],
+    });
+    assert(canonicalCode.ok, canonicalCode.ok ? "" : canonicalCode.error);
+    const codeTurn = { ...turn, ...canonicalCode.value, question: codeQuestion, segments: [] };
     await reviewCase("code-installed-owner", [stored("code-installed-owner", [oldRow, eraseRow, newRow], codeTurn)], async (player) => {
-      assert.equal(player.store.getSnapshot().workPages?.length, 2, "actual compiled code frames install authority with no sceneDocument");
+      assert.equal(player.store.getSnapshot().workPages?.length, 2, "a canonical source-bound scene installs the actual code diagram owner");
       await review(player, 0); assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "Old" }]);
       await review(player, 1); assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "New" }]);
     });
@@ -868,7 +885,6 @@ async function main() {
 
     // Code canvas uses the actual hook → export track → frame-spec producer.
     // Only the final canvas-paint port records its input, with inert clear/transform.
-    const codePlan = getMockCodeLessonPlan(codeQuestion);
     assert.ok(codePlan);
     assert.equal(codePlan.sections[0]!.blocks.length, 5, "real binary-search fixture has five implementation blocks");
     assert.equal(codePlan.sections[1]!.blocks.length, 1, "real fixture includes the later example section");

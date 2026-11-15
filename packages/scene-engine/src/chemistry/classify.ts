@@ -45,7 +45,10 @@ function formulaEvidence(text: string, originalQuestion: string): number {
     if (!parsed || isExcludedAtomicFormula(originalQuestion, token)) return false;
     return parsed.atoms.length >= 2 || parsed.charge !== 0 || /[[\]]/.test(token);
   });
-  return tokens.length + 2 * coordinationSpeciesTokens(text).length;
+  // Repeating one ambiguous token (a school acronym can parse as elements)
+  // cannot supply the two independent formulas needed to establish a subject.
+  // Explicit chemical words and coordinating ligands remain separate evidence.
+  return new Set(tokens).size + 2 * coordinationSpeciesTokens(text).length;
 }
 
 /**

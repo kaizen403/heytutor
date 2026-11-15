@@ -131,14 +131,13 @@ OPERATOR INPUT CONTRACTS
 ${contracts}
 
 AVAILABLE PROOF PREDICATES
-${proofPredicates.join(", ")}
+${proofPredicates.join(",")}
 ${capabilityGuidance}
 ${conversation}
 ${workedExamples}
 QUESTION
 ${question}
-
-Return the complete ${SCENE_DOCUMENT_VERSION} JSON object now.`;
+`;
   const prompt = assemble(operatorContracts);
   // Combined semantic families may outgrow the same transport budget as the
   // universal catalog. Keep every contract shape and conditional output order.
@@ -147,34 +146,34 @@ Return the complete ${SCENE_DOCUMENT_VERSION} JSON object now.`;
     : prompt;
 }
 
-export const SCENE_DOCUMENT_PLANNER_PROMPT = `Return complete scene-document/v2 JSON only: no pixels,tags,prose,raw paths or topic templates.
+export const SCENE_DOCUMENT_PLANNER_PROMPT = `Complete scene-document/v2 JSON only:no pixels,tags,prose,raw paths,topic templates.
 Keys:schemaVersion,visualDecision,source,quantities,entities,constructions,relations:[],assertions,annotations,requiredEntityIds,revealGroups,teachingTimeline.
-Entity:{id,kind,role?,label?}; Construction:{id,operator,inputs,outputs}; Assertion:{id,predicate,entities,expected,severity}; Annotation:{id,kind,targetIds,text?,placementIntent?,quantityId?,style?}.
+Entity:{id,kind,role?,label?};Construction:{id,operator,inputs,outputs};Relation:{id,predicate,entities,value?};Assertion:{id,predicate,entities,expected,severity};Annotation:{id,kind,targetIds,text?,placementIntent?,quantityId?,style?}.
 
 AUTHORITY
-- Faithful visual:scene; else text_only,empty arrays,source/operator reason.
-- Show the problem setup, not a solved answer sheet. Do not place derived scalar answers initially; calculate after setup. Stated spatial givens need exact plan-backed geometry.
-- Question/AUTHORITATIVE TURN PLAN are fixed evidence. Copy exact quantity id/value/unit. Invent no measurements,signs,components,topology or assumptions beyond one symbolic representative. Display lengths never establish physical values.
-- Symbolic:use owner symbols,never stock quantities. Missing values alone never justify text_only. A named class with no stated member (curve,conic,lines,planes,vectors,region) gets one generic nondegenerate member; literals prove shape,not data. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
-- Plan claims requesting data never block that figure. Invariants/examples are advice; source wins. Symbolic scenes must be complete.
-- All arrays present, even empty. Unique IDs; one producer/entity,ordered dependencies,reused IDs. No duplicate geometry/terminal pairs. Preserve output arity/order.
-- Deterministic curves,regions,solids,intersections,transforms,normals,rays only. Function regions:function_curve + function_region. Never guess.
+- Faithful:scene;else text_only,empty arrays,source/operator reason.
+- Show the problem setup, not a solved answer sheet. Do not place derived scalar answers initially;calculate after setup. Spatial givens:exact plan-backed geometry.
+- Question/AUTHORITATIVE TURN PLAN:fixed;copy exact quantity id/value/unit. Invent no measurements,signs,components,topology,assumptions beyond one symbolic representative. Display lengths are not physical values.
+- Symbolic:owner symbols,never stock quantities. Missing values alone never justify text_only. Named class without a member (curve,conic,lines,planes,vectors,region):one generic nondegenerate member;literals prove shape,not data. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
+- Data-requesting plan claims never block it. Invariants/examples:advice;source wins. Complete symbolic scenes.
+- All arrays present,even empty. Unique IDs;one producer/entity,ordered dependencies,reused IDs. No duplicate geometry/terminal pairs. Keep output arity/order.
+- Only deterministic curves,regions,solids,intersections,transforms,normals,rays;never guess. Function regions:function_curve + function_region.
 - refract_direction is the visible outgoing ray. Do not output a direction helper or wrap the result in ray/vector.
 
 RELATIONS
 - Physical vectors/angles:world points,named proofs. on:[point,path];converges:[path1,path2,target];between:[middle,end1,end2];same_side:[point,point,origin]. between/equal_length:geometry only.
-- Incoming ray:surface_contact -> normal_at -> reflect_direction/refract_direction. Given contact incidence:reflect_at/refract_at. One representation per ray.
-- Circuit components use symbol,two distinct terminals; never connect/segment or duplicate its edge. Series shares consecutive terminals; parallel shares a pair. Prove path,sameTerminalPair,pathCount,loadBranchCount,connected or degree.
-- loadBranchCount: entities:[a,b],expected:integer; direct resistor/lamp branches; source branch excluded. One battery/cell spans the same wire-contracted nodes. Prove all loads with fatal sameTerminalPair. pathCount counts all simple paths including sources. Use identity labels; no unproved polarity/current ink.
-- Closed routes:shared p0...p(N-1),edge i:p(i)->p(i+1 mod N). Split contacts at shared IDs. Overlap,crossing,on or equal coordinates with distinct IDs never prove connectivity. Named sides use shared terminals. Up/down vertical; left/right horizontal.
-- Page normal:[0,0,-1] into-page cross;[0,0,1] out-of-page dot,never planar arrows. Separate views:disjoint reveal groups;cross-view connectors need explicit short/bypass.
-- requiredEntityIds:existence; omit exists. At most6 assertions. equal_angle:four paths; angle_between:two,or one space angle mark,expected:{value,unit:"degree"|"radian"}; function_value:[curve],expected:{x,y},no anchor entity; root:[curve],expected:x|{x}.
+- Incoming:surface_contact -> normal_at -> reflect_direction/refract_direction. Given contact incidence:reflect_at/refract_at. One representation/ray.
+- Components:symbol,two distinct terminals;never connect/segment or duplicate edge. Series:consecutive terminals;parallel:shared pair. Prove path,sameTerminalPair,pathCount,loadBranchCount,connected or degree.
+- loadBranchCount:entities:[a,b],expected:integer;direct resistor/lamp branches;source branch excluded. One battery/cell spans same wire-contracted nodes. All loads:fatal sameTerminalPair. pathCount:all simple paths including sources. Identity labels;no unproved polarity/current ink.
+- Closed routes:shared p0...p(N-1),edge i:p(i)->p(i+1 mod N);split contacts at shared IDs. Overlap,crossing,on,equal coordinates with distinct IDs never prove connectivity. Named sides:shared terminals. Up/down:vertical;left/right:horizontal.
+- Page normal:[0,0,-1] into-page cross;[0,0,1] out-of-page dot;never planar arrows. Separate views:disjoint reveal groups;cross-view connectors require explicit short/bypass.
+- requiredEntityIds:existence;omit exists. Max6 assertions. equal_angle:4 paths;angle_between:2 or 1 space angle mark,expected:{value,unit:"degree"|"radian"};function_value:[curve],expected:{x,y},no anchor;root:[curve],expected:x|{x}.
 
 LABELS AND REVEAL
-- Labels:owners/values,at most16 characters. Narrate explanations. No figure titles,captions or underlines.
-- Label each named owner once:entity.label or annotation,never both. Angle symbols label an angle mark. Derived coordinate labels:numbers or kπ/n,(x,y) or x=/y=,no other arithmetic. Attach to owners; no helper labels. Paths from targetIds,never coordinates.
+- Labels:owners/values,max16 characters;explanations:narration. No figure titles,captions,underlines.
+- Label owners once:entity.label or annotation. Angle symbols:on angle marks. Derived coordinate labels:only numbers or kπ/n,(x,y) or x=/y=;no other arithmetic. Attach to owners,no helper labels. Paths:targetIds,never coordinates.
 - Kinds:label,callout,caption,narration,enclose,highlight,trace,badge,spin,equal_tick,equal_arc,parallel_mark,hatch,brace,endpoint,loop,sense,drop,ghost,extend,frame,polarity,slope_triangle. style:{count:1|2|3,pointStyle:"filled"|"open"|"cross"|"square",transient:boolean}.
-- One group unless staged/separate views. revealGroups.entityIds:entity IDs; timeline acts on existing targets.
+- One group unless staged/separate views. revealGroups.entityIds:entity IDs;timeline:existing targets.
 Entity kinds:point,segment,ray,line,circle,arc,rectangle,polygon,polyline,vector,axes,object,component,connector,label,dimension,angle_mark,right_angle_mark,tick_mark,sign_badge,wavefront_family,aperture,screen_pattern,transverse_field,polarizer,linear_region,group.`;
 
 export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity references:stable IDs. Numeric inputs:numbers or quantity IDs.

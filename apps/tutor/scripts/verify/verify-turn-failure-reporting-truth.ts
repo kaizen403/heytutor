@@ -12,6 +12,8 @@ import {
   type FailedTurnInput,
 } from "../../lib/obs/failedTurnTelemetry";
 import { classifyTurnFailure } from "../../lib/obs/turnFailureClassification";
+import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
+import { createFallbackTurnPlanV3 } from "@heytutor/tutor-core";
 
 const taught = [
   { narration: "Synthetic teaching." },
@@ -198,4 +200,43 @@ expect(
   true,
 );
 
-console.log("turn failure reporting truth: 14 classification cases pass; no DB/network calls");
+async function requiredPictureReceipt(): Promise<void> {
+  const question = "Show me the organs in a diagram.";
+  const saved = await canonicalizeTurnSceneMetadata({
+    question,
+    visualStatus: "text_only",
+    segments: taught.map((segment, orderIndex) => ({ ...segment, spokenText: segment.narration, command: null, orderIndex })),
+    sceneArtifacts: {
+      schemaVersion: "scene-artifacts/v3",
+      turnPlan: { ...createFallbackTurnPlanV3(question), visualRequirement: "optional" },
+      degradation: { reason: "missing_capability" },
+      failureTelemetry: { subject: "other", code: "missing_capability", stage: "scene_planner" },
+      referencePictureOutcome: {
+        attempted: true, required: true, status: "declined",
+        reason: "no_candidate_accepted", ms: 20, speculative: false,
+      },
+    },
+  });
+  assert(saved.ok, "synthetic picture failure must survive real save admission");
+  const input = { ...saved.value, status: "complete" };
+  assert.equal(classifyTurnFailure(input).classification, "failed",
+    "an optional engine plan cannot excuse a separate required picture");
+  const receipt = buildFailedTurnSentryEvent(input, env);
+  assert(receipt, "saved required picture failure must produce a durable receipt");
+  assert.equal(JSON.parse(JSON.stringify(receipt)).tags.code, "required_visual_unavailable");
+  assert(!JSON.stringify(receipt).includes(question), "receipt never includes the private source");
+  expect("stored picture answers the required request", {
+    ...input,
+    sceneArtifacts: { ...saved.value.sceneArtifacts, referencePicture: { id: "rp_synthetic" } },
+  }, "picture_shown", true);
+  for (const required of [false, undefined]) {
+    expect(`optional picture decline (${required})`, {
+      ...input,
+      sceneArtifacts: { ...saved.value.sceneArtifacts, referencePictureOutcome: {
+        attempted: true, required, status: "declined", reason: "no_candidate_accepted",
+      } },
+    }, "healthy", false);
+  }
+  console.log("turn failure reporting truth: stop/optional controls and saved required picture receipt pass; no DB/network calls");
+}
+void requiredPictureReceipt();

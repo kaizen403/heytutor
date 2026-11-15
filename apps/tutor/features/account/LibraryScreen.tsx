@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AccountCard, AccountPageFrame } from "./AccountPageFrame";
 import { SiteButton } from "@/components/ui/site-button";
-import { fetchBoards, updateBoard, deleteBoardApi } from "@/lib/boards/boardsClient";
+import { updateBoard, deleteBoardApi } from "@/lib/boards/boardsClient";
+import { startBoardListRead } from "@/lib/boards/boardListRead";
 import { sortBoards, type BoardEntry } from "@/lib/boards/types";
 import { boardPath } from "@/features/tutor-session/lib/board/boardRoute";
 import { inferBoardSubject } from "@/lib/account/progress";
@@ -17,14 +18,20 @@ export function LibraryScreen() {
   const router = useRouter();
   const me = useAccountMe();
   const [boards, setBoards] = useState<BoardEntry[]>([]);
+  const [boardsError, setBoardsError] = useState<string | null>(null);
+  const [boardsAttempt, setBoardsAttempt] = useState(0);
+  const retryBoards = useCallback(() => {
+    setBoardsError(null);
+    setBoardsAttempt((current) => current + 1);
+  }, []);
+  useEffect(() => startBoardListRead((list) => {
+    setBoardsError(null);
+    setBoards(sortBoards(list));
+  }, setBoardsError), [boardsAttempt]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   /** Boards with a visibility save in flight; their toggle waits, so saves cannot land out of order. */
   const [savingVisibility, setSavingVisibility] = useState<ReadonlySet<string>>(new Set());
-
-  useEffect(() => {
-    void fetchBoards().then((list) => setBoards(sortBoards(list)));
-  }, []);
 
   const onboarded = parseSubjects(me?.profile.subjects);
   const filtered = useMemo(() => {
@@ -73,7 +80,13 @@ export function LibraryScreen() {
         ))}
       </div>
 
-      {filtered.length === 0 ? (
+      {boardsError && (
+        <AccountCard>
+          <p role="status" className="text-sm text-frost">{boardsError}</p>
+          <SiteButton size="sm" onClick={retryBoards}>Retry loading boards</SiteButton>
+        </AccountCard>
+      )}
+      {filtered.length === 0 && !boardsError ? (
         <AccountCard>
           <p className="text-sm text-[rgba(237,237,235,0.62)]">
             No boards here. Start one in {onboarded[0] ? SUBJECT_LABELS[onboarded[0]] : "your subject"}.

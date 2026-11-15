@@ -1,0 +1,1 @@
+tsx scripts/verify/verify-circular-source-selection.ts

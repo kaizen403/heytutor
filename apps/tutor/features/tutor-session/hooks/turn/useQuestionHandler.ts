@@ -78,6 +78,7 @@ import {
   lessonPageRecord,
   planDoubtPage,
   resumePageRecord,
+  resumeTurnScene,
   revealedCodeText,
 } from "../../lib/turn/doubtTurn";
 import {
@@ -137,6 +138,8 @@ import { LectureMarkupBuffer } from "../../lib/turn/lectureCueRepair";
 import { createStreamedFocusFold } from "../../lib/turn/streamedFocusFold";
 import { restoreVerifiedPresentationFromTurn } from "../../lib/scene/restoreVerifiedDiagram";
 import { requestReferencePicture, type ReferencePictureResult } from "../../lib/scene/referencePictureClient";
+import { referencePictureAllowedForTurn } from "../../lib/scene/referencePicturePolicy";
+import { liveSceneSaveFailure } from "@/lib/scene/sceneSaveAdmission";
 import {
   buildReferencePicturePresentation,
   isReferencePictureDiagram,
@@ -1094,6 +1097,25 @@ export function useQuestionHandler(
           dsaProofAssertions = [];
           representationReason = "dsa_hint_unsupported";
         }
+        // The code lane must pass the same source/size/proof admission as the
+        // standard lane before any ink is presented. Otherwise the live board
+        // can claim validated/dsa_trace while save deliberately removes it.
+        const saveFailure = sceneV2Document && representationTier
+          ? liveSceneSaveFailure({ document: sceneV2Document as SceneDocument, question, turnPlan, tier: representationTier })
+          : null;
+        if (saveFailure) {
+          sceneVisualStatus = resolveSelectedVisualStatus(turnPlan?.visualRequirement ?? "optional", false);
+          sceneV2Document = null;
+          sceneV2RenderScene = null;
+          sceneV2Report = null;
+          dsaFrameSet = null;
+          dsaProofAssertions = [];
+          representationTier = null;
+          representationNonMetric = false;
+          figureSource = "text_only";
+          representationReason = "code_scene_save_refused";
+          tutorDebug("planner", "code figure would fail the lecture save", { reason: saveFailure });
+        }
         sceneArtifacts = {
           schemaVersion: "scene-artifacts/v3",
           turnPlan,
@@ -1108,7 +1130,7 @@ export function useQuestionHandler(
           candidates: [],
           selectedCandidateId: null,
           selectionReason: representationReason ?? "code_lesson",
-          diagramResultStatus: sceneVisualStatus === "validated" ? "ready" : "text_only",
+          diagramResultStatus: sceneVisualStatus === "validated" ? "ready" : sceneVisualStatus === "retry_required" ? "retry_required" : "text_only",
           proofObligations: dsaProofAssertions.map((assertion) => ({
             id: assertion.id,
             predicate: assertion.predicate,
@@ -1190,16 +1212,21 @@ export function useQuestionHandler(
       }
 
       // Reference pictures (default off): a real labelled diagram when no
-      // verified figure is drawn. Never on a doubt, a resume, a code lesson or
-      // a DSA question. The request starts once the turn plan wants a figure,
+      // verified figure is drawn, including an empty-zone doubt. Never on a
+      // resume or a code board. The request starts once the plan wants a figure,
       // so it runs while the scene plans, and is used only if no verified
       // figure is drawn.
-      const referencePictureAllowed = billed.referencePicture === true && !doubt && !resume && !dsaClassification.isDsa;
+      const referencePictureAllowed = referencePictureAllowedForTurn({
+        granted: billed.referencePicture === true, doubt: Boolean(doubt), resume: Boolean(resume),
+        dsa: dsaClassification.isDsa, codeBoard: Boolean(codeLessonControllerRef?.current?.getActivePlan()),
+        emptyZone: !activeVerifiedDiagramRef.current, zoneOccupied: zoneInkOccupied(boardLayoutRef.current),
+      });
       type PendingReferencePicture = {
         promise: Promise<ReferencePictureResult>;
         controller: AbortController;
         startedAt: number;
         speculative: boolean;
+        required: boolean;
       };
       // Asserted, not narrowed to null: the closures below assign both.
       let referencePicturePending = null as PendingReferencePicture | null;
@@ -1212,14 +1239,42 @@ export function useQuestionHandler(
         const abortWithTurn = () => controller.abort();
         if (abortController.signal.aborted) controller.abort();
         else abortController.signal.addEventListener("abort", abortWithTurn, { once: true });
-        const promise = requestReferencePicture({
+        // Install the owner before the client can deliver progress. The callback
+        // may update only this current, still-pending turn, never a late result.
+        const pending: PendingReferencePicture = {
+          promise: Promise.resolve({ status: "unavailable", reason: "not_started" }),
+          controller, startedAt: Date.now(), speculative, required: false,
+        };
+        referencePicturePending = pending;
+        pending.promise = requestReferencePicture({
           question,
           subject: diagramSubject,
           boardId: sessionId,
           traceId: turnTraceId,
           signal: controller.signal,
+          onRequirement: (required) => {
+            if (!isCurrentTurn() || controller.signal.aborted || referencePictureOutcome) return;
+            pending.required ||= required;
+            if (!pending.required) return;
+            const scene = page.turn.scene ?? {
+              sceneDocument: null, sceneEngineVersion: SCENE_ENGINE_VERSION,
+              validationReport: null, visualStatus: "text_only",
+              sceneArtifacts: null,
+            };
+            const prior = scene.sceneArtifacts;
+            const artifacts = typeof prior === "object" && prior !== null && !Array.isArray(prior) ? prior : {};
+            // Stop takes its snapshot directly from the page, including while
+            // planning or waiting. Retain progress there before the final result.
+            page.turn.scene = { ...scene, sceneArtifacts: {
+              ...artifacts,
+              referencePictureOutcome: {
+                attempted: true, status: "skipped", reason: "wait_in_progress",
+                ms: Date.now() - pending.startedAt, speculative: pending.speculative,
+                required: true,
+              },
+            } };
+          },
         }).finally(() => abortController.signal.removeEventListener("abort", abortWithTurn));
-        referencePicturePending = { promise, controller, startedAt: Date.now(), speculative };
         tel.mark("reference-picture-requested", { speculative, subject: diagramSubject });
       };
       // A verified figure won, or the turn left before teaching: stop paying.
@@ -1227,7 +1282,7 @@ export function useQuestionHandler(
         const pending = referencePicturePending;
         if (!pending || referencePictureOutcome) return;
         pending.controller.abort();
-        referencePictureOutcome = { attempted: true, status: "skipped", reason, ms: Date.now() - pending.startedAt, speculative: pending.speculative };
+        referencePictureOutcome = { attempted: true, status: "skipped", reason, ms: Date.now() - pending.startedAt, speculative: pending.speculative, ...(pending.required ? { required: true } : {}) };
       };
 
       if (codeLesson && !resume) {
@@ -2316,6 +2371,13 @@ export function useQuestionHandler(
         page.turnPlan = turnPlan;
         page.solverProjection = resume ? resume.solverProjection : problemAuthority?.projection ?? null;
         liveTurnSave().setResumeState(cancelRef, turnGeneration, lessonResumeState(page.solverProjection));
+        if (referencePicturePending?.required && !referencePictureOutcome && sceneArtifacts) {
+          sceneArtifacts = { ...sceneArtifacts, referencePictureOutcome: {
+            attempted: true, status: "skipped", reason: "wait_in_progress",
+            ms: Date.now() - referencePicturePending.startedAt,
+            speculative: referencePicturePending.speculative, required: true,
+          } };
+        }
         page.turn.scene = {
           sceneDocument: sceneV2Document,
           sceneEngineVersion: SCENE_ENGINE_VERSION,
@@ -2323,6 +2385,7 @@ export function useQuestionHandler(
           visualStatus: sceneVisualStatus,
           sceneArtifacts: codeLesson && sceneArtifacts ? { ...sceneArtifacts, codeLesson } : sceneArtifacts,
         };
+        if (resume) page.turn.scene = resumeTurnScene(page.turn.scene, page.lessonQuestion);
       }
 
       // lesson-figures-plan:begin
@@ -2462,11 +2525,16 @@ export function useQuestionHandler(
       // show a stored reference picture instead. It is its own tier, never a
       // verified scene: figureSource and the result status stay text only, so
       // every engine metric still counts this turn as text only.
+      // A doubt plans no scene by default, but its own picture outcome still
+      // belongs to that doubt and keeps the page continuation through save.
+      if (doubt && referencePictureAllowed && diagramSource === "none" && page.turn.scene) {
+        sceneArtifacts = page.turn.scene.sceneArtifacts as typeof sceneArtifacts;
+      }
       if (diagramSource !== "none") {
         abandonReferencePicture("verified_figure");
       } else if (
         referencePictureAllowed && !codeLesson && sceneArtifacts &&
-        turnPlan && turnPlan.visualRequirement !== "none"
+        (doubt || (turnPlan && turnPlan.visualRequirement !== "none"))
       ) {
         const waitStartedAt = Date.now();
         if (!referencePicturePending) startReferencePicture(false);
@@ -2480,6 +2548,7 @@ export function useQuestionHandler(
             referencePictureOutcome: {
               attempted: true, status: "skipped", reason: "wait_in_progress",
               ms: Math.max(0, waitStartedAt - pending.startedAt), speculative: pending.speculative,
+              ...(pending.required ? { required: true } : {}),
             } satisfies ReferencePictureOutcome,
           },
         } : page.turn.scene;
@@ -2531,6 +2600,7 @@ export function useQuestionHandler(
           reason: picture ? null : failure!.reason,
           ms: Date.now() - pending.startedAt,
           speculative: pending.speculative,
+          ...(pending.required || answer.required === true ? { required: true } : {}),
           ...(answer.status === "ready" && answer.cached ? { cached: true } : {}),
         };
         tel.mark("reference-picture", {
@@ -2554,13 +2624,22 @@ export function useQuestionHandler(
           // reference-picture-zone:end
           activeVerifiedDiagramRef.current = activeDiagram;
           setActiveVerifiedDiagram?.(activeDiagram);
+          if (doubt) {
+            // Admission above requires an empty, unoccupied zone. The lesson
+            // resumes that empty zone; replay reads the picture on this turn.
+            page.zoneStash ??= { ...EMPTY_ZONE_STASH };
+            page.figureDrawn = false;
+            for (const anchor of activeDiagram.anchors) {
+              registerBoardAnchor(boardLayoutRef.current, anchorToTextRect(anchor));
+            }
+          }
         }
       } else {
         // An early request this turn will not wait for (a code lesson, no
         // artifacts, or the requirement fell to none) stops paying now.
         abandonReferencePicture("not_waited");
       }
-      if (referencePictureOutcome && sceneArtifacts && !doubt && !resume) {
+      if (referencePictureOutcome && sceneArtifacts && !resume) {
         sceneArtifacts = {
           ...sceneArtifacts,
           ...(referencePictureShown ? { referencePicture: referencePictureShown } : {}),
@@ -2640,7 +2719,7 @@ export function useQuestionHandler(
             codeFigureVisible,
             solverProjection: doubtFigure ? doubtFigure.authority?.projection ?? null : inherited?.solverProjection ?? null,
             doubtPointing: doubtPointingGranted,
-            ...(doubtFigure ? { doubtFigureDrawn: true } : {}),
+            ...(doubtFigure || referencePictureShown ? { doubtFigureDrawn: true } : {}),
             figureIsPicture: activeDiagram?.id === "reference_picture",
             codeFrameCells: codeLessonBoard ? doubtCodeFrameCells(activeDiagram, codeFrameIds) : [],
           })

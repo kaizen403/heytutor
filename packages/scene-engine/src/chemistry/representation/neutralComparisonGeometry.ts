@@ -68,13 +68,16 @@ function auditComponentGeometry(document: e.SceneDocument, question: string, spe
     if (document.quantities.length || document.relations.length || (!existing && document.annotations.length)) fail("unsupported_physical_annotation_authority");
     if (existing && document.annotations.length) {
       const caption = document.annotations[0];
-      const sourceCaption = species.map(s => `${(s as ExistingOrganicComponent).renderedName} ${molecularFormula(s.resolved.molecule!, false)}`).join(". ");
+      // New captions use board script; recordings made before that change
+      // carry plain formulas. Both must match the complete computed graph.
+      const sourceCaptions = [true, false].map(subscripts => species.map(s =>
+        `${(s as ExistingOrganicComponent).renderedName} ${molecularFormula(s.resolved.molecule!, subscripts)}`).join(". "));
       // Ordinary validation adds an undefined optional style. This has no paint
       // or source authority and disappears in JSON; any supplied style declines.
       const captionKeys = caption && Object.hasOwn(caption, "style")
         ? ["id", "kind", "targetIds", "text", "style"]
         : ["id", "kind", "targetIds", "text"];
-      if (document.annotations.length !== 1 || !caption || !keys(caption as unknown as Record<string, unknown>, captionKeys) || caption.style !== undefined || caption.id !== "figure_caption" || caption.kind !== "callout" || caption.targetIds.length || caption.text !== sourceCaption) fail("unproved_existing_structural_caption");
+      if (document.annotations.length !== 1 || !caption || !keys(caption as unknown as Record<string, unknown>, captionKeys) || caption.style !== undefined || caption.id !== "figure_caption" || caption.kind !== "callout" || caption.targetIds.length || !sourceCaptions.includes(caption.text ?? "")) fail("unproved_existing_structural_caption");
     }
     if (!unique(document.entities.map(v => v.id)) || !unique(document.constructions.map(v => v.id))) fail("duplicate_entity_or_operator");
     const entities = new Map(document.entities.map(v => [v.id, v]));

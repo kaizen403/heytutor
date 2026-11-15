@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import * as built from "../../../../packages/scene-engine/dist/index.js";
-import { getSegmentCommands, type DrawCommand } from "../../../../packages/drawing/dist/index.js";
+import { getSegmentCommands, verifiedDiagramCommandToDrawCommand, type DrawCommand } from "../../../../packages/drawing/dist/index.js";
 import type { SceneDocument } from "../../../../packages/scene-engine/src/types";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
@@ -49,6 +49,8 @@ async function main(): Promise<void> {
 
   async function complete(question: string, document: SceneDocument, presentation: Presentation) {
     const opening = presentation.introSegments.flatMap(getSegmentCommands);
+    const deferred = (presentation.diagram.deferredAnnotations ?? []).flatMap(entry =>
+      entry.commands.map(command => verifiedDiagramCommandToDrawCommand(command)));
     const full = [...opening];
     const turn: StoredTurn = {
       id: "law-opening-gate", orderIndex: 0, question, rawResponse: "", speedMultiplier: 1,
@@ -59,7 +61,7 @@ async function main(): Promise<void> {
       turn, diagram: presentation.diagram,
       executeCommand: async command => { full.push(command); }, shouldCancel: () => false,
     });
-    return { opening, full };
+    return { opening, deferred, full };
   }
 
   const sourceResults: Array<{ passed: boolean; [key: string]: unknown }> = [];
@@ -126,7 +128,12 @@ async function main(): Promise<void> {
         assert.deepEqual(clone(actual.renderScene.entityBounds), clone(baselineCompile.renderScene.entityBounds), "all native bounds unchanged");
         assert.deepEqual(physicalCommands(commands.full), physicalCommands(originalCommands.full), "full physical payload unchanged");
         assert.deepEqual(physicalCommands(reopenedCommands.full), physicalCommands(originalCommands.full), "reopened physical payload unchanged");
-        assert.deepEqual(missing, [], `${gold.id}/${language}: every compiled entity/primitive/text label multiplicity must open`);
+        // A neutral opening may hold qualifications, polarity and law symbols
+        // for teaching. Every held label must still reach completion/reopen.
+        assert.ok(commands.opening.length > 0, `${gold.id}/${language}: the setup has actual ink`);
+        assert.ok(presentation.introSegments.every(segment => segment.narration.trim()), "the setup has spoken cues");
+        assert.deepEqual(commandLabels(commands.deferred), missing.sort(),
+        `${gold.id}/${language}: every label absent from the opening is retained for teaching`);
         openingResults.push({ id: gold.id, question: gold.question, language, passed: true, details });
       } catch (error) {
         failures++;

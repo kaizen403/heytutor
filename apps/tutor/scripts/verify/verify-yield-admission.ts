@@ -37,7 +37,7 @@ const document: SceneDocument = {
   quantities: [],
   entities: [
     { id: "path", kind: "curve", role: "trajectory", label: "path" },
-    { id: "v", kind: "vector", role: "velocity", label: "unknown=5 m/s" },
+    { id: "v", kind: "vector", role: "velocity", label: "v" },
   ],
   constructions: [
     {
@@ -64,7 +64,7 @@ const document: SceneDocument = {
   requiredEntityIds: ["path", "v"],
   relations: [],
   assertions: [],
-  annotations: [],
+  annotations: [{ id: "unproven_speed", kind: "label", targetIds: ["v"], text: "unknown=5 m/s", labelMode: "append" }],
   revealGroups: [
     {
       id: "setup",
@@ -76,6 +76,12 @@ const document: SceneDocument = {
   teachingTimeline: [],
 };
 const input = { candidate: { ...document }, question, turnPlan: plan };
+const unnamed = structuredClone(document);
+unnamed.entities[1]!.label = "unknown=5 m/s";
+unnamed.annotations = [];
+const unnamedResult = validateProductionSceneCandidate({ ...input, candidate: { ...unnamed }, yieldPolicy: "verified_parts" });
+assert(!unnamedResult.valid && unnamedResult.errors.some(issue => issue.code === "vector_without_label"),
+  "demoting an arrow's only name remains a core truth refusal");
 assert.equal(validateProductionSceneCandidate(input).valid, false);
 const recovered = validateProductionSceneCandidate({
   ...input,
@@ -90,6 +96,7 @@ assert.deepEqual(
 assert(recovered.value.document.source.yieldDemotions);
 const complete = structuredClone(document);
 complete.entities[1]!.label = "v=5 m/s";
+complete.annotations = [];
 const completeValidation = validateProductionSceneCandidate({
   candidate: { ...complete }, question, turnPlan: plan, yieldPolicy: "verified_parts",
 });
@@ -126,6 +133,7 @@ assert.equal(
 );
 const falseValue = structuredClone(document);
 falseValue.entities[1]!.label = "v=6 m/s";
+falseValue.annotations = [];
 assert.equal(
   validateProductionSceneCandidate({
     ...input,

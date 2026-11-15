@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import ts from "typescript";
 import { assessVisualNeed, visualNeedFromAssessment } from "../../lib/llm/visualNeedPolicy";
 import { fetchVisualNeed } from "../../features/tutor-session/lib/scene/visualNeedClient";
 import { resolveSelectedVisualStatus, resolveVisualRequirement } from "../../features/tutor-session/lib/scene/visualRequirement";
@@ -143,8 +144,32 @@ async function main(): Promise<void> {
   assert(/let recoveredScene = recentConversation\s*\? null\s*:\s*(?:recoveryForPlanning\()?findVerifiedSceneRecovery\(/.test(handler),
     "contextual follow-ups must bypass context-free scene recovery and get a fresh visual decision");
   const route = readFileSync(join(process.cwd(), "app/api/visual-need/route.ts"), "utf8");
-  assert(/assessVisualNeed\(\{[\s\S]*?conversationContext:/.test(route),
-    "the visual-need API must forward conversation context to Jev");
+  const assessedInputs: Array<{ question: string; conversationContext?: string; signal: AbortSignal }> = [];
+  let reserved = 0, finished = 0;
+  const dependencies: Record<string, unknown> = {
+    "@/lib/billing/gate": { requireLessonGrant: async () => ({ actor: {}, grant: {} }) },
+    "@/lib/billing/paidUsage": { maximumLlmCost: () => 0, actualLlmCost: () => 0, reservePaidUsage: async () => { reserved++; return { cancelBeforeDispatch: async () => {}, settle: async () => {}, finish: async () => { finished++; } }; } },
+    "@/lib/http/requestBody": { readBoundedJson: (request: Request) => request.json(), RequestBodyError: class extends Error {} },
+    "@/lib/llm/visualNeedPolicy": { assessVisualNeed: async (input: typeof assessedInputs[number]) => { assessedInputs.push(input); return { decision: null, assessment: { status: "unavailable", reason: "synthetic" } }; } },
+    "@/lib/llm/evaluation/types": { JEV_GATEWAY_MODEL: "synthetic-offline-model" },
+    "@heytutor/tutor-core": { tutorDebug() {} },
+  };
+  const loaded = { exports: {} };
+  new Function("require", "module", "exports", ts.transpileModule(route, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText)((name: string) => {
+    assert(name in dependencies, `unmocked route dependency: ${name}`); return dependencies[name];
+  }, loaded, loaded.exports);
+  const post = (loaded.exports as { POST: (request: Request) => Promise<Response> }).POST;
+  const originalKey = process.env.AI_GATEWAY_API_KEY;
+  process.env.AI_GATEWAY_API_KEY = "synthetic-offline-visual-policy";
+  try {
+    const request = new Request("https://synthetic.invalid/api/visual-need", { method: "POST", body: JSON.stringify({ question: followUp, conversationContext: recentConversation }) });
+    assert((await post(request)).status === 200, "the actual route accepts valid recent conversation");
+    assert(assessedInputs.length === 1 && assessedInputs[0]!.question === followUp && assessedInputs[0]!.conversationContext === recentConversation && assessedInputs[0]!.signal === request.signal, "the actual route forwards validated question, context and cancellation to assessment");
+    const invalidContext = new Request("https://synthetic.invalid/api/visual-need", { method: "POST", body: JSON.stringify({ question, conversationContext: 42 }) });
+    assert((await post(invalidContext)).status === 400 && assessedInputs.length === 1 && reserved === 1 && finished === 1, "invalid context is refused before reservation or assessment; the valid receipt finishes");
+  } finally {
+    if (originalKey === undefined) delete process.env.AI_GATEWAY_API_KEY; else process.env.AI_GATEWAY_API_KEY = originalKey;
+  }
   assert(handler.includes("resolveVisualRequirement("), "the visual decision must reach the live turn plan");
   assert(handler.includes("resolveSelectedVisualStatus("), "the final ink guard must respect required visuals");
   assert(handler.includes('diagramSource === "none" && sceneVisualStatus === "validated"'),

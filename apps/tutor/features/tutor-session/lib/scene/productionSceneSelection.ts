@@ -16,6 +16,8 @@ import {
   validateProjectileMeasurementPlan, opticsArchetypeStrictEligibility,
   type FigureSource, type ProblemStructureView, type RenderScene, type SceneDocument,
   type SceneCompletionResult, type TurnPlanV3, type ValidationReport,
+  readUniformCircularSource, synthesizeUniformCircularScene, validateUniformCircularSourceInputs,
+  validateProblemIR, verifyTurnPlanAgainstSolver,
 } from "@heytutor/scene-engine";
 import { BLOCK_FLOW_SCENE_REQUEST, inferSceneCapabilities, questionRequiresVisual, type SceneCandidateValidation } from "@heytutor/tutor-core";
 import type { VisualNeedDecision } from "@/lib/llm/visualNeedPolicy";
@@ -24,11 +26,11 @@ import { shouldAttemptExactScene } from "./diagramGeneration";
 import { projectileSpeedLiteralIssues } from "./projectileSpeedLiteral";
 import { resolveVisualRequirement } from "./visualRequirement";
 import {
-  selectVerifiedRepresentationExplained, type ExactCandidateDecline, type SelectedRepresentation,
+  selectVerifiedRepresentationExplained, validateSourceFunctionInventory, type ExactCandidateDecline, type SelectedRepresentation,
 } from "./representationFallback";
 
 /** Lab execution identity: old rounds did not use all production admission guards. */
-export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v2";
+export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v12";
 
 export interface ProductionSceneInput {
   question: string;
@@ -259,6 +261,7 @@ function validateCandidateOnce(input: ProductionSceneCandidateInput): SceneCandi
     ...validateProjectileMeasurementPlan(validated.document, authoritativePlan),
   ];
   const sourceIssues = [
+    ...validateSourceFunctionInventory(validated.document, question),
     ...validateMatrixSourceBinding(validated.document, question, authoritativePlan),
     ...validatePvSourceBinding(validated.document, question, authoritativePlan),
   ];
@@ -408,6 +411,42 @@ export function strictOpticsArchetypeAdmission(
 }
 
 const sameValue = (first: unknown, second: unknown): boolean => JSON.stringify(first) === JSON.stringify(second);
+
+/**
+ * A complete source-owned circular state has a stronger boundary than a
+ * catalogue archetype. No broad strict fallback is admitted: require the
+ * numeric source reader, grounded ProblemIR and verified solver/plan audit,
+ * then regenerate the entire operator program and cross production admission
+ * without changing its ink. This earns a qualitative display, never exact.
+ */
+function strictCircularSourceAdmission(
+  selected: SelectedRepresentation, input: ProductionSceneSelectionInput, turnPlan: TurnPlanV3,
+  candidate: SceneCandidateValidation<ValidatedSceneCandidate> | null,
+): boolean {
+  if (!input.policy?.preferPlanner || !input.policy.allowedFigureSources?.includes("circular_source") ||
+      input.fastRepresentation || input.solverAuthorityBlocked || candidate?.valid !== false ||
+      selected.figureSource !== "archetype" || selected.tier !== "qualitative_verified" || !selected.nonMetric) return false;
+  const source = readUniformCircularSource(input.question);
+  if (source?.status !== "numeric") return false;
+  const authority = input.solverAuthority as { problemIR?: unknown; solverResult?: unknown } | null | undefined;
+  const problem = validateProblemIR(input.problemIR, input.question).problem;
+  if (!problem || !sameValue(authority?.problemIR, input.problemIR) ||
+      verifyTurnPlanAgainstSolver(problem, authority?.solverResult, turnPlan, input.question).status !== "verified") return false;
+  const fresh = synthesizeUniformCircularScene(input.question, { turnPlan, problemIR: problem });
+  if (fresh?.status !== "drawn" || !sameValue(selected.sceneDocument, fresh.scene.document) ||
+      validateUniformCircularSourceInputs(selected.sceneDocument, input.question).some(issue => issue.severity === "fatal")) return false;
+  // The planner boundary prunes engine labels and disallows independently
+  // derived quantities absent from the plan. A source program instead passes
+  // the complete-document proofs and the shared save boundary, which
+  // independently regenerates those quantities from source by physical role.
+  // No submitted fragment or model value can use this path: the entire
+  // document above must equal the regenerated program.
+  const compiled = compileSceneDocument(selected.sceneDocument, { figureConsistency: true });
+  return compiled.ok && !!compiled.renderScene &&
+    !validateTurnPlanSceneProofs(selected.sceneDocument, turnPlan).some(issue => issue.severity === "fatal") &&
+    liveSceneSaveFailure({ document: selected.sceneDocument, question: input.question, turnPlan, tier: selected.tier }) === null &&
+    sameValue(compiled.renderScene.primitives, selected.renderScene.primitives);
+}
 
 /** Existing model data is immutable; only the proposal's bounded suffixes may be added. */
 function completionRetainsDocument(base: SceneDocument, next: SceneDocument): boolean {
@@ -861,14 +900,21 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
     const selectedHasInk = selected.renderScene.primitives.some((primitive) =>
       (primitive.kind === "label" || primitive.kind === "dimension") &&
       typeof primitive.text === "string" && primitive.text.trim().length > 0);
-    const policySourceAllowed = input.policy?.allowedFigureSources === undefined ||
-      input.policy.allowedFigureSources.includes(selected.figureSource);
+    // A caller cannot claim source-program provenance on arbitrary fast ink.
+    // Only the regeneration and audit below can produce circular_source.
+    const policySourceAllowed = selected.figureSource !== "circular_source" && (input.policy?.allowedFigureSources === undefined ||
+      input.policy.allowedFigureSources.includes(selected.figureSource));
     const strictOpticsAdmission = !policySourceAllowed && input.policy?.admitOwningOpticsArchetype === true && !input.fastRepresentation
       ? strictOpticsArchetypeAdmission(selected, question, explained?.exactDecline, turnPlan) : undefined;
     if (strictOpticsAdmission?.admitted) {
       selected = { ...selected, figureSource: "optics_archetype", reason: `${strictOpticsAdmission.reason}; ${selected.reason}` };
     }
-    const selectedSourceAllowed = policySourceAllowed || strictOpticsAdmission?.admitted === true;
+    const circularSourceAdmitted = !policySourceAllowed && strictCircularSourceAdmission(selected, input, turnPlan, candidateValidation);
+    if (circularSourceAdmitted) selected = {
+      ...selected, figureSource: "circular_source",
+      reason: `complete circular source program regenerated with verified ProblemIR/solver authority; ${selected.reason}`,
+    };
+    const selectedSourceAllowed = policySourceAllowed || strictOpticsAdmission?.admitted === true || circularSourceAdmitted;
     const saveFailure = selectedHasInk && selectedSourceAllowed && selected.sceneDocument.visualDecision.mode === "scene"
       ? liveSceneSaveFailure({ document: selected.sceneDocument, question, turnPlan, tier: selected.tier }) : null;
     const selectedIsDrawable = !input.solverAuthorityBlocked && selectedHasInk && selectedSourceAllowed && !saveFailure &&

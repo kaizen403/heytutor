@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { captureException } from "@sentry/nextjs";
 import { AccountCard, AccountPageFrame } from "./AccountPageFrame";
 import { SiteButton } from "@/components/ui/site-button";
 import {
@@ -25,21 +26,36 @@ export function ProfileScreen() {
   const [imageFailed, setImageFailed] = useState(false);
   const [handle, setHandle] = useState("");
   const [handleStatus, setHandleStatus] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
-    void fetch("/api/account/me")
-      .then((response) => response.json())
+    let cancelled = false;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+    void fetch("/api/account/me", { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error("Could not load profile");
+        return response.json();
+      })
       .then((data: { profile?: AccountProfile; snapshot?: AccountSnapshot }) => {
-        if (data.profile) {
-          setProfile(data.profile);
-          setName(data.profile.name ?? "");
-          setLearningNote(data.profile.learningNote ?? "");
-          setHandle(data.profile.handle ?? "");
-          setImageFailed(false);
-        }
+        if (cancelled) return;
+        controller.signal.throwIfAborted();
+        if (!data?.profile?.id) throw new Error("Account identity unavailable");
+        setProfile(data.profile);
+        setName(data.profile.name ?? "");
+        setLearningNote(data.profile.learningNote ?? "");
+        setHandle(data.profile.handle ?? "");
+        setImageFailed(false);
         if (data.snapshot) setSnapshot(data.snapshot);
-      });
-  }, []);
+        setLoadState("ready");
+      }).catch((error: unknown) => {
+        if (cancelled) return;
+        setLoadState("error");
+        captureException(error, { tags: { area: "profile-read" } });
+      }).finally(() => clearTimeout(timer));
+    return () => { cancelled = true; clearTimeout(timer); controller.abort(); };
+  }, [loadAttempt]);
 
   const save = async () => {
     const response = await fetch("/api/account/me", {
@@ -69,6 +85,16 @@ export function ProfileScreen() {
     }
     setHandleStatus({ tone: "error", text: data.error ?? "That did not save. Try again." });
   };
+
+  if (loadState !== "ready") return (
+    <AccountPageFrame title="Profile" subtitle="Your student page.">
+      <p role="status" className="text-sm text-frost">{loadState === "error" ? "Could not load your profile." : "Loading profile…"}</p>
+      {loadState === "error" && <SiteButton size="sm" onClick={() => {
+        setLoadState("loading");
+        setLoadAttempt((current) => current + 1);
+      }}>Retry loading profile</SiteButton>}
+    </AccountPageFrame>
+  );
 
   return (
     <AccountPageFrame

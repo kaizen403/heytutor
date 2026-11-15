@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { HTTP_TTS_DOWNLOAD_TIMEOUT_MS } from "@heytutor/tutor-core";
 import {
   createPauseAwareSpeechClock,
   SPEECH_AUDIO_IN_TRANSIT_GRACE_MS,
@@ -87,6 +88,19 @@ async function main() {
     assert(stuck.state.recoveredAt !== null, "audio that never lands still falls back");
     assert(Math.abs(stuck.state.recoveredAt - (1_200 + SPEECH_AUDIO_IN_TRANSIT_GRACE_MS)) <= 50,
       `fallback at notice + grace, got ${stuck.state.recoveredAt}`);
+
+    // Repeated progress may spend a bounded download budget, never own the
+    // startup indefinitely (including for a different transport implementation).
+    const drip = attempt();
+    for (let elapsed = 1_000; elapsed < HTTP_TTS_DOWNLOAD_TIMEOUT_MS; elapsed += 5_000) {
+      await advance(drip.origin + elapsed);
+      drip.inTransit();
+      assert.equal(drip.state.recoveredAt, null);
+    }
+    await advance(drip.origin + HTTP_TTS_DOWNLOAD_TIMEOUT_MS + 50);
+    assert.equal(drip.state.recoveredAt, HTTP_TTS_DOWNLOAD_TIMEOUT_MS, "renewals share one cumulative active-time cap");
+    drip.inTransit(); drip.start(); drip.finish(); await drip.run;
+    assert.equal(drip.state.accepted, false, "late completion cannot steal the recovery owner");
 
     // Pause does not spend the extension.
     const paused = attempt();

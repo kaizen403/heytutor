@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import type { RenderScene, SceneDocument } from "@heytutor/scene-engine";
+import { compileSceneDocument, type SceneDocument } from "@heytutor/scene-engine";
+import { remainingDeferredAnnotations } from "@heytutor/drawing";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import { buildTurnTeachingPrompt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
 
@@ -9,9 +10,20 @@ const document: SceneDocument = {
   schemaVersion: "scene-document/v2",
   visualDecision: { mode: "scene", reason: "concept" },
   source: { question: "Explain the forces." },
-  quantities: [], constructions: [], relations: [], assertions: [], annotations: [],
+  quantities: [],
+  constructions: [
+    { id: "make_origin", operator: "point", inputs: { x: 0, y: 0 }, outputs: ["origin"] },
+    { id: "make_weight_tip", operator: "point", inputs: { x: 0, y: -2 }, outputs: ["weight_tip"] },
+    { id: "make_component_tip", operator: "point", inputs: { x: -1, y: -1 }, outputs: ["component_tip"] },
+    { id: "weight_vector", operator: "vector", inputs: { start: "origin", end: "weight_tip" }, outputs: ["weight"] },
+    { id: "component_vector", operator: "vector", inputs: { start: "origin", end: "component_tip" }, outputs: ["component"] },
+  ],
+  relations: [], assertions: [], annotations: [],
   requiredEntityIds: ["weight", "component"],
   entities: [
+    { id: "origin", kind: "point", role: "force origin" },
+    { id: "weight_tip", kind: "point", role: "weight tip" },
+    { id: "component_tip", kind: "point", role: "component tip" },
     { id: "weight", kind: "vector", role: "force", label: "mg" },
     { id: "component", kind: "vector", role: "force_component", label: "mg sin θ" },
   ],
@@ -21,18 +33,20 @@ const document: SceneDocument = {
     { id: "reveal_component", action: "reveal", targetId: "component", dependsOn: [], narrationIntent: "Its component mg sin θ acts down the slope." },
   ],
 };
-const render: RenderScene = {
-  engineVersion: "scene-engine/2.0.0", entityBounds: {},
-  revealGroups: document.revealGroups, timeline: document.teachingTimeline,
-  primitives: document.entities.map((entity, index) => ({
-    id: `p_${entity.id}`, entityId: entity.id, groupId: "scene", kind: "vector",
-    points: [{ x: 750, y: 250 }, { x: 750 - index * 100, y: 350 }],
-  })),
-};
+const compiled = compileSceneDocument(document, { figureConsistency: true });
+assert(compiled.ok && compiled.renderScene, JSON.stringify(compiled.report.issues));
+const render = compiled.renderScene;
 const presentation = buildVerifiedDiagramPresentation(document, render);
 const intro = presentation.introSegments.map((segment) => segment.narration).join(" ");
-assert(intro.includes("points straight down") && intro.includes("acts down the slope"),
-  `entity reveal explanations must survive group batching: ${intro}`);
+assert(/setup/i.test(intro) && !/points straight down|acts down the slope/.test(intro),
+  `the opening names setup parts and leaves physical explanation to teaching: ${intro}`);
+const completed = [...presentation.introSegments.flatMap(s => s.commands ?? []), ...remainingDeferredAnnotations(presentation.diagram)];
+for (const label of ["mg", "mg sin θ"]) assert(completed.some(command => command.type === "LABEL" && command.text === label), `${label} survives completion`);
+for (const id of ["weight", "component"]) {
+  const arrow = render.primitives.find(primitive => primitive.entityId === id && primitive.kind === "vector");
+  assert(arrow && arrow.points[1]!.y > arrow.points[0]!.y, `${id} points down on the board`);
+  assert(id !== "weight" || arrow.points[1]!.x === arrow.points[0]!.x, "weight remains vertical");
+}
 assert(!/force_component|begin with scene|comes scene/.test(intro), "internal scene names must not be narrated");
 for (const segment of presentation.introSegments) {
   for (const command of segment.commands ?? []) {

@@ -1,3 +1,4 @@
+import { separateSharedOriginVectors } from "./vectorLanes";
 import { strokePieces, validateLabelOwnerTruth, validateStraightLineNames } from "./labelOwnerTruth";
 import { circularStrokeDistance } from "./circularStrokeDistance";
 import { validateFigureConsistency } from "./figureConsistency";
@@ -55,7 +56,7 @@ import { compactCalloutLabel, isPointIdentifierText, isViewSummaryText, pointLab
 import { validateCircleLabelTraces, validateCircleSourceBinding } from "./circleGeometry";
 import { validateRelativeMotionSourceInputs } from "../synthesize/relativeMotionScene";
 import { validateUniformCircularSourceInputs } from "../physics/uniformCircularSourceBinding";
-import { parseMathExpression, parseMathExpression2D } from "../math/expression";
+import { cartesianLineCoefficients, isAffineMathExpression, parseMathExpression, parseMathExpression2D } from "../math/expression";
 import {
   planeFromCartesian,
   planePatchCorners,
@@ -131,6 +132,7 @@ import { validateLinearSourceBinding, validateLinearClaims } from "./linearRegio
 import { evaluateDistributedFieldsConstruction, type GaussFluxDefinition, type LineChargeFieldDefinition, type LoopFieldDefinition, type SinusoidalFluxDefinition, type SinusoidStateDefinition, type WireFieldDefinition } from "./distributedFieldsGeometry";
 import { evaluateTriangleConstruction } from "./triangleGeometry";
 import { conicPointResidual, evaluateConicConstruction, type ConicDefinition } from "./conicGeometry";
+import { conicMatchesSourceFunction, lineMatchesCartesianEquation } from "./sourceFunctionProof";
 import {
   evaluateSpaceDerivationConstruction,
   spaceAcuteAngle,
@@ -483,6 +485,86 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
     issues.push(...validateOpticalMediumTruth(document, geometry));
   }
   for (const assertion of document.assertions) validateAssertion(assertion, geometry, document, issues);
+  const sourceFunctionChecks = options.sourceFunctionChecks ?? [];
+  if (sourceFunctionChecks.length > 64) issues.push({ code: "source_function_proof_failed", severity: "fatal", message: "Source function proof limit exceeded" });
+  for (const [index, check] of sourceFunctionChecks.slice(0, 64).entries()) {
+    try {
+      const construction = document.constructions.find(item => item.outputs.includes(check.entityId));
+      const path = geometry.get(check.entityId);
+      if (construction?.operator === "conic") {
+        if (check.adjunct || check.equation || path?.kind !== "compound" || !path.conic || !conicMatchesSourceFunction(path.conic, check.expression)) throw new Error("conic is not proved equal to the source function");
+        continue;
+      }
+      if (!construction || !["line", "line_equation", "segment", "function_curve"].includes(construction.operator)) throw new Error("source function proof requires a straight line");
+      if (construction.operator === "function_curve" && (typeof construction.inputs.expression !== "string" || !isAffineMathExpression(construction.inputs.expression))) throw new Error("adjunct curve is not proved affine");
+      const fn = parseMathExpression(check.expression);
+      if (check.adjunct && !["tangent", "normal"].includes(check.adjunct.role)) throw new Error("Unknown source adjunct role");
+      if (!check.adjunct && !isAffineMathExpression(check.expression)) throw new Error("source function is not proved affine");
+      if (!path || path.kind !== "path" || path.points.length < 2) throw new Error("source function proof requires a path");
+      if (check.equation && !lineMatchesCartesianEquation(path.points, check.equation)) throw new Error("line is not proved equal to its Cartesian equation label");
+      const firstX = path.points[0]!.x, lastX = path.points.at(-1)!.x;
+      if (!check.adjunct && Math.abs(lastX - firstX) <= 1e-12) throw new Error("source function proof requires distinct abscissae");
+      const x = check.adjunct?.at ?? firstX;
+      if (!Number.isFinite(x)) throw new Error("source point must be finite");
+      const y = fn.evaluate(x);
+      if (check.equation) {
+        const relation = cartesianLineCoefficients(check.equation.lhs, check.equation.rhs);
+        if (!relation) throw new Error("Adjunct label is not a complete affine relation");
+        const { x: a, y: b, constant: c } = relation;
+        const uncertainty = relation.uncertainty ?? { x: 0, y: 0, constant: 0 };
+        const norm = Math.hypot(a, b) - Math.hypot(uncertainty.x, uncertainty.y), slope = fn.derivative(x);
+        const direction = check.adjunct?.role === "normal" ? { x: -slope, y: 1 } : { x: 1, y: slope };
+        // Error-free product/sum residuals avoid inventing a large error for
+        // exact cancellation at large coordinates. Coefficient enclosures still
+        // bound every uncertainty introduced by constant evaluation.
+        const residualBound = (u: number, v: number, offset: number) => {
+          const product = (left: number, right: number) => {
+            const value = left * right, split = 134217729;
+            const l = split * left, lh = l - (l - left), ll = left - lh;
+            const r = split * right, rh = r - (r - right), rl = right - rh;
+            return { value, error: ((lh * rh - value) + lh * rl + ll * rh) + ll * rl };
+          };
+          const sum = (left: number, right: number) => {
+            const value = left + right, part = value - left;
+            return { value, error: (left - (value - part)) + (right - part) };
+          };
+          const first = product(a, u), second = product(b, v), pair = sum(first.value, second.value), total = sum(pair.value, offset);
+          const correction = first.error + second.error + pair.error + total.error;
+          return Math.abs(total.value + correction) + 8 * Number.EPSILON * (Math.abs(total.value) + Math.abs(first.error) + Math.abs(second.error) + Math.abs(pair.error) + Math.abs(total.error)) + 16 * Number.MIN_VALUE;
+        };
+        const pointError = (uncertainty.x * Math.abs(x) + uncertainty.y * Math.abs(y) + uncertainty.constant) * (1 + 8 * Number.EPSILON);
+        const directionError = (uncertainty.x * Math.abs(direction.x) + uncertainty.y * Math.abs(direction.y)) * (1 + 8 * Number.EPSILON);
+        if (norm <= 0 || (residualBound(x, y, c) + pointError) / norm > 1e-6 ||
+            (residualBound(direction.x, direction.y, 0) + directionError) / (norm * Math.hypot(direction.x, direction.y)) > 1e-6) throw new Error("Adjunct label disagrees with the source line or lacks numeric precision");
+      }
+      // Proof-only witnesses stay in a private map. No witness is added to
+      // the document, render geometry, reveal groups or stored commands.
+      const proof = new Map(geometry);
+      // A finite segment represents a display interval of the same affine
+      // graph. Extend only its private proof support, never its rendered ink.
+      const support = proof.get(check.entityId);
+      if (construction.operator === "segment" && support?.kind === "path") proof.set(check.entityId, { ...support, infinite: true });
+      const witness = (suffix: string) => {
+        let id = `__source_function_${index}_${suffix}`;
+        while (proof.has(id)) id += "_";
+        return id;
+      };
+      const point = witness("point"); proof.set(point, { kind: "point", point: { x, y } });
+      const obligation = (suffix: string, predicate: SceneAssertion["predicate"], entities: string[]) => validateAssertion({ id: `source_function_${index}_${suffix}`, predicate, entities, expected: true, severity: "fatal", tolerance: 1e-6 }, proof, document, issues);
+      obligation("incident", "incident", [point, check.entityId]);
+      if (check.adjunct) {
+        const slope = fn.derivative(x);
+        const direction = witness("derivative");
+        proof.set(direction, { kind: "path", points: [{ x, y }, { x: x + 1, y: y + slope }] });
+        obligation("direction", check.adjunct.role === "tangent" ? "parallel" : "perpendicular", [direction, check.entityId]);
+      } else {
+        const next = witness("next"); proof.set(next, { kind: "point", point: { x: lastX, y: fn.evaluate(lastX) } });
+        obligation("next", "incident", [next, check.entityId]);
+      }
+    } catch (error) {
+      issues.push({ code: "source_function_proof_failed", severity: "fatal", entityIds: [check.entityId], message: error instanceof Error ? error.message : "Source function proof failed" });
+    }
+  }
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
   // Light stops at the optical elements it meets: cut outgoing rays at their
   // first crossing, refuse an incident ray that crosses one before its contact.
@@ -592,6 +674,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
       }
     }
   }
+  separateSharedOriginVectors(document, primitives, viewport);
   const projectileProjectionIssues = validateProjectileMeasurementProjection(document, primitives);
   if (projectileProjectionIssues.length) return { ok: false, renderScene: null, report: report(document, [...issues, ...projectileProjectionIssues], primitives.length) };
   if (verifiedPartsEnabled) {
@@ -5948,6 +6031,8 @@ function dimensionLabelPlacement(entityId: string, value: Geometry, primitives: 
 }
 
 function screenLabelAnchor(entityId: string, value: Geometry, primitives: RenderPrimitive[], transform: (point: Point) => RenderPoint): RenderPoint {
+  const lane = primitives.find(p => p.entityId === entityId && p.kind === "vector" && p.provenance?.vectorLane === true);
+  if (lane) return labelAnchorForPath(lane.points, true, false);
   if (value.kind === "path" && value.infinite) {
     const rendered = primitives.find((primitive) => primitive.entityId === entityId && primitive.kind !== "label");
     const start = rendered?.points[0];
@@ -6147,6 +6232,9 @@ function appendCorrespondingTickPrimitives(
   transformPlan: EntityTransformPlan,
   constructionOnlyIds: Set<string>,
 ): void {
+  const movedVectors = new Map(primitives
+    .filter(primitive => primitive.kind === "vector" && primitive.provenance?.vectorLane === true)
+    .map(primitive => [primitive.entityId, primitive]));
   const ticked = new Set(
     document.constructions
       .filter((construction) => construction.operator === "tick_mark")
@@ -6169,6 +6257,12 @@ function appendCorrespondingTickPrimitives(
       const groupId = entityToGroup.get(entityId);
       if (!groupId) continue;
       const transform = transformPlan.transformFor(entityId);
+      const displayed = movedVectors.get(entityId);
+      const physicalStart = transform(value.points[0]!);
+      const shift = displayed ? {
+        x: displayed.points[0]!.x - physicalStart.x,
+        y: displayed.points[0]!.y - physicalStart.y,
+      } : { x: 0, y: 0 };
       const segments = congruenceTickSegments(value.points[0]!, value.points.at(-1)!, count);
       for (const [index, segment] of segments.entries()) {
         primitives.push({
@@ -6176,7 +6270,12 @@ function appendCorrespondingTickPrimitives(
           entityId,
           groupId,
           kind: "line",
-          points: segment.map(transform),
+          // Equality is proved in physical geometry; its mark belongs to the
+          // displayed shaft, including a free vector's witnessed translation.
+          points: segment.map(point => {
+            const screen = transform(point);
+            return { x: screen.x + shift.x, y: screen.y + shift.y };
+          }),
           provenance: { correspondingFamily: familyIndex, correspondingCount: count },
         });
       }

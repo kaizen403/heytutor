@@ -4,6 +4,7 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import ts from "typescript";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -113,10 +114,22 @@ assert(
     !runner.includes("providerAudioReadyAtMs"),
   "the initial pen wait must join the owned speech startup/final outcome through handoff and retry, not race a duplicate grace timestamp; failure, completion and cancellation still release it",
 );
-assert(
-  runner.includes("playbackPositionMs: usingBrowserFallback ? null : tts.getPlaybackPositionMs()"),
-  "the first schedule must wait for primary playback, not merely onStart or stale primary position during browser recovery",
-);
+const runnerTree = ts.createSourceFile("streamingSegmentRunner.ts", runner, ts.ScriptTarget.Latest, true);
+const playbackExpressions: string[] = [];
+function findPlaybackPosition(node: ts.Node): void {
+  if (ts.isPropertyAssignment(node) && node.name.getText(runnerTree) === "playbackPositionMs" && node.initializer.getText(runnerTree).includes("tts.getPlaybackPositionMs()")) playbackExpressions.push(node.initializer.getText(runnerTree));
+  ts.forEachChild(node, findPlaybackPosition);
+}
+findPlaybackPosition(runnerTree);
+assert(playbackExpressions.length > 0, "the actual initial schedule must read the primary playback clock");
+for (const expression of playbackExpressions) {
+  const evaluate = new Function("usingBrowserFallback", "voiceDegraded", "tts", `return (${expression});`);
+  for (const fallback of [false, true]) for (const degraded of [false, true]) {
+    let reads = 0;
+    const position = evaluate(fallback, degraded, { getPlaybackPositionMs: () => { reads++; return 123; } });
+    assert(position === (fallback || degraded ? null : 123) && reads === (fallback || degraded ? 0 : 1), "browser fallback and degraded voice cannot schedule ink from stale primary playback");
+  }
+}
 assert(
   !/if \(isCancelled\(\) return;\s*applyTurnPhase\("speaking"\)/.test(runner),
   "queuing a segment must not drop the preparing overlay before the voice starts",
@@ -152,10 +165,23 @@ const turnControl = readFileSync(
   resolve(tutorRoot, "features/tutor-session/hooks/turn/useTurnControl.ts"),
   "utf8",
 );
-assert(
-  /stopTurn\(\{ keepVisibleBoard: true \}\);[\s\S]{0,240}unlockAudio/.test(turnControl),
-  "a doubt that stops the live lecture must re-arm WebAudio in the same click — stop() closes the lecture graph",
-);
+const controlTree = ts.createSourceFile("useTurnControl.ts", turnControl, ts.ScriptTarget.Latest, true);
+let gestureBlocks = 0;
+function checkDoubtGesture(node: ts.Node): void {
+  if (ts.isBlock(node)) {
+    const stop = node.statements.findIndex(statement => ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression) && statement.expression.expression.getText(controlTree) === "stopTurn" && statement.expression.arguments.some(argument => argument.getText(controlTree).includes("keepVisibleBoard: true")));
+    if (stop >= 0) {
+      const unlock = node.statements.findIndex((statement, index) => index > stop && ts.isExpressionStatement(statement) && statement.getText(controlTree).includes("unlockAudio"));
+      assert(unlock > stop, "a doubt must unlock audio in the same callback block after Stop");
+      const noAwait = (entry: ts.Node): void => { assert(!ts.isAwaitExpression(entry), "doubt audio unlock must remain inside the original click, before any await"); ts.forEachChild(entry, noAwait); };
+      node.statements.slice(stop, unlock).forEach(noAwait);
+      gestureBlocks++;
+    }
+  }
+  ts.forEachChild(node, checkDoubtGesture);
+}
+checkDoubtGesture(controlTree);
+assert(gestureBlocks > 0, "the actual doubt interrupt must stop and re-arm WebAudio in the same gesture");
 
 console.log(
   "verify-thinking-overlay: pending overlay names the wait, and the board stays covered until the voice starts",

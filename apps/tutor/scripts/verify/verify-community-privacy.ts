@@ -253,7 +253,7 @@ assert(migration.includes(`ADD COLUMN IF NOT EXISTS "visibility" TEXT NOT NULL D
 assert(/UPDATE "boards" b SET "visibility" = 'private'\s+FROM "users" u\s+WHERE u\."id" = b\."user_id"\s+AND lower\(trim\(u\."email"\)\) IN \(SELECT lower\(trim\("email"\)\) FROM "admins"\);/.test(migration),
   "existing staff boards are published by the migration");
 const createRoute = read("app", "api", "boards", "route.ts");
-assert(/isAdminEmail\(/.test(createRoute) && /visibility: staff(?: \|\| playground)? \? "private" : "public"/.test(createRoute), "staff and lab boards are published by default");
+assert(/isAdminEmail\(/.test(createRoute) && /visibility: staff \|\| playground \? "private" : "public"/.test(createRoute), "staff and lab boards are published by default");
 
 // 12. Lesson length: each clip once, the same in every save path and in the backfill.
 assert(lessonMsOf([]) === 0, "an empty lesson has a length");

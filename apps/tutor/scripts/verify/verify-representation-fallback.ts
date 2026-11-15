@@ -33,7 +33,18 @@ const calculusPlan: TurnPlanV3 = {
   visualRequirement: "required",
 };
 
-const calculusFallback = buildSourceGroundedRepresentation(calculusQuestion, calculusPlan);
+// Plotting whole curves cannot stand in for a region/integration obligation.
+// The native route can own the whole source; the simple source-only route
+// must decline rather than quietly dropping the request for an enclosed area.
+let calculusSourceRefused = false;
+try { buildSourceGroundedRepresentation(calculusQuestion, calculusPlan); }
+catch (error) { calculusSourceRefused = /required visual representation unavailable/i.test(String(error)); }
+assert(calculusSourceRefused, "a whole-curve fallback cannot own the requested region");
+const selectedCalculus = selectVerifiedRepresentation({ question: calculusQuestion, turnPlan: calculusPlan });
+assert(selectedCalculus.validationReport.valid && selectedCalculus.sceneDocument.source.question === calculusQuestion,
+  "the native calculus route retains its source and proof");
+const plottingQuestion = "Plot y=x^2 and y=4.";
+const calculusFallback = buildSourceGroundedRepresentation(plottingQuestion, { ...calculusPlan, question: plottingQuestion });
 assert(calculusFallback.tier === "question_representation", "calculus fallback must remain a question-only representation");
 assert(calculusFallback.nonMetric, "calculus fallback must be explicitly nonmetric");
 assert(calculusFallback.validationReport.valid, "calculus fallback must pass deterministic scene validation");
@@ -193,10 +204,11 @@ assert(
   "a required refraction diagram must not degrade to unrelated fact boxes",
 );
 
+const exactQuestion = "Show A=(0,0), B=(3,0) and C=(4.5,0), joined by segments AB and BC.";
 const exactDocument: SceneDocument = {
   schemaVersion: "scene-document/v2",
   visualDecision: { mode: "scene", reason: "verified exact fixture" },
-  source: { question: calculusQuestion, exact: true },
+  source: { question: exactQuestion, exact: true },
   quantities: [],
   entities: [
     { id: "a", kind: "point", role: "endpoint", label: "A" },
@@ -230,8 +242,7 @@ const exactDocument: SceneDocument = {
 const exactCompiled = compileSceneDocument(exactDocument);
 assert(exactCompiled.ok && exactCompiled.renderScene, "exact fixture must compile");
 const selectedExact = selectVerifiedRepresentation({
-  question: calculusQuestion,
-  turnPlan: calculusPlan,
+  question: exactQuestion,
   exact: {
     sceneDocument: exactDocument,
     renderScene: exactCompiled.renderScene,
@@ -267,8 +278,7 @@ const metricExactDocument: SceneDocument = {
 const metricExactCompiled = compileSceneDocument(metricExactDocument);
 assert(metricExactCompiled.ok && metricExactCompiled.renderScene, "metric exact fixture must compile");
 const selectedMetricExact = selectVerifiedRepresentation({
-  question: calculusQuestion,
-  turnPlan: calculusPlan,
+  question: exactQuestion,
   exact: {
     sceneDocument: metricExactDocument,
     renderScene: metricExactCompiled.renderScene,
