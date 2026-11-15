@@ -9,6 +9,7 @@ import { CommunityCard } from "../../features/community/CommunityCard";
 import type { TutorSessionExportApi } from "../../features/tutor-session/TutorSessionShell";
 import type { CodeLessonState } from "../../features/tutor-session/lib/code-lesson/codeLessonController";
 import { pageTurnsEndingAt } from "../../lib/boards/boardContinuation";
+import type { useBoardThumbnail } from "../../features/tutor-session/hooks/useBoardThumbnail";
 
 Object.defineProperty(globalThis, "React", { value: React, configurable: true });
 
@@ -138,9 +139,81 @@ async function verifyRenderer() {
   delete (globalThis as { window?: unknown }).window;
 }
 
+/** Actual effect dependencies, cleanup, timers and a delayed save/capture. */
+async function verifySavedRevisionRefresh() {
+  let cleanup: (() => void) | undefined;
+  let dependencies: unknown[] | undefined;
+  let timerId = 0;
+  const timers = new Map<number, () => Promise<void>>();
+  const storage = new Map<string, string>();
+  const uploads: string[] = [];
+  const code = ts.transpileModule(readFileSync(new URL("../../features/tutor-session/hooks/useBoardThumbnail.ts", import.meta.url), "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const mod = { exports: {} as { useBoardThumbnail: typeof useBoardThumbnail } };
+  new Function("require", "module", "exports", code)((name: string) => {
+    if (name === "react") return { useEffect: (effect: () => (() => void) | undefined, deps: unknown[]) => {
+      if (dependencies && dependencies.every((value, index) => Object.is(value, deps[index]))) return;
+      cleanup?.();
+      dependencies = deps;
+      cleanup = effect();
+    } };
+    if (name.endsWith("communityClient")) return { uploadBoardThumbnail: async (_id: string, blob: Blob) => {
+      uploads.push(await blob.text()); return true;
+    } };
+    throw new Error(`Unexpected import: ${name}`);
+  }, mod, mod.exports);
+  Object.defineProperty(globalThis, "window", { configurable: true, value: {
+    setTimeout: (callback: () => Promise<void>) => { timers.set(++timerId, callback); return timerId; },
+    clearTimeout: (id: number) => timers.delete(id),
+    localStorage: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) },
+  } });
+  const fire = async () => {
+    assert.equal(timers.size, 1, "a late final save must schedule a fresh thumbnail without adding a turn");
+    const [id, callback] = [...timers][0]!;
+    timers.delete(id);
+    await callback();
+  };
+  let revisionKey = "local";
+  let finishCapture: ((blob: Blob) => void) | null = null;
+  const input: Parameters<typeof useBoardThumbnail>[0] & { revision: number } = {
+    enabled: true, boardId: "saved-board", turnCount: 1, revision: 0,
+    getRevision: () => revisionKey,
+    publishable: () => true,
+    captureThumbnail: async () => finishCapture
+      ? new Promise<Blob>((resolve) => { finishCapture = resolve; })
+      : new Blob([revisionKey]),
+  };
+  mod.exports.useBoardThumbnail(input);
+  // The server replaces the one local turn during the settling delay.
+  revisionKey = "server-final";
+  mod.exports.useBoardThumbnail({ ...input, revision: 1 });
+  await fire();
+  assert.deepEqual(uploads, ["server-final"], "the server's final revision replaces the old picture");
+  assert([...storage.values()].includes("server-final"));
+
+  // A save can also finish while asynchronous restoration/capture is pending.
+  revisionKey = "resumed-local";
+  finishCapture = () => {};
+  mod.exports.useBoardThumbnail({ ...input, revision: 2 });
+  const oldCapture = fire();
+  const release = finishCapture;
+  revisionKey = "resumed-server";
+  mod.exports.useBoardThumbnail({ ...input, revision: 3 });
+  release(new Blob(["stale capture"]));
+  await oldCapture;
+  assert.deepEqual(uploads, ["server-final"], "an obsolete capture cannot overwrite the newest revision");
+  finishCapture = null;
+  await fire();
+  assert.deepEqual(uploads, ["server-final", "resumed-server"]);
+  cleanup?.();
+  delete (globalThis as { window?: unknown }).window;
+}
+
 async function main() {
   await verifyCapture();
   await verifyRenderer();
+  await verifySavedRevisionRefresh();
   const html = renderToStaticMarkup(<CommunityCard board={{ id: "b", title: "Final board", question: "HANDWRITTEN_QUESTION_PLACEHOLDER", subject: "maths", author: { name: "Student", initial: "S" }, createdAt: 1, viewCount: 1, remixCount: 0, featured: false, thumbnailUrl: null }} />);
   assert(!html.includes("HANDWRITTEN_QUESTION_PLACEHOLDER"));
   assert(!html.includes("--font-hand"));

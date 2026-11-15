@@ -31,6 +31,8 @@ export function useBoardThumbnail(input: {
   enabled: boolean;
   boardId: string;
   turnCount: number;
+  /** Changes on local/server replacements even when the turn count is unchanged. */
+  revision: number;
   getRevision: () => string;
   captureThumbnail: () => Promise<Blob | null>;
   /**
@@ -41,18 +43,18 @@ export function useBoardThumbnail(input: {
    */
   publishable: () => boolean;
 }): void {
-  const { enabled, boardId, turnCount, getRevision, captureThumbnail, publishable } = input;
+  const { enabled, boardId, turnCount, revision, getRevision, captureThumbnail, publishable } = input;
   useEffect(() => {
     if (!enabled || !boardId || turnCount < 1) return;
-    const revision = getRevision();
-    if (lastUploadedRevision(boardId) === revision) return;
+    const revisionKey = getRevision();
+    if (lastUploadedRevision(boardId) === revisionKey) return;
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       if (!publishable()) return;
       try {
         const blob = await captureThumbnail();
-        if (cancelled || !blob || !publishable() || getRevision() !== revision) return;
-        if (await uploadBoardThumbnail(boardId, blob)) rememberUpload(boardId, revision);
+        if (cancelled || !blob || !publishable() || getRevision() !== revisionKey) return;
+        if (await uploadBoardThumbnail(boardId, blob)) rememberUpload(boardId, revisionKey);
       } catch {
         // A failed capture must not suppress a later visit's upload.
       }
@@ -61,5 +63,5 @@ export function useBoardThumbnail(input: {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [enabled, boardId, turnCount, getRevision, captureThumbnail, publishable]);
+  }, [enabled, boardId, turnCount, revision, getRevision, captureThumbnail, publishable]);
 }
