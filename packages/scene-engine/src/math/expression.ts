@@ -66,8 +66,33 @@ export function mathExpressionsEquivalent(left: string, right: string, options: 
       if (source.length > MAX_EXPRESSION_LENGTH * 2 + 8) throw new Error("identity expression too long");
       return new Parser(tokenize(normalizePlainMathSource(source)), new Set<VariableName>(["x", "y"])).parse();
     };
-    const a = read(left), b = read(right);
+    const simplify = (node: ExpressionNode): ExpressionNode => {
+      if (node.kind === "unary") {
+        const value = simplify(node.value);
+        if (node.operator === "+") return value;
+        if (value.kind === "unary" && value.operator === "-") return value.value;
+        return { ...node, value };
+      }
+      if (node.kind === "function") return { ...node, argument: simplify(node.argument) };
+      if (node.kind !== "binary") return node;
+      const l = simplify(node.left), r = simplify(node.right);
+      if ((node.operator === "+" || node.operator === "-") && r.kind === "number" && r.value === 0) return l;
+      if (node.operator === "+" && l.kind === "number" && l.value === 0) return r;
+      if ((node.operator === "*" || node.operator === "/" || node.operator === "^") && r.kind === "number" && r.value === 1) return l;
+      if (node.operator === "*" && l.kind === "number" && l.value === 1) return r;
+      return { ...node, left: l, right: r };
+    };
+    const relationBase = (node: ExpressionNode): ExpressionNode => {
+      if (!options.allowNonzeroScale) return node;
+      if (node.kind === "unary") return relationBase(node.value);
+      if (node.kind === "binary" && (node.operator === "*" || node.operator === "/") && node.right.kind === "number" && node.right.value !== 0) return relationBase(node.left);
+      if (node.kind === "binary" && node.operator === "*" && node.left.kind === "number" && node.left.value !== 0) return relationBase(node.right);
+      return node;
+    };
+    const a = relationBase(simplify(read(left))), b = relationBase(simplify(read(right)));
     if (JSON.stringify(a) === JSON.stringify(b)) return true;
+    if (options.allowNonzeroScale && a.kind === "binary" && b.kind === "binary" && a.operator === "-" && b.operator === "-" &&
+        JSON.stringify(a.left) === JSON.stringify(b.right) && JSON.stringify(a.right) === JSON.stringify(b.left)) return true;
     type Fraction = { n: bigint; d: bigint };
     type Polynomial = Map<string, Fraction>;
     let remaining = 16_384;
@@ -139,6 +164,32 @@ export function mathExpressionsEquivalent(left: string, right: string, options: 
       const other = y.get(term)!;
       return value.n * yc.n * other.d * xc.d === other.n * xc.n * value.d * yc.d;
     });
+  } catch { return false; }
+}
+
+/** A bounded analytic degree proof, never a fit to sampled points. */
+export function isAffineMathExpression(source: string): boolean {
+  try {
+    const parsed = parseMathExpression(source);
+    const root = new Parser(tokenize(normalizePlainMathSource(source)), new Set<VariableName>(["x"])).parse();
+    const degree = (node: ExpressionNode): number => {
+      chargeExpressionSteps(1);
+      if (node.kind === "number") return 0;
+      if (node.kind === "variable") return 1;
+      if (node.kind === "unary") return degree(node.value);
+      if (node.kind === "function") return degree(node.argument) === 0 ? 0 : Infinity;
+      const left = degree(node.left), right = degree(node.right);
+      if (node.operator === "+" || node.operator === "-") return Math.max(left, right);
+      if (node.operator === "*") return left + right;
+      if (node.operator === "/") return right === 0 ? left : Infinity;
+      if (right !== 0) return Infinity;
+      const power = evaluateNode(node.right, { x: 0, y: 0 }, { remaining: MAX_EVALUATION_STEPS });
+      return Number.isInteger(power) && power >= 0 && power <= 16 ? power === 0 ? 0 : left * power : Infinity;
+    };
+    const intercept = parsed.evaluate(0);
+    if (degree(root) <= 1) return true;
+    const slope = parsed.derivative(0);
+    return mathExpressionsEquivalent(source, `(${slope})*x+(${intercept})`);
   } catch { return false; }
 }
 
