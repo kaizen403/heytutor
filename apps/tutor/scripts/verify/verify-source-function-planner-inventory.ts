@@ -222,6 +222,12 @@ async function main() {
   const proseCallout = graph("Plot y=x^2.", ["x^2"], ["y=x^2"], false);
   proseCallout.annotations.push({ id: "evaluation_note", kind: "callout", targetIds: ["curve_0"], text: "At x=1" });
   await admitted("Plot y=x^2.", proseCallout);
+  const proseEntity = graph("Plot y=x^2.", ["x^2"], ["Curve y=x^2"], false);
+  proseEntity.annotations.push({ id: "curve_equation", kind: "label", targetIds: ["curve_0"], text: "y=x^2" });
+  await admitted("Plot y=x^2.", proseEntity);
+  const wrongProseBody = structuredClone(proseEntity);
+  wrongProseBody.constructions[0]!.inputs.expression = "x^3";
+  assert.match(sceneSaveAdmissionFailure({ question: "Plot y=x^2.", document: wrongProseBody, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "prose cannot substitute for literal body proof");
   const conflictingGraph = graph("Plot y=x^2.", ["x^2"], ["y=x^3"], false);
   conflictingGraph.annotations.push({ id: "correct_callout", kind: "callout", targetIds: ["curve_0"], text: "y=x^2" });
   const conflictingNormal = structuredClone(wrongVerticalLabel);

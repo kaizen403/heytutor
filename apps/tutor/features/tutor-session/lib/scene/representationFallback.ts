@@ -1380,14 +1380,15 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
     });
   })) {
     const labels = attachedLabels(curve.outputs[0]!);
-    const equationLabels = labels.filter((label, index): label is string => {
+    const equationLabels = labels.filter((label): label is string => {
       if (typeof label !== "string") return false;
       const equation = readCartesianEquationLabel(normalizeMathText(label));
       if (!equation) return false;
-      // "At x=1" is an explanatory coordinate callout, not an equation
-      // claiming to describe the whole curve. Keep its existing compiler path.
+      // Descriptive prose is not a complete mathematical equation. It keeps
+      // the same compiler handling on an entity and on an annotation; a
+      // separate complete equation and the literal body must still prove ownership.
       const prose = /^([\p{L}]{2,})(?:\s+[\p{L}]{2,})*\s+[xy]\s*$/iu.exec(equation.lhs);
-      return index === 0 || !prose || FUNCTION_EXPRESSION_IDENTIFIERS.has(prose[1]!.toLowerCase());
+      return !prose || FUNCTION_EXPRESSION_IDENTIFIERS.has(prose[1]!.toLowerCase());
     });
     const body = typeof curve.inputs.expression === "string" ? normalizeMathText(curve.inputs.expression) : "";
     const straight = ["line", "line_equation", "segment"].includes(curve.operator);
