@@ -2,11 +2,11 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
-  emptyRunCostSession,
   lectureCostNeedsFetch,
   LECTURE_COST_FOLLOW_MS,
   type RunCostApiPayload,
   type RunCostSessionRow,
+  type RunCostLoadState,
 } from "@/lib/obs/runCost";
 
 export interface LectureCostSession {
@@ -29,8 +29,7 @@ function chunkIds(ids: string[], size: number): string[][] {
 async function fetchSessionCosts(
   ids: string[],
   signal: AbortSignal,
-): Promise<RunCostSessionRow[] | null> {
-  if (ids.length === 0) return [];
+): Promise<RunCostApiPayload | null> {
   const response = await fetch("/api/admin/run-cost", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -38,24 +37,20 @@ async function fetchSessionCosts(
     signal,
   });
   if (!response.ok) return null;
-  const payload = (await response.json()) as RunCostApiPayload;
-  if (payload.error && payload.report.bySession.length === 0 && payload.configured) {
-    return null;
-  }
-  const byId = new Map(payload.report.bySession.map((row) => [row.sessionId, row]));
-  return ids.map((id) => byId.get(id) ?? emptyRunCostSession(id));
+  return (await response.json()) as RunCostApiPayload;
 }
 
 /**
  * Langfuse costs for recorded / running lecture boards in the syllabus list.
- * A priced board that was already finished is fetched once. A board this page
+ * A finished board with both AI and voice usage is fetched once. A board this page
  * watched keeps updating until a few minutes after it stops, so the chip shows
  * the cost once the traces land.
  */
 export function useLectureCosts(
   sessions: readonly LectureCostSession[],
-): Record<string, RunCostSessionRow> {
+) {
   const [bySession, setBySession] = useState<Record<string, RunCostSessionRow>>({});
+  const [states, setStates] = useState<Record<string, RunCostLoadState>>({});
   const sessionsRef = useRef(sessions);
   useLayoutEffect(() => {
     sessionsRef.current = sessions;
@@ -64,8 +59,7 @@ export function useLectureCosts(
   const watchedRef = useRef(new Set<string>());
   const followUntilRef = useRef(new Map<string, number>());
   const prevHotRef = useRef(new Set<string>());
-  const inFlightRef = useRef(false);
-  const queuedRef = useRef(false);
+  const unconfiguredRef = useRef(new Set<string>());
   const retryAtRef = useRef(0);
 
   const idKey = sessions
@@ -78,6 +72,8 @@ export function useLectureCosts(
   useEffect(() => {
     if (!idKey) return;
     const controller = new AbortController();
+    let inFlight = false;
+    let queued = false;
 
     const rememberHotTransitions = () => {
       const nextHot = new Set(
@@ -101,7 +97,7 @@ export function useLectureCosts(
       const seen = new Set<string>();
       for (const session of sessionsRef.current) {
         const id = session.sessionId.trim();
-        if (!id || seen.has(id)) continue;
+        if (!id || seen.has(id) || unconfiguredRef.current.has(id)) continue;
         seen.add(id);
         if (!session.hot && !followUntilRef.current.has(id) && !pricedRef.current.has(id)) {
           followUntilRef.current.set(id, now + LECTURE_COST_FOLLOW_MS);
@@ -129,7 +125,8 @@ export function useLectureCosts(
           const previous = current[row.sessionId];
           if (row.totalUsd <= 0 && (previous?.totalUsd ?? 0) > 0) continue;
           next[row.sessionId] = row;
-          if (row.totalUsd > 0) pricedRef.current.add(row.sessionId);
+          // An AI-only result is still waiting for speech ingestion.
+          if (row.inputTokens + row.outputTokens > 0 && row.characters > 0) pricedRef.current.add(row.sessionId);
         }
         return next;
       });
@@ -137,30 +134,45 @@ export function useLectureCosts(
 
     const tick = async () => {
       if (controller.signal.aborted) return;
-      if (inFlightRef.current) {
-        queuedRef.current = true;
+      if (inFlight) {
+        queued = true;
         return;
       }
-      inFlightRef.current = true;
+      inFlight = true;
       try {
         do {
-          queuedRef.current = false;
+          queued = false;
           const ids = idsToFetch();
           if (ids.length === 0) continue;
           for (const batch of chunkIds(ids, BATCH_SIZE)) {
             if (controller.signal.aborted) return;
-            const rows = await fetchSessionCosts(batch, controller.signal);
-            if (!rows) {
+            let payload: RunCostApiPayload | null = null;
+            try {
+              payload = await fetchSessionCosts(batch, controller.signal);
+            } catch {
+              if (controller.signal.aborted) return;
+            }
+            if (controller.signal.aborted) return;
+            const rows = payload?.report.bySession ?? [];
+            const returned = new Set(rows.map(row => row.sessionId));
+            setStates(current => {
+              const next = { ...current };
+              for (const id of batch) {
+                next[id] = payload?.configured === false ? "unconfigured"
+                  : !payload || (payload.error && !returned.has(id)) ? "unavailable" : "pending";
+              }
+              return next;
+            });
+            if (payload?.configured === false) {
+              for (const id of batch) unconfiguredRef.current.add(id);
+            } else if (!payload || payload.error) {
               retryAtRef.current = Date.now() + FAILURE_BACKOFF_MS;
-              break;
             }
             mergeRows(rows);
           }
-        } while (queuedRef.current && !controller.signal.aborted);
-      } catch (error) {
-        if ((error as { name?: string }).name === "AbortError") return;
+        } while (queued && !controller.signal.aborted);
       } finally {
-        inFlightRef.current = false;
+        inFlight = false;
       }
     };
 
@@ -175,5 +187,5 @@ export function useLectureCosts(
     };
   }, [idKey]);
 
-  return bySession;
+  return { costsByBoardId: bySession, costStatesByBoardId: states };
 }

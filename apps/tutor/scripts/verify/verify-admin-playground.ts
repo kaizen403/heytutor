@@ -126,8 +126,8 @@ assert(playground.includes("RunCostBox"), "admin runs must show Langfuse cost ne
 assert(playground.includes("costsByBoardId={costsByBoardId}"), "recorded lecture rows must receive Langfuse costs");
 assert(playground.includes("useLectureCosts"), "playground must fetch costs for visible recorded boards");
 const topicRow = readFileSync(join(__dirname, "../../features/admin/components/TopicRow.tsx"), "utf8");
-assert(topicRow.includes("CostChip"), "topic and question rows must show a cost chip");
-assert(topicRow.includes("sumSessionCosts"), "the topic chip must sum easy/medium/hard board costs");
+assert(topicRow.includes("LectureUsage") && topicRow.includes("QuestionTags"), "topic and question rows must show AI and voice usage");
+assert(topicRow.includes("topicBoardIds.map"), "topic usage includes easy/medium/hard boards, including missing measurements");
 assert(topicRow.includes("costsByBoardId[boardId]"), "each Watch/Notes row must look up its board cost");
 const costChip = readFileSync(join(__dirname, "../../features/admin/components/CostChip.tsx"), "utf8");
 assert(costChip.includes("group-hover/cost:visible"), "cost chip hover must reveal AI vs voice");

@@ -92,6 +92,7 @@ interface VisibleUnit {
   summary: UnitSummary;
   selectableIds: string[];
   deletableBoardIds: string[];
+  costBoardIds: string[];
 }
 
 function unitKey(subject: SyllabusSubject, number: number): string {
@@ -206,6 +207,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
       const topics: VisibleTopic[] = [];
       const selectableIds: string[] = [];
       const deletableBoardIds: string[] = [];
+      const costBoardIds = new Set<string>();
       const seenBoards = new Set<string>();
       let recorded = 0;
       let running = 0;
@@ -237,6 +239,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
           states[difficulty] = cell.state;
           if (cell.boardId) {
             boardIds[difficulty] = cell.boardId;
+            if (cell.state === "recorded" || cell.state === "running") costBoardIds.add(cell.boardId);
           }
           if (cell.state === "recorded") {
             recorded += 1;
@@ -307,6 +310,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
         },
         selectableIds,
         deletableBoardIds,
+        costBoardIds: [...costBoardIds],
       });
     }
 
@@ -314,24 +318,17 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
   }, [units, probeIndex, progress, lectureStates, recordingBoardIds, filters, recordings]);
 
   const lectureCostSessions = useMemo(() => {
-    const sessions: Array<{ sessionId: string; hot: boolean }> = [];
-    const seen = new Set<string>();
-    for (const unit of visibleUnits) {
-      for (const topic of unit.topics) {
-        for (const difficulty of PROBE_DIFFICULTIES) {
-          const boardId = topic.boardIds[difficulty];
-          const state = topic.states[difficulty];
-          if (!boardId || (state !== "recorded" && state !== "running"))
-            continue;
-          if (seen.has(boardId)) continue;
-          seen.add(boardId);
-          sessions.push({ sessionId: boardId, hot: state === "running" });
-        }
-      }
+    // Chapter totals cover all its lectures, even while topic filters are active.
+    const ids = new Set(visibleUnits.flatMap(unit => unit.costBoardIds));
+    const topicIds = new Set(units.flatMap(unit => unit.items.map(item => item.id)));
+    // The topic sheet can still inspect the saved lecture while a rerun is live.
+    for (const board of recordings.values()) {
+      if (board.playground && topicIds.has(board.playground.topicId)) ids.add(board.id);
     }
-    return sessions;
-  }, [visibleUnits]);
-  const costsByBoardId = useLectureCosts(lectureCostSessions);
+    return [...ids]
+      .map(sessionId => ({ sessionId, hot: recordingBoardIds.has(sessionId) }));
+  }, [visibleUnits, recordingBoardIds, recordings, units]);
+  const { costsByBoardId, costStatesByBoardId } = useLectureCosts(lectureCostSessions);
 
   const active = filtersAreActive(filters);
   const shownUnits = useMemo(
@@ -763,6 +760,8 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                     title={unit.title}
                     tags={unit.tags}
                     summary={unit.summary}
+                    costs={unit.costBoardIds.map(id => costsByBoardId[id])}
+                    costStates={unit.costBoardIds.map(id => costStatesByBoardId[id])}
                     expanded={isUnitExpanded(unit.key)}
                     onToggleExpanded={() =>
                       setExpandedUnits((current) => {
@@ -799,6 +798,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                           if (boardId && lecture?.state === "complete") setReviewBoard({ boardId, lecture, title: topic.probes.find(probe => probe.difficulty === difficulty)?.question ?? topic.item.text });
                         }}
                         costsByBoardId={costsByBoardId}
+                        costStatesByBoardId={costStatesByBoardId}
                         checked={topic.checked}
                         status={topic.status}
                         selecting={selecting}
@@ -975,6 +975,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
 
       <TopicSheet
         costsByBoardId={costsByBoardId}
+        costStatesByBoardId={costStatesByBoardId}
         item={selectedItem}
         probes={selectedItem ? probesForTopic(probeIndex, selectedItem.id) : []}
         open={sheetOpen}

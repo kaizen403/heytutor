@@ -2,19 +2,20 @@
 
 import { PlainButton } from "@/components/ui/site-button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import type { RunCostSessionRow } from "@/lib/obs/runCost";
+import type { RunCostLoadState, RunCostSessionRow } from "@/lib/obs/runCost";
 import { figureCount, type PlaygroundLecture } from "@/lib/admin/playgroundLecture";
 import { SYLLABUS_SUBJECT_LABEL, type SyllabusItem } from "../lib/parseSyllabus";
 import type { ProbeQuestion, ProbeDifficulty } from "../lib/probes";
 import { QuestionTags } from "./QuestionTags";
 
-export function TopicSheet({ item, probes, open, onOpenChange, lectures, onWatch, onNotes, onReview, costsByBoardId }: {
+export function TopicSheet({ item, probes, open, onOpenChange, lectures, onWatch, onNotes, onReview, costsByBoardId, costStatesByBoardId = {} }: {
   item: SyllabusItem | null;
   probes: ProbeQuestion[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lectures: Partial<Record<ProbeDifficulty, { boardId: string; lecture: PlaygroundLecture }>>;
   costsByBoardId: Record<string, RunCostSessionRow>;
+  costStatesByBoardId?: Record<string, RunCostLoadState>;
   onWatch: (boardId: string, question: string) => void;
   onNotes: (boardId: string) => void;
   onReview: (boardId: string, question: string) => void;
@@ -33,7 +34,7 @@ export function TopicSheet({ item, probes, open, onOpenChange, lectures, onWatch
             return <li key={probe.id} data-topic-sheet-question={probe.difficulty} className="space-y-2 border-b border-stroke pb-4">
               <p className="text-xs text-sky-300">{probe.difficulty}</p>
               <p className="whitespace-pre-wrap text-sm text-frost">{probe.question}</p>
-              <QuestionTags lecture={entry?.lecture} cost={entry ? costsByBoardId[entry.boardId] : undefined} />
+              <QuestionTags lecture={entry?.lecture} cost={entry ? costsByBoardId[entry.boardId] : undefined} costState={entry ? costStatesByBoardId[entry.boardId] : undefined} />
               {entry?.lecture.state === "complete" ? <div className="flex flex-wrap gap-2">
                 <PlainButton onClick={() => onWatch(entry.boardId, probe.question)}>Watch</PlainButton>
                 <PlainButton onClick={() => onNotes(entry.boardId)}>Notes</PlainButton>

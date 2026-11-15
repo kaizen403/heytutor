@@ -56,6 +56,11 @@ export interface RunCostSessionRow {
   totalUsd: number;
 }
 
+export type RunCostLoadState = "loading" | "pending" | "unavailable" | "unconfigured";
+
+export type LectureUsageCost = Pick<RunCostSessionRow, "llmUsd" | "ttsUsd" | "totalUsd"> &
+  Partial<Pick<RunCostSessionRow, "inputTokens" | "outputTokens" | "characters" | "observations">>;
+
 export interface RunCostTotals {
   traces: number;
   observations: number;
