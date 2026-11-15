@@ -27,6 +27,7 @@ mock.module(resolve(root, "lib/db/prisma.ts"), {
 const namespace = load(resolve(root, "lib/obs/traceOwnership.ts")) as typeof import("../../lib/obs/traceOwnership");
 const observations = load(resolve(root, "lib/obs/langfuse.ts")) as typeof import("../../lib/obs/langfuse");
 const queries = load(resolve(root, "lib/obs/langfuseQuery.ts")) as typeof import("../../lib/obs/langfuseQuery");
+const adminCosts = load(resolve(root, "lib/admin/costQueries.ts")) as typeof import("../../lib/admin/costQueries");
 
 test("reusing a retired client trace id cannot target another account's vendor trace", () => {
   const victimId = namespace.scopedTraceId("student-one", "reusable-trace");
@@ -123,6 +124,22 @@ test("an oversized lecture cannot undercount itself or hide other lecture costs"
   assert.equal(result.report.bySession.find(row => row.sessionId === "oversized"), undefined);
   assert.equal(result.report.bySession.find(row => row.sessionId === "board-one")?.ttsUsd, 0.05, "split queries preserve owner-scoped session mapping");
   assert.equal(result.report.bySession.find(row => row.sessionId === "legacy-board")?.ttsUsd, 0.05);
+});
+
+test("user details retain healthy costs before, within, and after a partial batch", async () => {
+  const ids = Array.from({ length: 81 }, (_, index) => `user-board-${index}`);
+  const oversizedId = ids[40]!;
+  servePagedObservations(ids.flatMap(sessionId => Array.from({ length: sessionId === oversizedId ? 3001 : 1 }, (_, index) => ({
+    ...usage(sessionId, `trace-${sessionId}`), id: `${sessionId}-${index}`,
+  }))), "sessionId");
+  const result = await adminCosts.fetchUserBoardCosts(ids);
+  assert.equal(Object.keys(result.byBoardId).length, 80, "one oversized lecture must not erase healthy board costs");
+  assert.equal(result.byBoardId[oversizedId], undefined);
+  for (const index of [0, 41, 80]) assert.equal(result.byBoardId[ids[index]!]!.ttsUsd, 0.05);
+  assert.equal(result.inference.totalUsd, 4);
+  assert.equal(result.inference.observations, 80);
+  assert.equal(result.inference.error, "langfuse_unavailable");
+  assert.equal(result.inference.truncated, true, "the retained total must disclose that usage is incomplete");
 });
 
 test("a stalled observation cursor returns unavailable instead of a partial lecture price", async () => {

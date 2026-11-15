@@ -177,11 +177,12 @@ export async function fetchUserBoardCosts(boardIds: readonly string[]): Promise<
   const rows: BoardCost[] = [];
   let observations = 0;
   let configured = true;
+  let error: string | undefined;
   for (let index = 0; index < ids.length; index += USER_BOARD_COST_BATCH) {
     const result = await fetchRunCostForSessions(ids.slice(index, index + USER_BOARD_COST_BATCH));
     configured = result.configured;
     if (!result.configured) return { inference: emptyInference(false), byBoardId: {} };
-    if (result.error) return { inference: emptyInference(true, result.error), byBoardId: {} };
+    if (result.error) error = result.error;
     observations += result.report.totals.observations;
     for (const row of result.report.bySession) {
       const cost = { llmUsd: row.llmUsd, ttsUsd: row.ttsUsd, totalUsd: row.totalUsd };
@@ -198,8 +199,8 @@ export async function fetchUserBoardCosts(boardIds: readonly string[]): Promise<
       ttsUsd: totals.ttsUsd,
       totalUsd: totals.totalUsd,
       observations,
-      truncated: boardIds.length > USER_BOARD_COST_CAP,
-      error: undefined,
+      truncated: boardIds.length > USER_BOARD_COST_CAP || Boolean(error),
+      error,
     },
     byBoardId,
   };
