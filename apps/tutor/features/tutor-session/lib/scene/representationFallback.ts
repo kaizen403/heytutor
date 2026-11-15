@@ -1320,18 +1320,23 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
     return equation !== null && mathExpressionsEquivalent(`(${side(equation.lhs)})-(${side(equation.rhs)})`, `y-(${expression})`, { allowNonzeroScale: true });
   };
   let nativeIdentity: boolean | undefined;
-  const sourceOnlyNative = () => {
-    if (nativeIdentity !== undefined) return nativeIdentity;
+  const sourceOnlyNative = (linear = false) => {
+    if (!linear && nativeIdentity !== undefined) return nativeIdentity;
     const clean = (doc: SceneDocument) => ({ ...doc, source: Object.fromEntries(Object.entries(doc.source)
       .filter(([key]) => !["question", "representationTier", "nonMetric"].includes(key))) });
-    if (!independent) return nativeIdentity = false;
-    const regenerated = clean(independent.document);
+    const expected = linear ? buildLinearSourceDocument(stem) : independent?.document;
+    if (!expected) return false;
+    const regenerated = clean(expected);
     // Persistence writes this server-regenerated JSON, including its harmless
     // conversion of -0 to 0. Never serialize the submitted program to hide
     // unknown, nonfinite or non-JSON values from the structural comparison.
-    return nativeIdentity = sameJsonStructure(clean(document), regenerated, true) ||
+    const matches = sameJsonStructure(clean(document), regenerated, true) ||
       sameJsonStructure(clean(document), JSON.parse(JSON.stringify(regenerated)), true);
+    if (!linear) nativeIdentity = matches;
+    return matches;
   };
+  const attachedLabels = (id: string): unknown[] => [document.entities.find(entity => entity.id === id)?.label,
+    ...document.annotations.filter(annotation => (annotation.kind === "label" || annotation.kind === "callout") && annotation.targetIds.includes(id)).map(annotation => annotation.text)];
   const owners = new Set<number>();
   const boundaries = new Set(document.constructions.filter(construction => construction.operator === "function_region")
     .flatMap(construction => [construction.inputs.upper, construction.inputs.lower]));
@@ -1348,16 +1353,19 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
     // Only a positive continuation of this declared function owns the part.
     // A mention, negation, hypothetical, or another object's request cannot.
     const attached = boundEnds.some(end => end <= match.index! && (
-      /^\s*,?\s*(?:and|with|then)\s+(?:(?:draw|plot|sketch|show)\s+)?(?:(?:its|the|a)\s+)?$/iu.test(stem.slice(end, match.index!)) ||
-      /^\s*[.;]\s*(?:draw|plot|sketch|show)\s+its\s+$/iu.test(stem.slice(end, match.index!))));
+      /^\s*,?\s*(?:and|with|then)\s+(?:(?:please\s+)?(?:draw|plot|sketch|show)\s+)?(?:(?:its|the|a)\s+)?$/iu.test(stem.slice(end, match.index!)) ||
+      /^\s*[.;]\s*(?:please\s+)?(?:draw|plot|sketch|show)\s+its\s+$/iu.test(stem.slice(end, match.index!))));
     if (!attached) continue;
-    const value = readCompleteSupportedExpression(stem.slice(match.index! + match[0].length), [], true);
+    const pointSource = stem.slice(match.index! + match[0].length);
+    const qualifier = /\s+on\s+(?:the|this)\s+curve(?=\s*(?:$|[.!?;]|\band\b|,\s*(?:find|calculate|mark|show|draw|sketch|state)\b))/iu.exec(pointSource);
+    const value = readCompleteSupportedExpression(qualifier ? pointSource.slice(0, qualifier.index) : pointSource, [], true);
     if (!value || /\bx\b/u.test(value.expression)) continue;
     const end = match.index! + match[0].length + value.end;
-    if (!/^\s*(?:$|[.!?;]|\band\b|,\s*(?:find|calculate|mark|show|draw|sketch|state)\b)/iu.test(stem.slice(end))) continue;
+    const continuation = /^(?:\s+on\s+(?:the|this)\s+curve)?\s*(?=$|[.!?;]|\band\b|,\s*(?:find|calculate|mark|show|draw|sketch|state)\b)/iu.exec(stem.slice(end));
+    if (!continuation) continue;
     try {
       const at = parseMathExpression(normalizeNativeFunctionBody(value.expression)).evaluate(0);
-      if (Number.isFinite(at)) { adjuncts.push({ role: match[1]!.toLowerCase() as "tangent" | "normal", at }); boundEnds.push(end); }
+      if (Number.isFinite(at)) { adjuncts.push({ role: match[1]!.toLowerCase() as "tangent" | "normal", at }); boundEnds.push(end + continuation[0].length); }
     } catch { /* An unread source point cannot authorize an adjunct. */ }
   }
   const proveLine = (entityId: string, expression: string, adjunct?: { role: "tangent" | "normal"; at: number }, equation?: { lhs: string; rhs: string }) =>
@@ -1365,30 +1373,31 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
   let unowned = false;
   for (const curve of document.constructions.filter(construction => {
     if (construction.operator === "function_curve" || construction.operator === "implicit_curve") return true;
-    if (construction.operator !== "line" && construction.operator !== "line_equation") return false;
-    const label = document.entities.find(entity => entity.id === construction.outputs[0])?.label;
-    const equation = typeof label === "string" ? readCartesianEquationLabel(label) : null;
-    return equation !== null && (/(?<![\p{L}\p{N}_])y(?![\p{L}\p{N}_])/u.test(equation.lhs + " " + equation.rhs) || adjuncts.length > 0);
+    if (!["line", "line_equation", "segment"].includes(construction.operator)) return false;
+    return attachedLabels(construction.outputs[0]!).some(label => {
+      const equation = typeof label === "string" ? readCartesianEquationLabel(label) : null;
+      return equation !== null && (/(?<![\p{L}\p{N}_])y(?![\p{L}\p{N}_])/u.test(equation.lhs + " " + equation.rhs) || adjuncts.length > 0);
+    });
   })) {
-    const label = document.entities.find(entity => entity.id === curve.outputs[0])?.label;
+    const labels = attachedLabels(curve.outputs[0]!);
     const body = typeof curve.inputs.expression === "string" ? normalizeMathText(curve.inputs.expression) : "";
-    const straight = curve.operator === "line" || curve.operator === "line_equation";
+    const straight = ["line", "line_equation", "segment"].includes(curve.operator);
     const bodyOwns = (expression: string) => straight ? proveLine(curve.outputs[0]!, expression) : curve.operator === "function_curve"
       ? mathExpressionsEquivalent(body, expression)
       : mathExpressionsEquivalent(body, `y-(${expression})`, { allowNonzeroScale: true });
     // verified_parts may omit an unprovable label. The presentation flag does
     // not prove anything: the remaining literal body must still independently
     // equal its source function, with every requested function accounted for.
-    const yieldedLabel = label === undefined && document.source.diagramYieldPolicy === "verified_parts";
-    const owner = facts.findIndex(fact => equationMatches(label, fact.expression) || yieldedLabel && bodyOwns(fact.expression));
-    const axis = owner < 0 && sourceAxis && boundaries.has(curve.outputs[0]) && (label === undefined || equationMatches(label, "0"));
+    const yieldedLabel = labels.every(label => label === undefined) && document.source.diagramYieldPolicy === "verified_parts";
+    const owner = facts.findIndex(fact => labels.some(label => equationMatches(label, fact.expression)) || yieldedLabel && bodyOwns(fact.expression));
+    const axis = owner < 0 && sourceAxis && boundaries.has(curve.outputs[0]) && (labels.every(label => label === undefined) || labels.some(label => equationMatches(label, "0")));
     const expression = axis ? "0" : facts[owner]?.expression;
     const bodyMatches = expression !== undefined && bodyOwns(expression);
     let adjunctOwned = false;
     if (owner < 0 && !axis && facts.length === 1 && adjuncts.length > 0) {
-      const equation = typeof label === "string" ? readCartesianEquationLabel(normalizeMathText(label)) : null;
-      adjunctOwned = (yieldedLabel || equation !== null) &&
-        adjuncts.some(adjunct => proveLine(curve.outputs[0]!, facts[0]!.expression, adjunct, equation ?? undefined));
+      const equations = labels.flatMap(label => typeof label === "string" ? [readCartesianEquationLabel(normalizeMathText(label))].filter(equation => equation !== null) : []);
+      adjunctOwned = adjuncts.some(adjunct => yieldedLabel ? proveLine(curve.outputs[0]!, facts[0]!.expression, adjunct)
+        : equations.some(equation => proveLine(curve.outputs[0]!, facts[0]!.expression, adjunct, equation)));
     }
     // A native display transform is accepted only with the entire independently
     // regenerated program, never a client-provided display/source tag.
@@ -1396,7 +1405,10 @@ export function validateSourceFunctionInventory(document: SceneDocument, questio
       if (owner >= 0) owners.add(owner);
     } else unowned = true;
   }
-  if (!unowned && owners.size === facts.length) return [];
+  const nativeLinear = document.constructions.filter(construction => construction.operator === "linear_system");
+  const completeNativeLinear = nativeLinear.length > 0 && facts.every(fact => nativeLinear.some(construction =>
+    Array.isArray(construction.inputs.equations) && construction.inputs.equations.some(equation => equationMatches(equation, fact.expression)))) && sourceOnlyNative(true);
+  if (!unowned && (owners.size === facts.length || completeNativeLinear)) return [];
   return [{ code: "source_function_inventory_unmet", severity: "fatal", path: "constructions",
     message: "The requested plot must retain every explicit source function with its complete equation; unrelated geometry cannot satisfy it." }];
 }

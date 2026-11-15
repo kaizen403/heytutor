@@ -16,14 +16,14 @@ type FunctionName = keyof typeof FUNCTIONS;
 type VariableName = "x" | "y";
 
 type ExpressionNode =
-  | { kind: "number"; value: number }
+  | { kind: "number"; value: number; literal?: string }
   | { kind: "variable"; name: VariableName }
   | { kind: "unary"; operator: UnaryOperator; value: ExpressionNode }
   | { kind: "binary"; operator: BinaryOperator; left: ExpressionNode; right: ExpressionNode }
   | { kind: "function"; name: FunctionName; argument: ExpressionNode };
 
 type Token =
-  | { kind: "number"; value: number; position: number }
+  | { kind: "number"; value: number; literal: string; position: number }
   | { kind: "identifier"; value: string; position: number }
   | { kind: "operator"; value: BinaryOperator; position: number }
   | { kind: "leftParen"; position: number }
@@ -78,13 +78,18 @@ export function normalizeMathProductNotation(value: string): string {
 }
 
 /** Prove structural or bounded rational-polynomial identity. This never treats
- * agreement at sampled points as equality. Non-polynomial rewrites decline;
- * identical non-polynomial syntax retains its existing parser semantics. */
+ * agreement at sampled points as equality. Identical non-polynomial subtrees remain opaque terms;
+ * their domains are retained rather than canceled against missing terms. */
 export function mathExpressionsEquivalent(left: string, right: string, options: { allowNonzeroScale?: boolean } = {}): boolean {
   try {
     const read = (source: string) => {
       if (source.length > MAX_EXPRESSION_LENGTH * 2 + 8) throw new Error("identity expression too long");
       return new Parser(tokenize(normalizePlainMathSource(source)), new Set<VariableName>(["x", "y"])).parse();
+    };
+    const one = (node: ExpressionNode) => {
+      if (node.kind !== "number" || node.value !== 1) return false;
+      const value = rationalPolynomials([node])[0]!.get("0,0");
+      return value !== undefined && value.n === value.d;
     };
     const simplify = (node: ExpressionNode): ExpressionNode => {
       if (node.kind === "unary") {
@@ -98,8 +103,8 @@ export function mathExpressionsEquivalent(left: string, right: string, options: 
       const l = simplify(node.left), r = simplify(node.right);
       if ((node.operator === "+" || node.operator === "-") && r.kind === "number" && r.value === 0) return l;
       if (node.operator === "+" && l.kind === "number" && l.value === 0) return r;
-      if ((node.operator === "*" || node.operator === "/" || node.operator === "^") && r.kind === "number" && r.value === 1) return l;
-      if (node.operator === "*" && l.kind === "number" && l.value === 1) return r;
+      if ((node.operator === "*" || node.operator === "/" || node.operator === "^") && one(r)) return l;
+      if (node.operator === "*" && one(l)) return r;
       return { ...node, left: l, right: r };
     };
     const relationBase = (node: ExpressionNode): ExpressionNode => {
@@ -113,7 +118,7 @@ export function mathExpressionsEquivalent(left: string, right: string, options: 
     if (JSON.stringify(a) === JSON.stringify(b)) return true;
     if (options.allowNonzeroScale && a.kind === "binary" && b.kind === "binary" && a.operator === "-" && b.operator === "-" &&
         JSON.stringify(a.left) === JSON.stringify(b.right) && JSON.stringify(a.right) === JSON.stringify(b.left)) return true;
-    const [x, y] = rationalPolynomials([a, b]) as [Polynomial, Polynomial];
+    const [x, y] = rationalPolynomials([a, b], true) as [Polynomial, Polynomial];
     if (x.size !== y.size || [...x.keys()].some(key => !y.has(key))) return false;
     if (x.size === 0) return true;
     const key = x.keys().next().value!;
@@ -130,7 +135,10 @@ type Fraction = { n: bigint; d: bigint };
 type Polynomial = Map<string, Fraction>;
 
 /** Shared exact coefficient algebra; all consumers retain its work limits. */
-function rationalPolynomials(roots: readonly ExpressionNode[]): Polynomial[] {
+function rationalPolynomials(roots: readonly ExpressionNode[], retainOpaqueTerms = false): Polynomial[] {
+  const atoms = new Map<string, number>();
+  const domains: Set<string>[] = [];
+  let domain: Set<string>;
   let remaining = 16_384;
   const step = () => { chargeExpressionSteps(1); if (--remaining < 0) throw new Error("identity work limit"); };
   const fraction = (n: bigint, d = 1n): Fraction => {
@@ -141,11 +149,12 @@ function rationalPolynomials(roots: readonly ExpressionNode[]): Polynomial[] {
     while (y) { const remainder = x % y; x = y; y = remainder; }
     return { n: n / x, d: d / x };
   };
-  const number = (value: number): Fraction => {
+  const number = (value: number, literal = String(value)): Fraction => {
     if (!Number.isFinite(value)) throw new Error("nonfinite coefficient");
-    const [mantissa, exponent = "0"] = String(value).split("e");
+    const [mantissa, exponent = "0"] = literal.toLowerCase().split("e");
     const decimals = mantissa!.split(".")[1]?.length ?? 0;
     const scale = decimals - Number(exponent);
+    if (!Number.isSafeInteger(scale) || Math.abs(scale) > 616) throw new Error("identity literal scale limit");
     return fraction(BigInt(mantissa!.replace(".", "")) * 10n ** BigInt(Math.max(0, -scale)), 10n ** BigInt(Math.max(0, scale)));
   };
   const constant = (value: Fraction): Polynomial => value.n === 0n ? new Map() : new Map([["0,0", value]]);
@@ -159,21 +168,41 @@ function rationalPolynomials(roots: readonly ExpressionNode[]): Polynomial[] {
     const result: Polynomial = new Map();
     for (const [u, c] of x) for (const [v, d] of y) {
       step();
-      const [ux, uy] = u.split(",").map(Number), [vx, vy] = v.split(",").map(Number);
-      const px = ux! + vx!, py = uy! + vy!;
-      if (px + py > 16) throw new Error("identity degree limit");
-      put(result, `${px},${py}`, fraction(c.n * d.n, c.d * d.d));
+      const left = u.split(",").map(Number), right = v.split(",").map(Number);
+      const powers = Array.from({ length: Math.max(left.length, right.length) }, (_, i) => (left[i] ?? 0) + (right[i] ?? 0));
+      if (powers.reduce((sum, power) => sum + power, 0) > 16) throw new Error("identity degree limit");
+      while (powers.length > 2 && powers.at(-1) === 0) powers.pop();
+      put(result, powers.join(","), fraction(c.n * d.n, c.d * d.d));
     }
     return result;
   };
+  const opaque = (node: ExpressionNode, constant = false): Polynomial => {
+    if (!retainOpaqueTerms && !constant) throw new Error("non-polynomial identity");
+    const key = JSON.stringify(node);
+    domain.add(key);
+    let index = atoms.get(key);
+    if (index === undefined) { index = atoms.size + 2; atoms.set(key, index); }
+    if (atoms.size > 64) throw new Error("identity opaque term limit");
+    const powers = Array<number>(index + 1).fill(0); powers[index] = 1;
+    return new Map([[powers.join(","), fraction(1n)]]);
+  };
   const polynomial = (node: ExpressionNode): Polynomial => {
     step();
-    if (node.kind === "number") return constant(number(node.value));
+    if (node.kind === "number") return constant(number(node.value, node.literal));
     if (node.kind === "variable") return new Map([[node.name === "x" ? "1,0" : "0,1", fraction(1n)]]);
     if (node.kind === "function") {
       const argument = polynomial(node.argument);
-      if ([...argument.keys()].some(key => key !== "0,0")) throw new Error("non-polynomial identity");
-      return constant(number(evaluateNode(node, { x: 0, y: 0 }, { remaining: MAX_EVALUATION_STEPS })));
+      if (expressionDegree(node.argument) !== 0) return opaque(node);
+      // Validate a constant's domain, but never turn a rounded function result
+      // into an exact coefficient. Only these rational identities reduce.
+      evaluateNode(node, { x: 0, y: 0 }, { remaining: MAX_EVALUATION_STEPS });
+      const value = argument.size === 0 ? fraction(0n) : argument.size === 1 ? argument.get("0,0") : undefined;
+      if (value && node.name === "abs") return constant(fraction(value.n < 0n ? -value.n : value.n, value.d));
+      if (value?.n === 0n && ["sin", "tan", "asin", "atan", "sqrt"].includes(node.name)) return constant(fraction(0n));
+      if (value?.n === 0n && ["cos", "exp"].includes(node.name)) return constant(fraction(1n));
+      if (value && value.n === value.d && ["log", "ln", "acos"].includes(node.name)) return constant(fraction(0n));
+      if (value && value.n === value.d && node.name === "sqrt") return constant(fraction(1n));
+      return opaque(node, true);
     }
     if (node.kind === "unary") return new Map([...polynomial(node.value)].map(([key, value]) => [key, fraction(node.operator === "-" ? -value.n : value.n, value.d)]));
     const x = polynomial(node.left), y = polynomial(node.right);
@@ -184,18 +213,29 @@ function rationalPolynomials(roots: readonly ExpressionNode[]): Polynomial[] {
     }
     if (node.operator === "*") return multiply(x, y);
     const scalar = y.size === 0 ? fraction(0n) : y.size === 1 ? y.get("0,0") : undefined;
-    if (!scalar) throw new Error("nonconstant divisor or exponent");
+    if (!scalar) return opaque(node);
     if (node.operator === "/") {
       if (!scalar.n) throw new Error("zero divisor");
       return new Map([...x].map(([key, value]) => [key, fraction(value.n * scalar.d, value.d * scalar.n)]));
     }
-    if (x.size === 0 || x.size === 1 && x.has("0,0")) return constant(number(evaluateNode(node, { x: 0, y: 0 }, { remaining: MAX_EVALUATION_STEPS })));
-    if (scalar.d !== 1n || scalar.n < 0n || scalar.n > 16n) throw new Error("unsupported polynomial power");
+    const constantBase = x.size === 0 || x.size === 1 && x.has("0,0");
+    if (scalar.d !== 1n || scalar.n < -16n || scalar.n > 16n || scalar.n < 0n && !constantBase) {
+      if (constantBase) evaluateNode(node, { x: 0, y: 0 }, { remaining: MAX_EVALUATION_STEPS });
+      return opaque(node, constantBase);
+    }
     let result = constant(fraction(1n));
-    for (let i = 0; i < Number(scalar.n); i++) result = multiply(result, x);
+    const exponent = Number(scalar.n < 0n ? -scalar.n : scalar.n);
+    for (let i = 0; i < exponent; i++) result = multiply(result, x);
+    if (scalar.n < 0n) {
+      const value = result.get("0,0");
+      if (!value?.n) throw new Error("negative power of zero");
+      return constant(fraction(value.d, value.n));
+    }
     return result;
   };
-  return roots.map(polynomial);
+  const result = roots.map(root => { domain = new Set(); domains.push(domain); return polynomial(root); });
+  if (retainOpaqueTerms && domains.some(set => set.size !== domains[0]!.size || [...set].some(key => !domains[0]!.has(key)))) throw new Error("identity would discard an opaque domain");
+  return result;
 }
 
 /** A bounded analytic degree proof, never a fit to sampled points. */
@@ -409,10 +449,10 @@ function tokenize(source: string): Token[] {
       const match = source.slice(index).match(/^(?:(?:\d+(?:\.\d*)?)|(?:\.\d+))(?:[eE][+-]?\d+)?/);
       if (!match) throw new Error(`invalid number at position ${start}`);
       const value = Number(match[0]);
-      if (!Number.isFinite(value) || Math.abs(value) > MAX_ABSOLUTE_VALUE) {
+      if (!Number.isFinite(value) || Math.abs(value) > MAX_ABSOLUTE_VALUE || value === 0 && /[1-9]/.test(match[0].split(/[eE]/u)[0]!)) {
         throw new Error(`numeric literal at position ${start} is outside the supported range`);
       }
-      push({ kind: "number", value, position: start });
+      push({ kind: "number", value, literal: match[0], position: start });
       index += match[0].length;
       continue;
     }
@@ -496,7 +536,7 @@ class Parser {
   private parsePrimary(depth: number): ExpressionNode {
     this.checkDepth(depth);
     const token = this.consume();
-    if (token.kind === "number") return { kind: "number", value: token.value };
+    if (token.kind === "number") return { kind: "number", value: token.value, literal: token.literal };
     if (token.kind === "leftParen") {
       const value = this.parseAdditive(depth + 1);
       const closing = this.consume();

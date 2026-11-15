@@ -10,6 +10,10 @@ for (const [left, right] of [
   ["x", "x^2"], ["0", "4"], ["2*x^2", "x^2"], ["x/x", "1"],
   ["sqrt(x)^2", "x"], ["x^2", "x^2+0.00000000000001"], ["sin(x)", "cos(x)"],
 ]) assert(!mathExpressionsEquivalent(left!, right!), `${left} must not gain ${right}'s authority`);
+for (const body of ["sin(x)", "cos(x)+sin(x)", "1/(x^2+1)"]) {
+  assert(mathExpressionsEquivalent(`(${body})-2*y`, `y-(${body})/2`, { allowNonzeroScale: true }), "constant rearrangement preserves complete opaque terms");
+  assert(!mathExpressionsEquivalent(`(${body})-3*y`, `y-(${body})/2`, { allowNonzeroScale: true }));
+}
 assert(mathExpressionsEquivalent("2*y-2*x^2", "y-x*x", { allowNonzeroScale: true }));
 assert(!mathExpressionsEquivalent("0", "y-x^2", { allowNonzeroScale: true }));
 assert(!mathExpressionsEquivalent("y^2-x^4", "y-x^2", { allowNonzeroScale: true }));
@@ -30,6 +34,16 @@ for (const source of ["pi x", "e x", "x x", "x 2", "e(x)"]) assert.throws(() => 
 assert.deepEqual(cartesianLineCoefficients("x", "0"), { x: 1, y: 0, constant: 0 });
 assert(cartesianLineCoefficients("y", "-x/2+3/2"));
 assert.equal(cartesianLineCoefficients("y", "x^2"), null);
+assert.equal(cartesianLineCoefficients("x", "1e-400*y^2"), null, "nonzero underflow cannot erase nonlinear terms");
+assert(!mathExpressionsEquivalent("1e-400*x", "0"));
+assert.equal(cartesianLineCoefficients("x", "(1.0000000000000000001-1)*y^2"), null, "literal precision cannot erase nonlinear terms");
+assert(!mathExpressionsEquivalent("1.0000000000000000001*x", "x"));
+for (const coefficient of ["1.0000000000000000001^2-1", "sin(1.0000000000000000001)-sin(1)"]) assert.equal(cartesianLineCoefficients("x", `(${coefficient})*y^2`), null, "constant evaluation cannot erase nonlinear terms");
+assert(mathExpressionsEquivalent("(1/3)^2", "1/9"));
+assert(mathExpressionsEquivalent("2^-3", "1/8"));
+assert(mathExpressionsEquivalent("sin(0)*x+cos(0)", "1"));
+assert(!mathExpressionsEquivalent("log(-1)*0", "0"));
+for (const [left, right] of [["log(x)-log(x)", "0"], ["1/x-1/x", "0"], ["sqrt(x)*sqrt(x)", "x"]]) assert(!mathExpressionsEquivalent(left!, right!), "opaque domain cannot disappear");
 assert.equal(cartesianLineCoefficients("1/x", "y"), null);
 assert.equal(cartesianLineCoefficients("y-y", "0"), null);
 assert.deepEqual(cartesianLineCoefficients("5e-324*y", "0"), { x: 0, y: 1, constant: 0 });

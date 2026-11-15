@@ -488,7 +488,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
   for (const [index, check] of sourceFunctionChecks.slice(0, 64).entries()) {
     try {
       const construction = document.constructions.find(item => item.outputs.includes(check.entityId));
-      if (!construction || !["line", "line_equation", "function_curve"].includes(construction.operator)) throw new Error("source function proof requires a straight line");
+      if (!construction || !["line", "line_equation", "segment", "function_curve"].includes(construction.operator)) throw new Error("source function proof requires a straight line");
       if (construction.operator === "function_curve" && (typeof construction.inputs.expression !== "string" || !isAffineMathExpression(construction.inputs.expression))) throw new Error("adjunct curve is not proved affine");
       const fn = parseMathExpression(check.expression);
       if (check.adjunct && !["tangent", "normal"].includes(check.adjunct.role)) throw new Error("Unknown source adjunct role");
@@ -508,6 +508,10 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
       // Proof-only witnesses stay in a private map. No witness is added to
       // the document, render geometry, reveal groups or stored commands.
       const proof = new Map(geometry);
+      // A finite segment represents a display interval of the same affine
+      // graph. Extend only its private proof support, never its rendered ink.
+      const support = proof.get(check.entityId);
+      if (construction.operator === "segment" && support?.kind === "path") proof.set(check.entityId, { ...support, infinite: true });
       const witness = (suffix: string) => {
         let id = `__source_function_${index}_${suffix}`;
         while (proof.has(id)) id += "_";

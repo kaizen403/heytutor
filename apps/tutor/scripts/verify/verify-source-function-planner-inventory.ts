@@ -1,6 +1,6 @@
 /** Compilation alone cannot let a planner replace requested function graphs. */
 import assert from "node:assert/strict";
-import { compileSceneDocument, type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { compileSceneDocument, buildLinearSourceDocument, type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { selectVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
 import { selectProductionScene, validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { sceneSaveAdmissionFailure } from "../../lib/scene/sceneSaveAdmission";
@@ -121,14 +121,14 @@ async function main() {
   falseYield.source.diagramYieldPolicy = "verified_parts";
   for (const entity of falseYield.entities) delete entity.label;
   assert.match(sceneSaveAdmissionFailure({ question: wrongPlan.question, document: falseYield, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "a yield flag cannot establish curve truth");
-  async function admitted(source: string, doc: SceneDocument) {
+  async function admitted(source: string, doc: SceneDocument, tier: "exact_verified" | "qualitative_verified" | "question_representation" = "qualitative_verified") {
     const ownPlan = { ...segmentPlan, question: source };
     assert(validateProductionSceneCandidate({ question: source, turnPlan: ownPlan, candidate: { ...doc } }).valid, source);
     const live = selectProductionScene({ question: source, turnPlan: ownPlan, problemIR: null, candidate: { ...doc }, policy: { preferPlanner: true, allowedFigureSources: ["planner"] } });
     assert.equal(live.visualStatus, "validated", source);
-    const saved = await canonicalizeTurnSceneMetadata({ question: source, sceneDocument: doc, visualStatus: "validated", sceneArtifacts: { schemaVersion: "scene-artifacts/v3", turnPlan: ownPlan, representationTier: "qualitative_verified", nonMetric: true, diagramResultStatus: "ready" }, segments: [] });
+    const saved = await canonicalizeTurnSceneMetadata({ question: source, sceneDocument: doc, visualStatus: "validated", sceneArtifacts: { schemaVersion: "scene-artifacts/v3", turnPlan: ownPlan, representationTier: tier, nonMetric: tier !== "exact_verified", diagramResultStatus: "ready" }, segments: [] });
     assert(saved.ok, saved.ok ? "" : saved.error);
-    assert(admitStoredScene({ sceneDocument: JSON.parse(JSON.stringify(saved.value.sceneDocument)), sceneQuestion: source, turnPlan: ownPlan, submittedTier: "qualitative_verified" }).ok);
+    assert(admitStoredScene({ sceneDocument: JSON.parse(JSON.stringify(saved.value.sceneDocument)), sceneQuestion: source, turnPlan: ownPlan, submittedTier: tier }).ok);
   }
   for (const [source, body, label] of [
     ["Plot y=x+1e-3.", "x+1e-3", "y=x+1e-3"],
@@ -159,6 +159,26 @@ async function main() {
   assert(lineBefore.ok && lineProof.ok);
   assert.deepEqual(lineProof.renderScene, lineBefore.renderScene, "source witnesses never become drawn or stored marks");
   await admitted(lineSource, line);
+  const segmentLine = structuredClone(line);
+  segmentLine.entities.find(entity => entity.id === "ab")!.kind = "segment";
+  segmentLine.constructions[2]!.operator = "segment";
+  await admitted(lineSource, segmentLine);
+  const distantSegment = structuredClone(segmentLine);
+  distantSegment.constructions[0]!.inputs = { x: 2, y: 5 }; distantSegment.constructions[1]!.inputs = { x: 3, y: 7 };
+  await admitted(lineSource, distantSegment);
+  const annotated = graph("Plot y=x^2.", ["x^2"], ["y=x^2"]);
+  delete annotated.entities.find(entity => entity.id === "curve_0")!.label;
+  annotated.annotations.push({ id: "curve_equation", kind: "label", targetIds: ["curve_0"], text: "y=x^2" });
+  await admitted("Plot y=x^2.", annotated);
+  const wrongAnnotated = structuredClone(annotated);
+  wrongAnnotated.constructions.find(item => item.operator === "function_curve")!.inputs.expression = "x";
+  assert.match(sceneSaveAdmissionFailure({ question: "Plot y=x^2.", document: wrongAnnotated, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/);
+  await admitted("Sketch y=sin(x)/2.", graph("Sketch y=sin(x)/2.", ["sin(x)/2"], ["sin(x)=2y"]));
+  const systemSource = "Plot y=2*x+1 and y=-x+2.";
+  const system = buildLinearSourceDocument(systemSource);
+  assert(system);
+  assert(system.constructions.some(item => item.operator === "linear_system"), "the existing source-only linear builder supplies the regression");
+  await admitted(systemSource, system, "exact_verified");
   const wrongLine = structuredClone(line); wrongLine.constructions[1]!.inputs = { x: 1, y: 4 };
   assert(!compileSceneDocument(wrongLine, { sourceFunctionChecks: [{ entityId: "ab", expression: "2*x+1" }] }).ok, "axes-free straight-line ownership is independently proved");
   for (const role of ["tangent", "normal"] as const) {
@@ -176,6 +196,7 @@ async function main() {
     assert(!validateProductionSceneCandidate({ question: source, turnPlan: { ...segmentPlan, question: source }, candidate: { ...doc } }).valid);
     assert.match(sceneSaveAdmissionFailure({ question: source, document: doc, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "an adjunct mention is not an affirmative request bound to this curve");
   }
+  for (const source of ["Plot y=x^2 and please draw its tangent at x=1.", "Plot y=x^2 and its tangent at x=1 on the curve."]) await admitted(source, graph(source, ["x^2", "2*x-1"], ["y=x^2", "y=2*x-1"]));
   const verticalSource = "Plot y=x^2 and its normal at x=0.";
   const vertical = graph(verticalSource, ["x^2"], ["y=x^2"]);
   vertical.entities.push({ id: "a", kind: "point", role: "normal point" }, { id: "b", kind: "point", role: "normal point" }, { id: "normal", kind: "line", role: "normal", label: "x=0" });
@@ -185,6 +206,8 @@ async function main() {
   const wrongVerticalLabel = structuredClone(vertical);
   wrongVerticalLabel.entities = wrongVerticalLabel.entities.filter(entity => entity.id !== "axes"); wrongVerticalLabel.constructions = wrongVerticalLabel.constructions.filter(construction => construction.operator !== "axes");
   wrongVerticalLabel.requiredEntityIds = wrongVerticalLabel.requiredEntityIds.filter(id => id !== "axes"); wrongVerticalLabel.revealGroups[0]!.entityIds = wrongVerticalLabel.revealGroups[0]!.entityIds.filter(id => id !== "axes");
+  wrongVerticalLabel.entities.find(entity => entity.id === "normal")!.label = "x=1e-400*y^2";
+  assert.match(sceneSaveAdmissionFailure({ question: verticalSource, document: wrongVerticalLabel, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/);
   wrongVerticalLabel.entities.find(entity => entity.id === "normal")!.label = "x=1";
   assert.match(sceneSaveAdmissionFailure({ question: verticalSource, document: wrongVerticalLabel, turnPlan: null, tier: "qualitative_verified" }) ?? "", /source_function_inventory_unmet/, "an axes-free normal cannot carry a false complete line equation");
   console.log("planner function inventory: production selection, exact selection, all-tier/no-plan save, native curves and JSON reopen controls passed");
