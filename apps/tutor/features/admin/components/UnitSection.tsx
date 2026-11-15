@@ -5,6 +5,8 @@ import { ChevronRight, Trash2 } from "lucide-react";
 import { PlainButton } from "@/components/ui/site-button";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "./Checkbox";
+import { LectureUsage } from "./LectureUsage";
+import type { LectureUsageCost, RunCostLoadState } from "@/lib/obs/runCost";
 
 export interface UnitSummary {
   /** Topics currently visible under the active filters. */
@@ -24,6 +26,8 @@ interface UnitSectionProps {
   title: string;
   tags: readonly string[];
   summary: UnitSummary;
+  costs?: readonly (LectureUsageCost | undefined)[];
+  costStates?: readonly (RunCostLoadState | undefined)[];
   expanded: boolean;
   onToggleExpanded: () => void;
   selecting: boolean;
@@ -96,6 +100,8 @@ export function UnitSection({
   title,
   tags,
   summary,
+  costs = [],
+  costStates,
   expanded,
   onToggleExpanded,
   selecting,
@@ -174,6 +180,7 @@ export function UnitSection({
         </button>
 
         <div className="type-accent-xs flex flex-wrap items-center gap-3 text-faint">
+          <LectureUsage costs={costs} states={costStates} />
           <span
             title={
               filtered

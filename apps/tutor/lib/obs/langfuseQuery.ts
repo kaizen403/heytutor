@@ -323,18 +323,47 @@ export async function fetchRunCostForSessions(sessionIds: string[]): Promise<{
     const boards = await prisma.board.findMany({ where: { id: { in: unique } }, select: { id: true, userId: true } });
     const clientSessionIds = new Map(unique.map(id => [id, id]));
     for (const board of boards) clientSessionIds.set(scopedSessionId(board.userId, board.id), board.id);
-    let cursor: string | undefined;
-    for (let page = 0; page < SESSION_OBSERVATION_PAGES; page += 1) {
-      const payload = await langfuseGet(credentials, sessionObservationsPath([...clientSessionIds.keys()], cursor));
-      observations.push(...readObservations(payload, "unknown").map(observation => ({
-        ...observation,
-        sessionId: clientSessionIds.get(observation.sessionId ?? "") ?? observation.sessionId,
-      })));
-      const next = readCursor(payload);
-      if (!next || next === cursor) break;
-      cursor = next;
+    const pending = [unique];
+    let incomplete = false;
+    while (pending.length > 0) {
+      const batch = pending.shift()!;
+      const batchIds = new Set(batch);
+      const vendorIds = [...clientSessionIds.keys()].filter(id => batchIds.has(clientSessionIds.get(id)!));
+      const batchObservations: CostObservation[] = [];
+      let cursor: string | undefined;
+      let complete = false;
+      try {
+        for (let page = 0; page < SESSION_OBSERVATION_PAGES; page += 1) {
+          const payload = await langfuseGet(credentials, sessionObservationsPath(vendorIds, cursor));
+          batchObservations.push(...readObservations(payload, "unknown"));
+          const next = readCursor(payload);
+          if (!next) {
+            complete = true;
+            break;
+          }
+          if (next === cursor) break;
+          cursor = next;
+        }
+      } catch (error) {
+        console.warn("[langfuse] session-cost batch failed", error instanceof Error ? error.message : "langfuse_unavailable");
+        incomplete = true;
+        continue;
+      }
+      if (complete) {
+        observations.push(...batchObservations.map(observation => ({
+          ...observation,
+          sessionId: clientSessionIds.get(observation.sessionId ?? "") ?? observation.sessionId,
+        })).filter(observation => batchIds.has(observation.sessionId ?? "")));
+      } else if (batch.length > 1) {
+        // Discard the truncated parent before retrying smaller groups; otherwise
+        // earlier lectures are double-counted and later ones disappear.
+        const middle = Math.ceil(batch.length / 2);
+        pending.push(batch.slice(0, middle), batch.slice(middle));
+      } else {
+        incomplete = true;
+      }
     }
-    return { configured: true, report: aggregateRunCost(observations) };
+    return { configured: true, report: aggregateRunCost(observations), ...(incomplete ? { error: "langfuse_unavailable" } : {}) };
   } catch (error) {
     const message = error instanceof Error ? error.message : "langfuse_unavailable";
     console.warn("[langfuse] run-cost query failed", message);

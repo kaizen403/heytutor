@@ -2,7 +2,7 @@
 
 import { ChevronRight, Play, ScrollText, Trash2 } from "lucide-react";
 import { PlainButton } from "@/components/ui/site-button";
-import { sumSessionCosts, type RunCostSessionRow } from "@/lib/obs/runCost";
+import type { LectureUsageCost, RunCostLoadState } from "@/lib/obs/runCost";
 import { cn } from "@/lib/utils";
 import type { DifficultyState } from "../lib/lectureState";
 import type { SyllabusItem } from "../lib/parseSyllabus";
@@ -13,7 +13,7 @@ import {
 } from "../lib/probes";
 import type { ItemStatus } from "../lib/progressStorage";
 import { Checkbox } from "./Checkbox";
-import { CostChip } from "./CostChip";
+import { LectureUsage } from "./LectureUsage";
 import { DifficultyCell } from "./DifficultyCell";
 import { QuestionTags } from "./QuestionTags";
 import type { PlaygroundLecture } from "@/lib/admin/playgroundLecture";
@@ -26,9 +26,8 @@ export interface TopicRowProps {
   states: Record<ProbeDifficulty, DifficultyState>;
   /** Board to act on per difficulty - the live board while running, else the recording. */
   boardIds: Partial<Record<ProbeDifficulty, string>>;
-  costsByBoardId: Partial<
-    Record<string, Pick<RunCostSessionRow, "llmUsd" | "ttsUsd" | "totalUsd">>
-  >;
+  costsByBoardId: Partial<Record<string, LectureUsageCost>>;
+  costStatesByBoardId?: Record<string, RunCostLoadState>;
   lecturesByBoardId?: ReadonlyMap<string, PlaygroundLecture>;
   onReview?: (difficulty: ProbeDifficulty) => void;
   checked: boolean;
@@ -51,6 +50,7 @@ export function TopicRow({
   states,
   boardIds,
   costsByBoardId,
+  costStatesByBoardId = {},
   lecturesByBoardId,
   onReview,
   checked,
@@ -69,14 +69,7 @@ export function TopicRow({
   const allSelected = probeIds.length > 0 && selectedCount === probeIds.length;
   const someSelected = selectedCount > 0 && !allSelected;
   const hasFixtures = probes.length > 0;
-  const topicCost = sumSessionCosts(
-    PROBE_DIFFICULTIES.flatMap((difficulty) => {
-      const boardId = boardIds[difficulty];
-      if (!boardId) return [];
-      const row = costsByBoardId[boardId];
-      return row ? [row] : [];
-    }),
-  );
+  const topicBoardIds = [...new Set(Object.values(boardIds))];
 
   return (
     <li className="border-b border-stroke/60 last:border-b-0">
@@ -114,7 +107,7 @@ export function TopicRow({
           </span>
         </button>
 
-        <CostChip cost={topicCost} />
+        <LectureUsage costs={topicBoardIds.map(id => costsByBoardId[id])} states={topicBoardIds.map(id => costStatesByBoardId[id])} />
 
         <div
           className="flex shrink-0 items-center gap-1"
@@ -199,13 +192,10 @@ export function TopicRow({
                 >
                   {probe ? probe.question : "No question fixture yet"}
                 </p>
-                {probe ? <QuestionTags lecture={lecturesByBoardId?.get(boardId ?? "")} cost={boardId ? costsByBoardId[boardId] : undefined} running={isRunning} /> : null}
+                {probe ? <QuestionTags lecture={lecturesByBoardId?.get(boardId ?? "")} cost={boardId ? costsByBoardId[boardId] : undefined} costState={boardId ? costStatesByBoardId[boardId] : undefined} running={isRunning} /> : null}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1">
-                  {isRecorded || isRunning ? (
-                    <CostChip cost={boardId ? costsByBoardId[boardId] : undefined} />
-                  ) : null}
                   {isRunning && boardId ? (
                     <PlainButton
                       variant="sky"

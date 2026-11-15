@@ -300,9 +300,9 @@ assert(
 );
 
 const topicRow = read("features/admin/components/TopicRow.tsx");
-assert(topicRow.includes("<CostChip cost={topicCost}"), "each topic must show a summed cost chip");
-assert(topicRow.includes("<CostChip cost={boardId ? costsByBoardId[boardId]"), "each recorded question must show a cost chip");
-assert(topicRow.includes("isRecorded || isRunning"), "question cost chips sit with Watch/Notes");
+assert(topicRow.includes("<LectureUsage"), "each topic must show its AI and voice usage");
+assert(topicRow.includes("<QuestionTags") && topicRow.includes("costStatesByBoardId[boardId]"), "each question must expose its usage and loading state");
+assert(read("features/admin/components/UnitSection.tsx").includes("<LectureUsage"), "chapter headers must show usage even when collapsed");
 
 assert(
   read("features/admin/AdminPlayground.tsx").includes("costsByBoardId={costsByBoardId}"),

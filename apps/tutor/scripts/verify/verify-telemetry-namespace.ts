@@ -27,6 +27,7 @@ mock.module(resolve(root, "lib/db/prisma.ts"), {
 const namespace = load(resolve(root, "lib/obs/traceOwnership.ts")) as typeof import("../../lib/obs/traceOwnership");
 const observations = load(resolve(root, "lib/obs/langfuse.ts")) as typeof import("../../lib/obs/langfuse");
 const queries = load(resolve(root, "lib/obs/langfuseQuery.ts")) as typeof import("../../lib/obs/langfuseQuery");
+const adminCosts = load(resolve(root, "lib/admin/costQueries.ts")) as typeof import("../../lib/admin/costQueries");
 
 test("reusing a retired client trace id cannot target another account's vendor trace", () => {
   const victimId = namespace.scopedTraceId("student-one", "reusable-trace");
@@ -54,12 +55,12 @@ function usage(sessionId: string, traceId: string) {
   return { id: "fake-observation", name: "tts-segment", type: "GENERATION", model: "sonic-3", sessionId, traceId, usageDetails: { characters: 1000 } };
 }
 
-function servePagedObservations(rows: ReturnType<typeof usage>[]) {
+function servePagedObservations(rows: ReturnType<typeof usage>[], column: "traceId" | "sessionId" = "traceId") {
   globalThis.fetch = async input => {
     const url = new URL(String(input));
     assert.equal(url.pathname, "/api/public/v2/observations");
     const filter = JSON.parse(url.searchParams.get("filter") ?? "[]") as Array<{ value: string[] }>;
-    const matching = rows.filter(row => filter[0]?.value.includes(row.traceId));
+    const matching = rows.filter(row => filter[0]?.value.includes(row[column]));
     const offset = Number(url.searchParams.get("cursor") ?? 0);
     const next = offset + Number(url.searchParams.get("limit"));
     return Response.json({ data: matching.slice(offset, next), meta: {
@@ -98,6 +99,54 @@ test("admin board cost lookup maps owner-scoped session reports back to the stor
   assert.equal(result.error, undefined);
   assert.equal(result.report.bySession[0]?.sessionId, "board-one");
   assert((result.report.bySession[0]?.ttsUsd ?? 0) > 0);
+});
+
+test("a syllabus batch larger than the observation page budget retains every lecture cost", async () => {
+  const ids = Array.from({ length: 40 }, (_, index) => `lecture-${index}`);
+  const rows = ids.flatMap(sessionId => Array.from({ length: 80 }, (_, index) => ({
+    ...usage(sessionId, `trace-${sessionId}`), id: `${sessionId}-${index}`,
+  })));
+  servePagedObservations(rows, "sessionId");
+  const result = await queries.fetchRunCostForSessions(ids);
+  assert.equal(result.error, undefined);
+  assert.equal(result.report.bySession.length, 40, "all 40 recorded lectures must show usage");
+  assert(result.report.bySession.every(row => row.ttsUsd === 4), "all 80 voice segments count exactly once");
+});
+
+test("an oversized lecture cannot undercount itself or hide other lecture costs", async () => {
+  const scopedId = namespace.scopedSessionId("student-one", "board-one");
+  servePagedObservations([
+    ...Array.from({ length: 3001 }, (_, index) => ({ ...usage("oversized", "long-trace"), id: `long-${index}` })),
+    usage(scopedId, "scoped-trace"), usage("legacy-board", "legacy-trace"),
+  ], "sessionId");
+  const result = await queries.fetchRunCostForSessions(["oversized", "board-one", "legacy-board"]);
+  assert.equal(result.error, "langfuse_unavailable");
+  assert.equal(result.report.bySession.find(row => row.sessionId === "oversized"), undefined);
+  assert.equal(result.report.bySession.find(row => row.sessionId === "board-one")?.ttsUsd, 0.05, "split queries preserve owner-scoped session mapping");
+  assert.equal(result.report.bySession.find(row => row.sessionId === "legacy-board")?.ttsUsd, 0.05);
+});
+
+test("user details retain healthy costs before, within, and after a partial batch", async () => {
+  const ids = Array.from({ length: 81 }, (_, index) => `user-board-${index}`);
+  const oversizedId = ids[40]!;
+  servePagedObservations(ids.flatMap(sessionId => Array.from({ length: sessionId === oversizedId ? 3001 : 1 }, (_, index) => ({
+    ...usage(sessionId, `trace-${sessionId}`), id: `${sessionId}-${index}`,
+  }))), "sessionId");
+  const result = await adminCosts.fetchUserBoardCosts(ids);
+  assert.equal(Object.keys(result.byBoardId).length, 80, "one oversized lecture must not erase healthy board costs");
+  assert.equal(result.byBoardId[oversizedId], undefined);
+  for (const index of [0, 41, 80]) assert.equal(result.byBoardId[ids[index]!]!.ttsUsd, 0.05);
+  assert.equal(result.inference.totalUsd, 4);
+  assert.equal(result.inference.observations, 80);
+  assert.equal(result.inference.error, "langfuse_unavailable");
+  assert.equal(result.inference.truncated, true, "the retained total must disclose that usage is incomplete");
+});
+
+test("a stalled observation cursor returns unavailable instead of a partial lecture price", async () => {
+  globalThis.fetch = async () => Response.json({ data: [usage("board-one", "trace")], meta: { cursor: "stuck" } });
+  const result = await queries.fetchRunCostForSessions(["board-one"]);
+  assert.equal(result.error, "langfuse_unavailable");
+  assert.deepEqual(result.report.bySession, []);
 });
 
 test("admin logs retain a priced turn when another trace has no ingested observations", async () => {
