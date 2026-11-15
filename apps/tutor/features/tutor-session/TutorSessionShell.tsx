@@ -89,6 +89,7 @@ import { CodeLessonController } from "./lib/code-lesson/codeLessonController";
 import { LessonFigureSequence } from "./lib/scene/lessonFigureSequence";
 import { useReplay } from "./hooks/useReplay";
 import { useBoardThumbnail } from "./hooks/useBoardThumbnail";
+import { captureBoardThumbnail } from "./lib/board/boardThumbnail";
 import { useLectureRewind } from "./hooks/useLectureRewind";
 import { useLecturePageHalt } from "./hooks/useLecturePageHalt";
 import { useLectureExport } from "./hooks/useLectureExport";
@@ -206,6 +207,8 @@ export type TutorSessionExportApi = {
   replayLecture: () => boolean;
   /** Saved board pages as images. Meaningful once `boardReady` is true. */
   collectNotesSlides: () => Promise<string[]>;
+  /** Final restored page, without the cursor. Hosts capture only after boardReady. */
+  captureThumbnail?: () => Promise<Blob | null>;
   /** Board data is loaded; `collectNotesSlides` also waits for every saved stroke. */
   boardReady: boolean;
   /** The restored board has at least one saved turn. */
@@ -913,6 +916,7 @@ export function TutorSessionShell({
     storedTurnsRef,
     storedTurnsCount,
     setStoredTurnsCount,
+    storedTurnsRevision,
     conversationHistoryRef,
     inputInteracted,
     setInputInteracted,
@@ -1312,6 +1316,11 @@ export function TutorSessionShell({
     await waitForBoardRestore();
     return collectNotesSlides();
   }, [waitForBoardRestore, collectNotesSlides]);
+
+  const captureThumbnail = useCallback(async () => {
+    await waitForBoardRestore();
+    return captureBoardThumbnail(whiteboardRef.current, codeLessonController.getState());
+  }, [waitForBoardRestore, whiteboardRef, codeLessonController]);
 
   const pauseForRewind = useCallback(() => pauseTurn("rewind"), [pauseTurn]);
   const {
@@ -1763,6 +1772,7 @@ export function TutorSessionShell({
       lectureExportError,
       replayLecture: startLectureReplay,
       collectNotesSlides: collectRestoredNotesSlides,
+      captureThumbnail,
       boardReady: boardLoaded,
       hasSavedTurns: storedTurnsCount > 0,
       downloadNotesPdf,
@@ -1785,6 +1795,7 @@ export function TutorSessionShell({
     lectureExportError,
     startLectureReplay,
     collectRestoredNotesSlides,
+    captureThumbnail,
     boardLoaded,
     storedTurnsCount,
     downloadNotesPdf,
@@ -1813,6 +1824,10 @@ export function TutorSessionShell({
     () => storedTurnsRef.current.every((turn) => (turn.persistedStatus ?? turn.status ?? "complete") !== "live"),
     [storedTurnsRef],
   );
+  const thumbnailRevision = useCallback(
+    () => JSON.stringify(storedTurnsRef.current.map((turn) => [turn.id, turn.updatedAt, turn.segments.length, turn.persistedStatus ?? turn.status])),
+    [storedTurnsRef],
+  );
   useBoardThumbnail({
     enabled:
       variant === "full" &&
@@ -1824,7 +1839,9 @@ export function TutorSessionShell({
       boards.find((board) => board.id === sessionId)?.visibility === "public",
     boardId: sessionId,
     turnCount: storedTurnsCount,
-    whiteboardRef,
+    revision: storedTurnsRevision,
+    getRevision: thumbnailRevision,
+    captureThumbnail,
     publishable: thumbnailPublishable,
   });
 

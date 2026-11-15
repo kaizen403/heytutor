@@ -238,7 +238,7 @@ assert(/preview: rows\[rows\.length - 1\]!\.turn\.question/.test(remix) && !/pre
 const shell = read("features", "tutor-session", "TutorSessionShell.tsx");
 assert(/storedTurnsRef\.current\.every\(\(turn\) => \(turn\.persistedStatus \?\? turn\.status \?\? "complete"\) !== "live"\)/.test(shell), "a card picture can capture a live turn");
 const thumbHook = read("features", "tutor-session", "hooks", "useBoardThumbnail.ts");
-assert(thumbHook.indexOf("if (!publishable()) return;") > 0 && thumbHook.indexOf("if (!publishable()) return;") < thumbHook.indexOf("captureFrame("), "the card picture is taken before eligibility is checked");
+assert(thumbHook.indexOf("if (!publishable()) return;") > 0 && thumbHook.indexOf("if (!publishable()) return;") < thumbHook.indexOf("await captureThumbnail("), "the card picture is taken before eligibility is checked");
 for (const [file, guard] of [[["features", "account", "LibraryScreen.tsx"], "savingVisibility.has(board.id)"], [["features", "app-shell", "AccountAppShell.tsx"], "savingVisibility.current.has(id)"], [["features", "tutor-session", "hooks", "useBoardSession.ts"], "savingVisibilityRef.current.has(id)"]] as const) {
   assert(read(...file).includes(guard), `${file.join("/")} lets two visibility saves race`);
 }
