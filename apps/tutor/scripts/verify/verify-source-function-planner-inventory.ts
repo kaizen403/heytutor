@@ -146,7 +146,8 @@ async function main() {
   await admitted("Sketch y = sin(x)/2.", graph("Sketch y = sin(x)/2.", ["sin(x)/2"], ["sin(x)=2y"]));
   const linearQuestion = "The graphs y=(3/2)x+4 and y=-(1/2)x+10 cross at P. Show the graphs and find the exact coordinates of P.";
   const linearProgram = buildLinearSourceDocument(linearQuestion);
-  assert(linearProgram?.constructions.some(construction => construction.operator === "linear_system"));
+  assert(linearProgram);
+  assert(linearProgram.constructions.some(construction => construction.operator === "linear_system"));
   await admitted(linearQuestion, linearProgram, tierForForeignDocument(linearProgram));
   const unrelatedLinear = structuredClone(linearProgram);
   unrelatedLinear.constructions[0]!.inputs.equations = ["x+y=2", "x-y=1"];
