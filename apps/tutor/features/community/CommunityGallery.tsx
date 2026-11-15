@@ -7,6 +7,7 @@ import { SUBJECT_LABELS, type SubjectId } from "@/lib/account/types";
 import { fetchCommunityPage } from "@/lib/community/communityClient";
 import type { CommunityCard as CommunityCardData, CommunitySort } from "@/lib/community/publicBoard";
 import { CommunityCard } from "./CommunityCard";
+import { CommunityThumbnails } from "./CommunityThumbnails";
 
 const SORTS: Array<{ id: CommunitySort; label: string }> = [
   { id: "trending", label: "Trending" },
@@ -125,11 +126,13 @@ export function CommunityGallery() {
           </p>
         </AccountCard>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {shown.map((board) => (
-            <CommunityCard key={board.id} board={board} />
-          ))}
-        </div>
+        <CommunityThumbnails>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {shown.map((board) => (
+              <CommunityCard key={board.id} board={board} />
+            ))}
+          </div>
+        </CommunityThumbnails>
       )}
 
       {nextPage != null && boards.length > 0 ? (

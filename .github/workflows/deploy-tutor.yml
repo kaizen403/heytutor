@@ -142,6 +142,10 @@ jobs:
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-sarvam-tts.ts
       - name: Preserve the development webpack cache
         run: pnpm --filter @heytutor/tutor verify:dev-cache
+      - name: Community final-page thumbnails and privacy
+        run: |
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-community-thumbnail.tsx
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-community-privacy.ts
       - name: Typecheck and lint
         run: |
           pnpm typecheck

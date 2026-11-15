@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { SUBJECT_LABELS } from "@/lib/account/types";
 import type { CommunityCard as CommunityCardData } from "@/lib/community/publicBoard";
+import { CommunityThumbnail } from "./CommunityThumbnails";
 
 function compactCount(value: number): string {
   if (value < 1_000) return String(value);
@@ -23,23 +24,7 @@ export function CommunityCard({ board }: { board: CommunityCardData }) {
       className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(23,23,22,0.72)] transition-colors hover:border-[rgba(255,255,255,0.18)]"
     >
       <div className="relative aspect-[12/7] w-full overflow-hidden bg-ink-950">
-        {board.thumbnailUrl ? (
-          // A plain img: card pictures come from our own API with their own cache headers.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={board.thumbnailUrl}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center px-5">
-            <p className="line-clamp-4 text-lg leading-snug text-[rgba(237,237,235,0.78)]" style={{ fontFamily: "var(--font-hand)" }}>
-              {board.question || board.title}
-            </p>
-          </div>
-        )}
+        <CommunityThumbnail key={board.thumbnailUrl} boardId={board.id} thumbnailUrl={board.thumbnailUrl} />
         {board.featured ? (
           <span className="absolute left-2 top-2 rounded-md bg-[rgba(0,0,0,0.55)] px-2 py-0.5 text-[0.6875rem] font-medium text-sky-200">
             Featured

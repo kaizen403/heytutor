@@ -1,4 +1,5 @@
 tsx scripts/verify/verify-mensuration-fallback.ts
+tsx scripts/verify/verify-community-thumbnail.tsx
 tsx scripts/verify/verify-billing-failure-exit.ts
 tsx scripts/verify/verify-billing-stale-usage.ts
 tsx scripts/verify/verify-usage-cost.ts

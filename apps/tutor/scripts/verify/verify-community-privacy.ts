@@ -238,7 +238,7 @@ assert(/preview: rows\[rows\.length - 1\]!\.turn\.question/.test(remix) && !/pre
 const shell = read("features", "tutor-session", "TutorSessionShell.tsx");
 assert(/storedTurnsRef\.current\.every\(\(turn\) => \(turn\.persistedStatus \?\? turn\.status \?\? "complete"\) !== "live"\)/.test(shell), "a card picture can capture a live turn");
 const thumbHook = read("features", "tutor-session", "hooks", "useBoardThumbnail.ts");
-assert(thumbHook.indexOf("if (!publishable()) return;") > 0 && thumbHook.indexOf("if (!publishable()) return;") < thumbHook.indexOf("captureFrame("), "the card picture is taken before eligibility is checked");
+assert(thumbHook.indexOf("if (!publishable()) return;") > 0 && thumbHook.indexOf("if (!publishable()) return;") < thumbHook.indexOf("await captureThumbnail("), "the card picture is taken before eligibility is checked");
 for (const [file, guard] of [[["features", "account", "LibraryScreen.tsx"], "savingVisibility.has(board.id)"], [["features", "app-shell", "AccountAppShell.tsx"], "savingVisibility.current.has(id)"], [["features", "tutor-session", "hooks", "useBoardSession.ts"], "savingVisibilityRef.current.has(id)"]] as const) {
   assert(read(...file).includes(guard), `${file.join("/")} lets two visibility saves race`);
 }
@@ -253,7 +253,7 @@ assert(migration.includes(`ADD COLUMN IF NOT EXISTS "visibility" TEXT NOT NULL D
 assert(/UPDATE "boards" b SET "visibility" = 'private'\s+FROM "users" u\s+WHERE u\."id" = b\."user_id"\s+AND lower\(trim\(u\."email"\)\) IN \(SELECT lower\(trim\("email"\)\) FROM "admins"\);/.test(migration),
   "existing staff boards are published by the migration");
 const createRoute = read("app", "api", "boards", "route.ts");
-assert(/isAdminEmail\(/.test(createRoute) && /visibility: staff \? "private" : "public"/.test(createRoute), "staff and lab boards are published by default");
+assert(/isAdminEmail\(/.test(createRoute) && /visibility: staff(?: \|\| playground)? \? "private" : "public"/.test(createRoute), "staff and lab boards are published by default");
 
 // 12. Lesson length: each clip once, the same in every save path and in the backfill.
 assert(lessonMsOf([]) === 0, "an empty lesson has a length");
