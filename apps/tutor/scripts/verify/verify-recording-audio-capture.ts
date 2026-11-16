@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { saveTurn } from "../../lib/boards/boardsClient";
+import { isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
+import { inspectPlaygroundLecture } from "../../lib/admin/playgroundLecture";
+import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
+import { checkpointSceneFixture } from "./fixtures/checkpointScene";
 import {
   recordingAudioCaptureComplete,
   recordingAudioPersistenceComplete,
@@ -109,8 +113,75 @@ async function verifySavedAudio(): Promise<void> {
   }
 }
 
-void verifySavedAudio().then(() => {
-  console.log("verify-recording-audio-capture: capture and persisted URLs required; partial upload keeps board without completion");
+async function verifyCanonicalAudioIdentity(): Promise<void> {
+  const fixture = await checkpointSceneFixture();
+  const inputSegments = [
+    { orderIndex: 0, narration: "", spokenText: "", command: {
+      type: "CLEAR", params: [], charPosition: 0, narrationBefore: "",
+    } },
+    { orderIndex: 1, narration: "", spokenText: "", command: serializeSegmentCommands([{
+      type: "DRAW_PICTURE", params: [], text: "stale-picture", charPosition: 0, narrationBefore: "",
+    }], { trustedDiagramGeometry: true }) },
+    ...fixture.metadata.segments,
+    { orderIndex: 0, narration: "The sum is five.", spokenText: "The sum is five.", command: {
+      type: "WRITE", params: [90, 145, 28], text: "2 + 3 = 5", charPosition: 0, narrationBefore: "The sum is five.",
+    } },
+  ].map((segment, orderIndex) => ({
+    ...segment, orderIndex, durationMs: segment.narration.trim() ? 1000 : 50, timings: null,
+    command: serializeSegmentCommands(parseStoredSegmentCommands(segment.command), {
+      trustedDiagramGeometry: isStoredCommandTrustedGeometry(segment.command),
+    }),
+    audioBytes: segment.narration.trim() ? new Uint8Array([1, 2]) : null,
+  }));
+  // The real canonicalizer removes the unbacked, silent picture row. Every
+  // spoken clip survives, with its submitted identity and a new row position.
+  const canonical = await canonicalizeTurnSceneMetadata({ ...fixture.metadata, segments: inputSegments });
+  assert(canonical.ok, "the verified figure and spoken notes must still persist");
+  const savedSegments = canonical.value.segments.map(segment => {
+    const source = segment.sourceOrderIndex ?? null;
+    const clip = source === null ? null : inputSegments[source];
+    return {
+      ...segment, audioRef: source, audioUrl: clip?.audioBytes ? `/audio/clip-${source}.mp3` : null,
+      durationMs: segment.durationMs ?? null,
+    };
+  });
+  assert(savedSegments.some(segment => segment.audioRef !== null && segment.audioRef !== segment.orderIndex),
+    "the regression must exercise moved audio rows");
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, init) => {
+    assert.ok(init?.body instanceof FormData);
+    for (const segment of inputSegments.filter(segment => segment.narration.trim())) {
+      assert.ok(init.body.get(`audio-${segment.orderIndex}`) instanceof Blob);
+    }
+    return Response.json({ turn: { id: "canonical-recording", segments: savedSegments } });
+  };
+  try {
+    const saved = await saveTurn("board-1", {
+      question: fixture.question, rawResponse: "The sum is five.", speedMultiplier: 1, segments: inputSegments,
+    });
+    assert(saved);
+    assert.equal(recordingAudioCaptureComplete(inputSegments), true);
+    assert.equal(inspectPlaygroundLecture([{
+      status: "complete", kind: "lesson", rawResponse: "The sum is five.", visualStatus: "validated", segments: saved.segments,
+    }]).complete, true, "the server must confirm complete audio and notes");
+    assert.equal(recordingAudioPersistenceComplete(inputSegments, saved.segments), true,
+      "a complete recording must survive canonical row changes");
+    const last = saved.segments.at(-1)!;
+    for (const audioRef of [null, -1, 99]) {
+      const wrongIdentity: typeof saved.segments = [...saved.segments.slice(0, -1), { ...last, orderIndex: inputSegments.length - 1, audioRef }];
+      assert.equal(recordingAudioPersistenceComplete(inputSegments, wrongIdentity), false,
+        "an explicit invalid or server-only audio identity cannot borrow a matching row position");
+    }
+    assert.equal(recordingAudioPersistenceComplete(inputSegments, [
+      ...saved.segments.slice(0, -1), { ...last, audioUrl: null },
+    ]), false, "the correct audio identity still needs its uploaded clip");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+void verifySavedAudio().then(verifyCanonicalAudioIdentity).then(() => {
+  console.log("verify-recording-audio-capture: canonical audio identities preserved; missing capture, clip or identity rejected");
 }).catch((error: unknown) => {
   console.error(error);
   process.exitCode = 1;

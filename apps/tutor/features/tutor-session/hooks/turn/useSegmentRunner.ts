@@ -612,6 +612,9 @@ export function useSegmentRunner({
           );
           capturedDurationMs = Math.round(timings.totalDuration * 1000);
         }
+        if (generatedAudio && !usingBrowserFallback) {
+          generatedAudio = { ...generatedAudio, durationMs: capturedDurationMs, timings: capturedTimings };
+        }
         if (timingTelemetryCount < 3 && timings.charStartTimes.length !== lastTimingTelemetryChars) {
           timingTelemetryCount++;
           lastTimingTelemetryChars = timings.charStartTimes.length;
@@ -1247,6 +1250,11 @@ export function useSegmentRunner({
           speakingNarrationRef.current = "";
         }
         if (segmentCompleted && !isCancelled()) {
+          // Browser playback has its own timing, while a complete provider
+          // clip already captured remains this sentence's saved replay audio.
+          const recordedAudio = usingBrowserFallback && generatedAudio
+            ? generatedAudio
+            : { audioBytes: capturedAudio, durationMs: capturedDurationMs, timings: capturedTimings };
           const recordedRow: RecordedSegmentPayload = {
             orderIndex: index,
             narration: segment.narration,
@@ -1254,9 +1262,9 @@ export function useSegmentRunner({
             command: serializeSegmentCommands(savesCommand ? segmentCommands.filter(savesCommand) : segmentCommands, {
               trustedDiagramGeometry: segment.verifiedDiagramIntro === true,
             }),
-            audioBytes: capturedAudio,
+            audioBytes: recordedAudio.audioBytes,
             durationMs: (() => {
-              const spoken = capturedDurationMs;
+              const spoken = recordedAudio.durationMs;
               const typed = segmentCommands.some((command) => command.type === "TYPE");
               if (!typed) return spoken;
               const elapsed = audioStartedAtMs != null
@@ -1266,7 +1274,7 @@ export function useSegmentRunner({
               if (elapsed == null) return spoken;
               return Math.max(spoken, elapsed);
             })(),
-            timings: capturedTimings,
+            timings: recordedAudio.timings,
           };
           if (preparedSave && !preparedSave.complete(recordedRow)) return;
           recordedSegmentsRef.current.push(recordedRow);
