@@ -84,7 +84,7 @@ export async function remixCommunityBoard(sourceBoardId: string, userId: string)
   // The locked transaction below checks again; this only stops a full
   // account from paying for copies that are thrown away.
   const [boardCount, turnCount, storage] = await Promise.all([
-    prisma.board.count({ where: { userId } }),
+    prisma.board.count({ where: { userId, playground: { equals: Prisma.DbNull } } }),
     prisma.turn.count({ where: { userId } }),
     prisma.userStorage.findUnique({ where: { userId }, select: { reservedBytes: true } }),
   ]);
@@ -129,7 +129,7 @@ export async function remixCommunityBoard(sourceBoardId: string, userId: string)
     await withAdmittedStorageBytes(userId, Number(bytes), async (tx) => {
       // The copies are owned by the board row now; their receipt goes with the commit.
       if (copies.size > 0) await tx.objectDeletionJob.deleteMany({ where: { prefix } });
-      if (await tx.board.count({ where: { userId } }) >= MAX_ACCOUNT_BOARDS) {
+      if (await tx.board.count({ where: { userId, playground: { equals: Prisma.DbNull } } }) >= MAX_ACCOUNT_BOARDS) {
         throw new StorageQuotaError("board storage quota exceeded", 429);
       }
       if (await tx.turn.count({ where: { userId } }) + rows.length > MAX_ACCOUNT_TURNS) {

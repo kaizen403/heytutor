@@ -1,1 +1,2 @@
 node --experimental-test-module-mocks --import tsx scripts/verify/verify-playground-board-admission.ts
+node --experimental-test-module-mocks --import tsx scripts/verify/verify-playground-remix-admission.ts
