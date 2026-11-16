@@ -8,15 +8,15 @@ export function recordingAudioCaptureComplete(
   return narrated.length > 0 && narrated.every((segment) => (segment.audioBytes?.length ?? 0) > 0);
 }
 
-/** Inspect the server's raw save response, not replay segments with local blob URLs. */
+/** Inspect the raw server save response; audio identities survive canonical row changes. */
 export function recordingAudioPersistenceComplete(
   submitted: readonly Pick<RecordedSegmentPayload, "orderIndex" | "narration">[],
-  persisted: readonly Pick<StoredSegment, "orderIndex" | "narration" | "audioUrl">[],
+  persisted: readonly Pick<StoredSegment, "orderIndex" | "narration" | "audioUrl" | "audioRef">[],
 ): boolean {
   const narrated = submitted.filter((segment) => segment.narration.trim().length > 0);
   return narrated.length > 0 && narrated.every((segment) =>
     persisted.some((saved) =>
-      saved.orderIndex === segment.orderIndex &&
+      (saved.audioRef === undefined ? saved.orderIndex : saved.audioRef) === segment.orderIndex &&
       typeof saved.audioUrl === "string" && saved.audioUrl.trim().length > 0,
     ),
   ) && persisted.every((saved) =>
