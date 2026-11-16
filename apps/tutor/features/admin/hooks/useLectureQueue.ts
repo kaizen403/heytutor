@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { resolveApiUrl } from "@heytutor/tutor-core";
-import { createBoardWithTitle, deleteBoardApi, fetchBoardDetail, fetchBoards, requestBoardTitle, updateBoard } from "@/lib/boards/boardsClient";
+import { BoardCreationError, createBoardWithTitle, deleteBoardApi, fetchBoardDetail, fetchBoards, requestBoardTitle, updateBoard } from "@/lib/boards/boardsClient";
 import type { BoardEntry } from "@/lib/boards/types";
 import type { TutorPhase } from "@/features/tutor-session/types";
 import {
@@ -252,9 +252,13 @@ export function useLectureQueue() {
         settled.outcome = outcome;
         return outcome;
       });
+      let creationError = "could not create board";
       const boardPromise = createBoardWithTitle(job.title, {
         topicId: job.topicId, difficulty: job.difficulty, probeId: job.probeId, state: "running",
-      }).catch(() => null);
+      }).catch((error: unknown) => {
+        if (error instanceof BoardCreationError) creationError = error.message;
+        return null;
+      });
       const first = await Promise.race([
         boardPromise.then((board) => ({ kind: "board" as const, board })),
         outcomePromise.then((outcome) => ({ kind: "outcome" as const, outcome })),
@@ -274,11 +278,11 @@ export function useLectureQueue() {
       }
       const board = first.board;
       if (!board) {
-        settleByJobRef.current.get(job.id)?.({ status: "failed", error: "could not create board" });
+        settleByJobRef.current.get(job.id)?.({ status: "failed", error: creationError });
         readyByJobRef.current.delete(job.id);
         patchJob(job.id, {
           status: "failed",
-          error: "could not create board",
+          error: creationError,
           endedAt: Date.now(),
         });
         return;

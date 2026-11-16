@@ -86,7 +86,9 @@ export async function POST(request: Request) {
     if (existing) return existing;
     const deletion = await tx.objectDeletionJob.findUnique({ where: { prefix: `lectures/${id}/` } });
     if (deletion) throw new StorageQuotaError("board deletion cleanup is still pending", 409);
-    if (await tx.board.count({ where: { userId } }) >= MAX_ACCOUNT_BOARDS) {
+    // Playground metadata passed the admin gate above. Question bank
+    // recordings do not consume ordinary tutoring board slots.
+    if (!playground && await tx.board.count({ where: { userId, playground: { equals: Prisma.DbNull } } }) >= MAX_ACCOUNT_BOARDS) {
       throw new StorageQuotaError("board storage quota exceeded", 429);
     }
     return tx.board.create({ data: { id, userId, title, preview: "", ...(playground ? { playground: { topicId: playground.topicId, difficulty: playground.difficulty, ...(playground.probeId ? { probeId: playground.probeId } : {}), state: "running" } } : {}), visibility: staff || playground ? "private" : "public" } });
