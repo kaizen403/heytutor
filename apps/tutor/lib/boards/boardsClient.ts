@@ -108,6 +108,13 @@ export async function createBoard(id?: string): Promise<BoardEntry | null> {
   return data.board ?? null;
 }
 
+export class BoardCreationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BoardCreationError";
+  }
+}
+
 export async function createBoardWithTitle(title: string, playground?: PlaygroundLecture): Promise<BoardEntry | null> {
   const res = await fetch(resolveApiUrl("/api/boards"), {
     method: "POST",
@@ -116,6 +123,13 @@ export async function createBoardWithTitle(title: string, playground?: Playgroun
   });
 
   if (!res.ok) {
+    if (playground) {
+      const data = await res.json().catch(() => null) as { error?: unknown } | null;
+      const message = typeof data?.error === "string" && data.error.trim()
+        ? data.error.slice(0, 500)
+        : "could not create board";
+      throw new BoardCreationError(message);
+    }
     return null;
   }
 

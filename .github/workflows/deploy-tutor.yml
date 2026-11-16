@@ -122,6 +122,7 @@ jobs:
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-playground-recordings.tsx
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-lecture-queue-races.ts
           pnpm --filter @heytutor/tutor exec node --experimental-test-module-mocks --import tsx scripts/verify/verify-playground-review-races.ts
+          pnpm --filter @heytutor/tutor exec node --experimental-test-module-mocks --import tsx scripts/verify/verify-playground-board-admission.ts
       - name: Yield switch and PR246 review blocker regressions (offline)
         run: |
           pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-yield-switch-blockers.ts

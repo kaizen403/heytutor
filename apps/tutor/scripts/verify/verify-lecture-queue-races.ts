@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { BoardEntry } from "../../lib/boards/types";
+import { createBoardWithTitle } from "../../lib/boards/boardsClient";
 import { makeLectureJobs, JOB_TIMEOUT_MS } from "../../features/admin/lib/lectureJobs";
 import { useLectureQueue } from "../../features/admin/hooks/useLectureQueue";
 
@@ -258,6 +259,22 @@ try {
   queue.stopAll();
   queue.handlePhase(timedOut, "thinking");
   assert(render().jobs.find((job) => job.id === timedOut)?.phase === "idle", "stopped shell phase callback must be ignored");
+
+  // The real client and queue must retain the server's admission failure.
+  queue.enqueue([question]);
+  const quotaJob = render().jobs.at(-1)!;
+  const runtimesBeforeQuota = render().runtimes.length;
+  boardRequests.at(-1)!.resolve(Response.json({ error: "board storage quota exceeded" }, { status: 429 }));
+  await tick();
+  assert(render().jobs.find(job => job.id === quotaJob.id)?.error === "board storage quota exceeded",
+    "the failed admin job must show the actual board admission error");
+  assert(render().runtimes.length === runtimesBeforeQuota && !render().jobs.find(job => job.id === quotaJob.id)?.boardId,
+    "a rejected board never starts a recording shell");
+  queue.stopAll();
+
+  const ordinary = createBoardWithTitle("Ordinary board");
+  boardRequests.at(-1)!.resolve(Response.json({ error: "board storage quota exceeded" }, { status: 429 }));
+  assert(await ordinary === null, "ordinary board callers retain their null-on-failure contract");
 
   async function lateAfterStop(id: string, beforeResponse?: () => void) {
     const before = boardRequests.length;
