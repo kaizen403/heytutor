@@ -67,8 +67,10 @@ import {
 import {
   fetchPlannerCompletion,
   PlannerReservationDenied,
+  readPlannerResponseText,
   resolvePlannerMaxTokens,
   resolvePlannerModels,
+  untilPlannerRequestAborted,
 } from "@/lib/llm/plannerTransport";
 import {
   fetchTeachingCompletion,
@@ -759,6 +761,9 @@ async function handlePlannerRequest({
       rememberUnavailableModels: llm.provider === "fireworks",
       onRetry: ({ attempt, delayMs, message, model, modelAttempt, status }) => {
         tutorDebug("planner", message ? "provider fetch failed" : "transient provider response", {
+          trace_id: traceId,
+          planner_phase: plannerPhase,
+          planner_lane: plannerLane,
           provider: llm.provider,
           attempt,
           delay_ms: delayMs,
@@ -781,6 +786,10 @@ async function handlePlannerRequest({
     // Success is reported once the body has been read, below.
     if (!response.ok) noteProviderOutcome(llm, { ok: false, status: response.status });
     tutorDebug("planner", "provider response", {
+      trace_id: traceId,
+      planner_phase: plannerPhase,
+      planner_lane: plannerLane,
+      reasoning_effort: body.reasoning_effort,
       provider: llm.provider,
       status: response.status,
       ...timing,
@@ -790,7 +799,7 @@ async function handlePlannerRequest({
 
     if (!response.ok) {
       // A rejected cancel must not reach the catch below and count this failure twice.
-      await response.body?.cancel().catch(() => undefined);
+      await untilPlannerRequestAborted(response.body?.cancel().catch(() => undefined) ?? Promise.resolve(), boundedSignal);
       endLlmGeneration(turnTrace, {
         output: PUBLIC_CHAT_ERROR,
         metadata: {
@@ -818,7 +827,15 @@ async function handlePlannerRequest({
       });
     }
 
-    const jsonBody = await response.text();
+    const bodyStartedAt = Date.now();
+    const jsonBody = await readPlannerResponseText(response, boundedSignal);
+    tutorDebug("planner", "provider body", {
+      trace_id: traceId,
+      planner_phase: plannerPhase,
+      planner_lane: plannerLane,
+      body_read_ms: Date.now() - bodyStartedAt,
+      elapsed_ms: Date.now() - requestStartedAt,
+    });
     noteProviderOutcome(llm, { ok: true });
 
     // Trace the planner output (non-streaming, so accumulate at once).
@@ -934,7 +951,10 @@ async function handlePlannerRequest({
       : clientSignal.aborted ? "client_closed"
         : signal.aborted ? "request_timeout"
           : aborted ? "attempt_timeout" : undefined;
-    tutorDebug("planner", "proxy error", { message, abort_source: abortSource, elapsed_ms: Date.now() - requestStartedAt });
+    tutorDebug("planner", "proxy error", {
+      trace_id: traceId, planner_phase: plannerPhase, planner_lane: plannerLane,
+      message, abort_source: abortSource, elapsed_ms: Date.now() - requestStartedAt,
+    });
     endLlmGeneration(turnTrace, {
       output: message,
       metadata: {
