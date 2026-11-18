@@ -1,0 +1,1 @@
+scripts/verify/verify-certified-math-jet.ts
