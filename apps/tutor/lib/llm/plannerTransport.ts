@@ -157,8 +157,73 @@ function defaultRetryDelayMs(attempt: number, maxDelayMs: number): number {
   return Math.min(250 * attempt, maxDelayMs);
 }
 
-async function retainResponse(response: Response): Promise<Response> {
-  const body = await response.arrayBuffer();
+/** Bound our observation even when a fetch/body adapter ignores cancellation. */
+export async function untilPlannerRequestAborted<T>(
+  pending: Promise<T>,
+  signal?: AbortSignal,
+  onLateValue?: (value: T) => void,
+): Promise<T> {
+  if (!signal) return pending;
+  const reason = () => signal.reason ?? new DOMException("Planner request aborted", "AbortError");
+  let abort: (() => void) | undefined;
+  const aborted = new Promise<never>((_, reject) => {
+    abort = () => reject(reason());
+    if (signal.aborted) abort();
+    else signal.addEventListener("abort", abort, { once: true });
+  });
+  const rejectLateValue = (value: T): T => {
+    if (signal.aborted) {
+      onLateValue?.(value);
+      throw reason();
+    }
+    return value;
+  };
+  try {
+    // Observe late values even after abort wins, and reject cancellation queued
+    // between the pending promise's fulfillment and this continuation.
+    return rejectLateValue(await Promise.race([pending.then(rejectLateValue), aborted]));
+  } finally {
+    if (abort) signal.removeEventListener("abort", abort);
+  }
+}
+
+async function readPlannerResponseBody(response: Response, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    signal?.throwIfAborted();
+    return new ArrayBuffer(0);
+  }
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  try {
+    signal?.throwIfAborted();
+    while (true) {
+      const { done, value } = await untilPlannerRequestAborted(reader.read(), signal);
+      if (done) break;
+      chunks.push(value);
+      length += value.byteLength;
+    }
+  } catch (error) {
+    // Cancellation of a broken adapter may itself stall; never await it.
+    void reader.cancel(error).catch(() => undefined);
+    throw error;
+  } finally {
+    reader.releaseLock();
+  }
+  const body = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.byteLength; }
+  return body.buffer;
+}
+
+export async function readPlannerResponseText(response: Response, signal?: AbortSignal): Promise<string> {
+  const body = await readPlannerResponseBody(response, signal);
+  signal?.throwIfAborted();
+  return new TextDecoder().decode(body);
+}
+
+async function retainResponse(response: Response, signal?: AbortSignal): Promise<Response> {
+  const body = await readPlannerResponseBody(response, signal);
   return new Response(body, {
     status: response.status,
     statusText: response.statusText,
@@ -200,6 +265,8 @@ export async function fetchPlannerCompletion(
       // A funding refusal is not a transient provider error. Leave it uncaught
       // so the route can return the billing response without dispatching.
       await options.beforeAttempt?.({ attempt, model, modelAttempt });
+      // Funding can wait on storage; recheck cancellation before dispatch.
+      options.signal?.throwIfAborted();
       const attemptController = new AbortController();
       const timeoutId = setTimeout(
         () => attemptController.abort(new DOMException("Planner attempt timed out", "TimeoutError")),
@@ -209,7 +276,7 @@ export async function fetchPlannerCompletion(
         ? mergeAbortSignals(options.signal, attemptController.signal)
         : attemptController.signal;
       try {
-        const response = await fetchImpl(options.url, {
+        const response = await untilPlannerRequestAborted(fetchImpl(options.url, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${options.apiKey}`,
@@ -217,12 +284,12 @@ export async function fetchPlannerCompletion(
           },
           body: JSON.stringify({ ...options.body, model }),
           signal,
-        });
+        }), signal, late => { void late.body?.cancel().catch(() => undefined); });
         clearTimeout(timeoutId);
 
         if (MODEL_UNAVAILABLE_STATUSES.has(response.status)) {
           if (remember) unavailableModels.add(model);
-          lastResponse = { response: await retainResponse(response), model };
+          lastResponse = { response: await retainResponse(response, options.signal), model };
           break;
         }
 
@@ -236,12 +303,12 @@ export async function fetchPlannerCompletion(
 
         // Retain a readable copy in case every later fallback fails at the
         // network layer and this is the best upstream error we can return.
-        lastResponse = { response: await retainResponse(response), model };
+        lastResponse = { response: await retainResponse(response, options.signal), model };
         const delayMs =
           retryAfterMs(response, Date.now(), maxRetryDelayMs) ??
           defaultRetryDelayMs(attempt, maxRetryDelayMs);
         options.onRetry?.({ attempt, delayMs, model, modelAttempt, status: response.status });
-        await sleep(delayMs);
+        await untilPlannerRequestAborted(sleep(delayMs), options.signal);
       } catch (error: unknown) {
         clearTimeout(timeoutId);
         lastError = error;
@@ -260,7 +327,7 @@ export async function fetchPlannerCompletion(
           modelAttempt,
           message: error instanceof Error ? error.message : String(error),
         });
-        await sleep(delayMs);
+        await untilPlannerRequestAborted(sleep(delayMs), options.signal);
       }
     }
   }
