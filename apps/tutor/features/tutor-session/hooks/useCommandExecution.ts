@@ -1,3 +1,4 @@
+import { prepareScientificCommandInk, scientificCommandPalette } from "@/lib/scene/scientificStyleLecture";
 import { useCallback, useRef, type RefObject } from "react";
 import {
   LETTERED_IN_HAND_MS_PER_CHAR,
@@ -341,7 +342,9 @@ export function useCommandExecution({
       };
       // The same command object is serialized after live execution. Replays
       // already carry this snapshot, so a later settings change cannot restyle it.
+      prepareScientificCommandInk(rawCommand, wb.getInkSettings());
       const inkSettings = captureCommandInk(rawCommand, wb.getInkSettings()).inkSettings;
+      const scientificPalette = scientificCommandPalette(rawCommand);
       const trustedDiagramGeometryEarly = options.trustedDiagramGeometry === true;
       // durationScale 0 is a seek catching the board up to a timestamp. Nothing
       // in that pass is being watched, so every pacing rule below is off.
@@ -381,13 +384,13 @@ export function useCommandExecution({
         }
         if (rawCommand.visualStyle?.fillRole === "region") {
           if (rawCommand.visualStyle.strokeWidth === 0) return wb.drawAnnotation("highlight", path, duration, {
-            inkSettings, fillColor: "#9CCBFF", fillOpacity: 0.18, shouldCancel: commandCancelled,
+            inkSettings, fillColor: scientificPalette?.regionFill ?? "#9CCBFF", fillOpacity: scientificPalette ? 1 : 0.18, shouldCancel: commandCancelled,
           });
           return Promise.all([
             wb.drawAnnotation("highlight", path, duration, {
               inkSettings,
-              fillColor: "#9CCBFF",
-              fillOpacity: 0.18,
+              fillColor: scientificPalette?.regionFill ?? "#9CCBFF",
+              fillOpacity: scientificPalette ? 1 : 0.18,
               shouldCancel: commandCancelled,
             }),
             wb.drawShape(path, duration, {

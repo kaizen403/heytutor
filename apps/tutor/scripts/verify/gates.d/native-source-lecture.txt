@@ -1,0 +1,4 @@
+tsx scripts/verify/verify-native-source-lecture-admission.ts
+tsx scripts/verify/verify-scientific-style-lecture-save-staging.ts
+tsx scripts/verify/verify-native-stored-source.ts
+tsx scripts/verify/verify-native-mass-display.ts

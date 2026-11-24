@@ -1,0 +1,699 @@
+[
+  {
+    "name": "physics_18_hydrogen_spectral_series_hard",
+    "question": "Draw Hydrogen spectrum and spectral series and mark any named directions, levels, or components on the figure. Show the n = 1 and n = 2 energy levels.",
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Draw Hydrogen spectrum and spectral series and mark any named directions, levels, or components on the figure. Show the n = 1 and n = 2 energy levels.",
+      "givens": [
+        {
+          "id": "n1",
+          "symbol": "n",
+          "value": 1,
+          "provenance": "given",
+          "sourceText": "n = 1"
+        },
+        {
+          "id": "n2",
+          "symbol": "n",
+          "value": 2,
+          "provenance": "given",
+          "sourceText": "n = 2"
+        }
+      ],
+      "unknowns": [],
+      "derived": [],
+      "qualitativeClaims": [
+        {
+          "id": "levels",
+          "claim": "Identify the requested hydrogen energy levels.",
+          "expected": "Show n = 1 as the ground level and n = 2 as the next level above it.",
+          "relatedQuantityIds": [
+            "n1",
+            "n2"
+          ],
+          "relatedEntityHints": [
+            "hydrogen atom",
+            "n = 1 level",
+            "n = 2 level"
+          ]
+        },
+        {
+          "id": "emission",
+          "claim": "Show the direction of emission transitions.",
+          "expected": "Arrows point from higher-energy levels down to lower-energy levels; each transition emits a photon.",
+          "relatedEntityHints": [
+            "hydrogen atom",
+            "emission-transition arrows"
+          ]
+        },
+        {
+          "id": "lyman",
+          "claim": "Identify the Lyman series and its spectral region.",
+          "expected": "Transitions ending at n = 1 form the Lyman series, in the ultraviolet.",
+          "relatedQuantityIds": [
+            "n1"
+          ],
+          "relatedEntityHints": [
+            "Lyman series",
+            "n = 1 level",
+            "ultraviolet region"
+          ]
+        },
+        {
+          "id": "balmer",
+          "claim": "Identify the Balmer series and its spectral region.",
+          "expected": "Transitions ending at n = 2 form the Balmer series, in the visible and near-ultraviolet.",
+          "relatedQuantityIds": [
+            "n2"
+          ],
+          "relatedEntityHints": [
+            "Balmer series",
+            "n = 2 level",
+            "visible region",
+            "near-ultraviolet region"
+          ]
+        },
+        {
+          "id": "other",
+          "claim": "Identify the higher-terminal-level spectral series.",
+          "expected": "Paschen, Brackett and Pfund are infrared series ending at successively higher levels.",
+          "relatedEntityHints": [
+            "Paschen series",
+            "Brackett series",
+            "Pfund series",
+            "infrared region"
+          ]
+        },
+        {
+          "id": "spectrum",
+          "claim": "Characterize the hydrogen emission spectrum.",
+          "expected": "It consists of discrete spectral lines, not a continuous band; lines within each series converge toward a short-wavelength limit.",
+          "relatedEntityHints": [
+            "hydrogen emission spectrum",
+            "spectral lines",
+            "series limits"
+          ]
+        }
+      ],
+      "lawIds": [
+        "hydrogen energy-level transitions",
+        "Rydberg spectral-series classification"
+      ],
+      "assumptions": [
+        "Interpret “Hydrogen spectrum” as the hydrogen emission spectrum."
+      ],
+      "visualRequirement": "required"
+    },
+    "problemIR": {
+      "facts": [
+        {
+          "id": "fSpectrum",
+          "kind": "requested",
+          "statement": "Draw hydrogen spectrum and spectral series",
+          "evidence": {
+            "source": "question",
+            "start": 0,
+            "end": 42,
+            "quote": "Draw Hydrogen spectrum and spectral series"
+          }
+        },
+        {
+          "id": "fLevels",
+          "kind": "requested",
+          "statement": "Show energy levels n equals 1 and n equals 2",
+          "evidence": {
+            "source": "question",
+            "start": 111,
+            "end": 149,
+            "quote": "Show the n = 1 and n = 2 energy levels"
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "hydrogen",
+          "kind": "other",
+          "label": "Hydrogen",
+          "evidenceFactIds": [
+            "fSpectrum"
+          ]
+        },
+        {
+          "id": "level1",
+          "kind": "state",
+          "label": "n = 1 energy level",
+          "evidenceFactIds": [
+            "fLevels"
+          ]
+        },
+        {
+          "id": "level2",
+          "kind": "state",
+          "label": "n = 2 energy level",
+          "evidenceFactIds": [
+            "fLevels"
+          ]
+        }
+      ],
+      "expressions": [],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "spectrum",
+          "kind": "conceptual",
+          "entityIds": [
+            "hydrogen",
+            "level1",
+            "level2"
+          ],
+          "evidenceFactIds": [
+            "fSpectrum",
+            "fLevels"
+          ]
+        }
+      ],
+      "solveRequests": [],
+      "schemaVersion": "problem-ir/v1",
+      "id": "problem",
+      "question": "Draw Hydrogen spectrum and spectral series and mark any named directions, levels, or components on the figure. Show the n = 1 and n = 2 energy levels."
+    }
+  },
+  {
+    "name": "an_v1_rutherford_scattering_and_model_n1",
+    "question": "In the classical heavy fixed-target approximation, a +2e alpha particle with kinetic energy 5.00 MeV approaches a +79e nucleus head-on. Use k e² = 1.44 MeV fm. Find the closest approach and draw the turning point outside the nucleus.",
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "In the classical heavy fixed-target approximation, a +2e alpha particle with kinetic energy 5.00 MeV approaches a +79e nucleus head-on. Use k e² = 1.44 MeV fm. Find the closest approach and draw the turning point outside the nucleus.",
+      "givens": [
+        {
+          "id": "qAlpha",
+          "symbol": "qα",
+          "value": 2,
+          "unit": "e",
+          "sourceText": "+2e alpha particle",
+          "provenance": "given"
+        },
+        {
+          "id": "K",
+          "symbol": "K",
+          "value": 5,
+          "unit": "MeV",
+          "sourceText": "kinetic energy 5.00 MeV",
+          "provenance": "given"
+        },
+        {
+          "id": "qNucleus",
+          "symbol": "qN",
+          "value": 79,
+          "unit": "e",
+          "sourceText": "+79e nucleus",
+          "provenance": "given"
+        },
+        {
+          "id": "ke2",
+          "symbol": "ke²",
+          "value": 1.44,
+          "unit": "MeV fm",
+          "sourceText": "k e² = 1.44 MeV fm",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "rMin",
+          "symbol": "rmin",
+          "unit": "fm"
+        }
+      ],
+      "derived": [
+        {
+          "id": "rMin",
+          "symbol": "rmin",
+          "value": 45.504,
+          "unit": "fm",
+          "sourceText": "rmin = (2 × 79 × 1.44)/5.00",
+          "provenance": "derived",
+          "dependsOn": [
+            "qAlpha",
+            "qNucleus",
+            "ke2",
+            "K"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "turningPoint",
+          "claim": "Locate the head-on turning point outside the nucleus.",
+          "expected": "The alpha particle turns at rmin ≈ 45.5 fm from the nucleus’s center, along its approach line; its speed is momentarily zero there.",
+          "relatedQuantityIds": [
+            "rMin"
+          ],
+          "relatedEntityHints": [
+            "alpha particle",
+            "nucleus",
+            "turning point"
+          ]
+        }
+      ],
+      "lawIds": [
+        "conservation of mechanical energy",
+        "Coulomb potential energy"
+      ],
+      "assumptions": [
+        "The nucleus is fixed and the interaction is classical Coulomb repulsion.",
+        "The nucleus’s radius is less than 45.504 fm, so the calculated turning point lies outside it."
+      ],
+      "visualRequirement": "required"
+    },
+    "problemIR": {
+      "facts": [
+        {
+          "id": "fApprox",
+          "kind": "assumption",
+          "statement": "Classical heavy fixed-target approximation",
+          "evidence": {
+            "source": "question",
+            "start": 0,
+            "end": 49,
+            "quote": "In the classical heavy fixed-target approximation"
+          }
+        },
+        {
+          "id": "fAlpha",
+          "kind": "given",
+          "statement": "Alpha particle charge is +2e",
+          "evidence": {
+            "source": "question",
+            "start": 51,
+            "end": 71,
+            "quote": "a +2e alpha particle"
+          }
+        },
+        {
+          "id": "fEnergy",
+          "kind": "given",
+          "statement": "Alpha kinetic energy is 5.00 MeV",
+          "evidence": {
+            "source": "question",
+            "start": 72,
+            "end": 100,
+            "quote": "with kinetic energy 5.00 MeV"
+          }
+        },
+        {
+          "id": "fNucleus",
+          "kind": "given",
+          "statement": "Nucleus charge is +79e",
+          "evidence": {
+            "source": "question",
+            "start": 112,
+            "end": 126,
+            "quote": "a +79e nucleus"
+          }
+        },
+        {
+          "id": "fConstant",
+          "kind": "given",
+          "statement": "Coulomb constant product is 1.44 MeV fm",
+          "evidence": {
+            "source": "question",
+            "start": 136,
+            "end": 158,
+            "quote": "Use k e² = 1.44 MeV fm"
+          }
+        },
+        {
+          "id": "fRequest",
+          "kind": "requested",
+          "statement": "Find closest approach",
+          "evidence": {
+            "source": "question",
+            "start": 160,
+            "end": 185,
+            "quote": "Find the closest approach"
+          }
+        },
+        {
+          "id": "fDraw",
+          "kind": "requested",
+          "statement": "Draw turning point outside nucleus",
+          "evidence": {
+            "source": "question",
+            "start": 190,
+            "end": 232,
+            "quote": "draw the turning point outside the nucleus"
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "alpha",
+          "kind": "body",
+          "label": "alpha particle",
+          "evidenceFactIds": [
+            "fAlpha",
+            "fEnergy"
+          ]
+        },
+        {
+          "id": "nucleus",
+          "kind": "body",
+          "label": "nucleus",
+          "evidenceFactIds": [
+            "fNucleus"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eDistance",
+          "valueType": "scalar",
+          "evidenceFactIds": [
+            "fAlpha",
+            "fEnergy",
+            "fNucleus",
+            "fConstant"
+          ],
+          "root": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 1.44
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 2
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 79
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 5
+            }
+          }
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "iTurningPoint",
+          "kind": "conceptual",
+          "entityIds": [
+            "alpha",
+            "nucleus"
+          ],
+          "evidenceFactIds": [
+            "fRequest",
+            "fDraw"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "sClosest",
+          "kind": "evaluate",
+          "expressionId": "eDistance",
+          "resultBinding": {
+            "turnPlanQuantityId": "rMin",
+            "symbol": "rmin",
+            "unit": "fm",
+            "evidenceFactIds": [
+              "fRequest"
+            ]
+          }
+        }
+      ],
+      "schemaVersion": "problem-ir/v1",
+      "id": "problem",
+      "question": "In the classical heavy fixed-target approximation, a +2e alpha particle with kinetic energy 5.00 MeV approaches a +79e nucleus head-on. Use k e² = 1.44 MeV fm. Find the closest approach and draw the turning point outside the nucleus."
+    }
+  },
+  {
+    "name": "an_v1_activity_and_decay_law_v1",
+    "question": "At an instant, lambda=2 min^-1 and N=300 nuclei. Calculate activity in Bq and compare it with the decay rate per minute; show the two unit labels without swapping their values.",
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "At an instant, lambda=2 min^-1 and N=300 nuclei. Calculate activity in Bq and compare it with the decay rate per minute; show the two unit labels without swapping their values.",
+      "givens": [
+        {
+          "id": "decay_constant",
+          "symbol": "λ",
+          "value": 2,
+          "unit": "min^-1",
+          "provenance": "given",
+          "sourceText": "lambda=2 min^-1"
+        },
+        {
+          "id": "nuclei",
+          "symbol": "N",
+          "value": 300,
+          "unit": "nuclei",
+          "provenance": "given",
+          "sourceText": "N=300 nuclei"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "activity",
+          "symbol": "A",
+          "unit": "Bq"
+        },
+        {
+          "id": "decay_rate_per_minute",
+          "symbol": "R",
+          "unit": "decays/min"
+        }
+      ],
+      "derived": [
+        {
+          "id": "activity",
+          "symbol": "A",
+          "value": 10,
+          "unit": "Bq",
+          "provenance": "derived",
+          "dependsOn": [
+            "decay_constant",
+            "nuclei"
+          ],
+          "sourceText": "activity = 10"
+        },
+        {
+          "id": "decay_rate_per_minute",
+          "symbol": "R",
+          "value": 600,
+          "unit": "decays/min",
+          "provenance": "derived",
+          "dependsOn": [
+            "decay_constant",
+            "nuclei"
+          ],
+          "sourceText": "decay_rate_per_minute = 600"
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "activity_result",
+          "claim": "Activity expressed in becquerels.",
+          "expected": "A = λN / 60 = 10 Bq",
+          "relatedQuantityIds": [
+            "activity",
+            "decay_constant",
+            "nuclei"
+          ],
+          "relatedEntityHints": [
+            "activity"
+          ]
+        },
+        {
+          "id": "rate_result",
+          "claim": "Decay rate expressed per minute.",
+          "expected": "R = λN = 600 decays/min",
+          "relatedQuantityIds": [
+            "decay_rate_per_minute",
+            "decay_constant",
+            "nuclei"
+          ],
+          "relatedEntityHints": [
+            "decay rate"
+          ]
+        },
+        {
+          "id": "unit_comparison",
+          "claim": "The two labels correspond to different numerical values for the same rate.",
+          "expected": "10 Bq = 600 decays/min; 1 Bq = 1 decay/s",
+          "relatedQuantityIds": [
+            "activity",
+            "decay_rate_per_minute"
+          ],
+          "relatedEntityHints": [
+            "activity",
+            "decay rate"
+          ]
+        }
+      ],
+      "lawIds": [
+        "radioactive_decay_rate_R_equals_lambda_N",
+        "1_Bq_equals_1_decay_per_second",
+        "seconds_per_minute_equals_60"
+      ],
+      "assumptions": [
+        "A verified illustration is required by the question's spatial or explicit visual request."
+      ],
+      "visualRequirement": "required"
+    },
+    "problemIR": {
+      "facts": [
+        {
+          "id": "fLambda",
+          "kind": "given",
+          "statement": "Decay constant is 2 per minute",
+          "evidence": {
+            "source": "question",
+            "start": 15,
+            "end": 30,
+            "quote": "lambda=2 min^-1"
+          }
+        },
+        {
+          "id": "fNuclei",
+          "kind": "given",
+          "statement": "There are 300 nuclei",
+          "evidence": {
+            "source": "question",
+            "start": 35,
+            "end": 47,
+            "quote": "N=300 nuclei"
+          }
+        },
+        {
+          "id": "fActivity",
+          "kind": "requested",
+          "statement": "Calculate activity in becquerels",
+          "evidence": {
+            "source": "question",
+            "start": 49,
+            "end": 73,
+            "quote": "Calculate activity in Bq"
+          }
+        },
+        {
+          "id": "fRate",
+          "kind": "requested",
+          "statement": "Compare decay rate per minute and preserve unit labels",
+          "evidence": {
+            "source": "question",
+            "start": 78,
+            "end": 176,
+            "quote": "compare it with the decay rate per minute; show the two unit labels without swapping their values."
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "nuclei",
+          "kind": "other",
+          "label": "nuclei",
+          "evidenceFactIds": [
+            "fNuclei"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eActivity",
+          "valueType": "scalar",
+          "evidenceFactIds": [
+            "fLambda",
+            "fNuclei"
+          ],
+          "root": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "number",
+                "value": 300
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 60
+            }
+          }
+        },
+        {
+          "id": "eRate",
+          "valueType": "scalar",
+          "evidenceFactIds": [
+            "fLambda",
+            "fNuclei"
+          ],
+          "root": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "number",
+              "value": 300
+            }
+          }
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [],
+      "solveRequests": [
+        {
+          "id": "activity",
+          "kind": "evaluate",
+          "expressionId": "eActivity",
+          "resultBinding": {
+            "turnPlanQuantityId": "activity",
+            "symbol": "A",
+            "unit": "Bq",
+            "evidenceFactIds": [
+              "fActivity"
+            ]
+          }
+        },
+        {
+          "id": "decayRatePerMinute",
+          "kind": "evaluate",
+          "expressionId": "eRate",
+          "resultBinding": {
+            "turnPlanQuantityId": "decay_rate_per_minute",
+            "symbol": "R",
+            "unit": "decays/min",
+            "evidenceFactIds": [
+              "fRate"
+            ]
+          }
+        }
+      ],
+      "schemaVersion": "problem-ir/v1",
+      "id": "problem",
+      "question": "At an instant, lambda=2 min^-1 and N=300 nuclei. Calculate activity in Bq and compare it with the decay rate per minute; show the two unit labels without swapping their values."
+    }
+  }
+]

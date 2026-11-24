@@ -1,0 +1,7 @@
+tsx scripts/verify/verify-scientific-style-lecture.ts
+tsx scripts/verify/verify-scientific-style-lecture-config.ts
+tsx scripts/verify/verify-scientific-style-lecture-replay.ts
+tsx scripts/verify/verify-scientific-style-lecture-routing.ts
+tsx scripts/verify/verify-scientific-style-lecture-ink.ts
+tsx scripts/verify/verify-native-lecture-compatibility.ts
+tsx scripts/verify/verify-native-production-fast-callbacks.ts

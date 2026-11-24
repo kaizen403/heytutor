@@ -1,3 +1,10 @@
+import { MECHANICS_OPERATORS, evaluateMechanicsConstruction, type MechanicsModel, type MechanicsValue } from "./mechanicsGeometry";
+import { ATOMIC_OPERATORS, evaluateAtomicConstruction, atomicExtraPrimitives, type AtomicObservableDefinition } from "./atomicGeometry";
+import { atomicPropertyLabelOwner } from "./atomicPropertyLabelOwnership";
+import { placeAtomicPropertyLabels } from "../labels/atomicPropertyLabelPlacement";
+import { validateAtomicSourceBinding, validateAtomicSceneTruth } from "../physics/atomicSceneAuthority";
+import { validateSourceCoulombObligation } from "../physics/sourceCoulombObligation";
+import { atomicPlotTransform } from "./atomicPlotCalibration";
 import { separateSharedOriginVectors } from "./vectorLanes";
 import { strokePieces, validateLabelOwnerTruth, validateStraightLineNames } from "./labelOwnerTruth";
 import { circularStrokeDistance } from "./circularStrokeDistance";
@@ -16,6 +23,7 @@ import { mediumBindings, validateOpticalMediumTruth, validateRenderedMediumTruth
 import { validateSphericalCurvatureTruth } from "./curvatureTruth";
 import { validateMarkedAngleTruth } from "./angleTruth";
 import { isVerifiedPartsEnabled, withDiagramYieldPolicy } from "./yieldPolicy";
+import { partitionTransformViews } from "./transformViewOwnership";
 import { isCurveLabelPlacementOnStroke } from "./curveLabels";
 import {
   SCENE_ENGINE_VERSION,
@@ -165,6 +173,9 @@ type SampledCurve = {
   derivative?: (parameter: number) => Point;
 };
 type DerivedGeometryMetadata = {
+  atomicObservable?: AtomicObservableDefinition;
+  mechanicsModel?: MechanicsModel;
+  mechanicsValue?: MechanicsValue;
   combinatoricsGraph?: CombinatoricsGraphDefinition;
   combinatoricsNode?: CombinatoricsNodeDefinition;
   combinatoricsEdge?: CombinatoricsEdgeDefinition;
@@ -290,9 +301,18 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
   const verifiedPartsEnabled = isVerifiedPartsEnabled(document);
   const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
   const pointRivals = options.pointLabelRivals;
+  if (options.linearLabelFontPx !== undefined && options.linearLabelFontPx !== 24) {
+    return { ok: false, renderScene: null, report: report(document, [
+      { code: "invalid_linear_label_font", message: "Native affine guide labels require the fixed24px board font", severity: "fatal" }], 0) };
+  }
+  const linearLabelFontPx = options.linearLabelFontPx ?? BOARD_TYPE_SCALE.annotation;
   const structural = validateSceneDocument(document);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
+  const coulombSourceIssues = validateSourceCoulombObligation(document);
   const matrixSourceIssues = [
+    ...validateAtomicSourceBinding(document),
+    ...validateAtomicSceneTruth(document),
+    ...coulombSourceIssues,
     ...validateMatrixSourceBinding(document),
     ...validateLinearSourceBinding(document),
     // A document claiming the admitted relative-motion source must be exactly
@@ -306,7 +326,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
   if (document.visualDecision.mode === "text_only") return { ok: true, renderScene: emptyRenderScene(document), report: structural.report };
 
   const chemistryRepresentation = auditChemistryRepresentation(document, typeof document.source.question === "string" ? document.source.question : "");
-  const issues = [...structural.report.issues, ...chemistryRepresentation.issues];
+  const issues = [...structural.report.issues, ...coulombSourceIssues, ...chemistryRepresentation.issues];
   const geometry = new Map<string, Geometry>();
   const checkedClaimOutputIds = new Set<string>();
   // One view for every space frame, planned before the loop reassigns `document`.
@@ -647,6 +667,8 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
   );
   applyCorrespondingAngleCounts(document, geometry);
   const primitives: RenderPrimitive[] = [];
+  const regeneratedAtomicLabels = new Set<RenderPrimitive>();
+  const atomicPropertyOwners = new Map<string, string>();
   const renderableIds = new Set(document.requiredEntityIds);
   for (const entity of document.entities) {
     if (!renderableIds.has(entity.id)) continue;
@@ -667,10 +689,26 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
         undefined,
         entity.provenance,
         directionOverlayIds.has(entity.id),
+        linearLabelFontPx,
       )); } catch(error) {
         if(value.kind!=="linear_region" && value.kind!=="pv_plot")throw error;
         issues.push({code:value.kind === "pv_plot" ? "pv_display_unproved" : "linear_display_unproved",message:errorMessage(error),severity:"fatal",entityIds:[entity.id]});
         return {ok:false,renderScene:null,report:report(document,issues,0)};
+      }
+      if ("atomicObservable" in value && value.atomicObservable) {
+        const extra = atomicExtraPrimitives(value.atomicObservable, entity.id, groupId, transformPlan.transformFor(entity.id));
+        const model = value.atomicObservable;
+        const producer = document.constructions.find(construction => construction.operator === model.kind && construction.outputs.includes(entity.id));
+        extra.filter(primitive => primitive.kind === "label").forEach((primitive, index) => {
+          regeneratedAtomicLabels.add(primitive);
+          const ownerId = atomicPropertyLabelOwner(document, producer, model, model.labels[index]?.resultFields, entity.id);
+          if (!ownerId) {
+            issues.push({ code: "label_unattached", message: "A regenerated physical fact requires a checked output owner", severity: "fatal", failureKind: "proof", entityIds: [entity.id] });
+            return;
+          }
+          atomicPropertyOwners.set(primitive.id, ownerId);
+        });
+        primitives.push(...extra);
       }
     }
   }
@@ -739,6 +777,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
   const consumedAnnotationIds = new Set<string>();
   const consumedLabelAnnotationIds = new Map<string, string>();
   const summaryLabelIds = new Set<string>();
+  const generatedLabelIds = new Set([...document.entities, ...document.annotations, ...primitives].map(part => part.id));
   const appendLabelIds = new Set(document.annotations.filter(annotation => annotation.labelMode === "append").map(annotation => annotation.id));
   for (const entity of document.entities) {
     if (!entity.label || !renderableIds.has(entity.id) || constructionOnlyIds.has(entity.id)) continue;
@@ -828,6 +867,36 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
     if (!targetId) continue;
     const target = geometry.get(targetId);
     const targetEntity = document.entities.find((entity) => entity.id === targetId);
+    // A quantity-only callout is an explicit value binding, not a request to
+    // repeat the target's geometric name. Keep its complete symbol/value/unit
+    // in compact measured rows, with every row tied to the same annotation.
+    if (annotation.kind === "callout" && annotation.quantityId && !annotation.text && document.constructions.some(construction =>
+      (ATOMIC_OPERATORS as readonly string[]).includes(construction.operator) || (MECHANICS_OPERATORS as readonly string[]).includes(construction.operator))) {
+      const rows = quantityCalloutRows(annotation.quantityId, document.quantities);
+      if (!target || !rows) {
+        issues.push({ code: "annotation_geometry_unresolved", severity: "fatal", entityIds: [annotation.id],
+          message: `Quantity callout ${annotation.id} has no uniquely renderable scalar binding` });
+        continue;
+      }
+      const view = transformPlan.viewportFor(targetId);
+      const ownOutlines = primitives.filter(primitive => primitive.entityId === targetId &&
+        ["circle", "polygon", "rectangle"].includes(targetEntity?.kind ?? "") && primitive.kind === targetEntity?.kind &&
+        !primitive.provenance?.labelLeader);
+      const ownOutline = ownOutlines.length === 1 ? ownOutlines[0] : undefined;
+      rows.forEach((text, index) => {
+        let labelId = index === 0 ? annotation.id : `${annotation.id}_row${index}`;
+        if (index > 0) {
+          for (let suffix = 1; generatedLabelIds.has(labelId); suffix++) labelId = `${annotation.id}_row${index}_${suffix}`;
+          generatedLabelIds.add(labelId);
+        }
+        summaryLabelIds.add(labelId);
+        consumedLabelAnnotationIds.set(labelId, annotation.id);
+        labelOwners.push({ labelId, entityId: targetId, text, anchor: screenLabelAnchor(targetId, target, primitives, transformPlan.transformFor(targetId)),
+          preferredSlot: "north", viewBounds: view, useOwnerBounds: false, allowLeader: true, leaderGeometrySafe: true,
+          ...(ownOutline ? { leaderOwnOutlinePrimitiveId: ownOutline.id } : {}) });
+      });
+      continue;
+    }
     // A bare number can masquerade as the first point's coordinate. Named
     // quantities already identify the interval and keep their proven placement.
     const intervalTargets = verifiedPartsEnabled && annotation.kind === "callout" && annotation.targetIds.length === 2 && /^[+−-]?\d/.test((annotation.text ?? "").trim())
@@ -982,6 +1051,25 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
 
   attachAngleMeasureLabels(document, geometry, labelOwners, transformPlan, consumedAnnotationIds);
 
+  if (regeneratedAtomicLabels.size) {
+    const sources = [...regeneratedAtomicLabels].map(primitive => {
+      const entityId = atomicPropertyOwners.get(primitive.id) ?? primitive.entityId;
+      const value = geometry.get(entityId);
+      const ownOutline = primitives.find(part => part.entityId === entityId && ["circle", "polygon", "rectangle"].includes(part.kind));
+      return { primitive, owner: { labelId: primitive.id, entityId, duplicateKey: primitive.id, text: primitive.text!,
+        anchor: entityId !== primitive.entityId && value ? screenLabelAnchor(entityId, value, primitives, transformPlan.transformFor(entityId)) : primitive.points[0]!,
+        viewBounds: transformPlan.viewportFor(entityId), useOwnerBounds: false, allowLeader: true, leaderGeometrySafe: true,
+        ...(ownOutline ? { leaderOwnOutlinePrimitiveId: ownOutline.id } : {}),
+      } };
+    });
+    const placed = placeAtomicPropertyLabels(sources,
+      [...obstaclesFromPrimitives(primitives.filter(primitive => !regeneratedAtomicLabels.has(primitive))), workColumnObstacle()],
+      { fontHeightPx: linearLabelFontPx, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk, pointRivals, onPointRivalLayout });
+    issues.push(...placed.issues);
+    for (let index = primitives.length - 1; index >= 0; index--) if (regeneratedAtomicLabels.has(primitives[index]!)) primitives.splice(index, 1);
+    primitives.push(...placed.labels, ...placed.leaders);
+  }
+
   let linearLabels = primitives.filter((primitive) => primitive.kind === "label" && primitive.provenance?.linearSolution);
   if (linearLabels.length) {
     const ownersFor = (labels: RenderPrimitive[]): LabelOwner[] => labels.map((primitive) => ({
@@ -994,7 +1082,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
     }));
     // The live pen snaps every smaller size to this floor. Prove its actual
     // glyph ink; shrinking a checked box cannot make the live lettering fit.
-    const fontPx = BOARD_TYPE_SCALE.annotation;
+    const fontPx = linearLabelFontPx;
     const solve = (marks: RenderPrimitive[]) => placeLabels(
       ownersFor(marks.filter(primitive => primitive.kind === "label" && primitive.provenance?.linearSolution)),
       [...obstaclesFromPrimitives(marks.filter(primitive => primitive.kind !== "label" && primitive.provenance?.fillOnly !== true)), workColumnObstacle()],
@@ -1017,7 +1105,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
           const world = linearRegionLegendPrimitives(linearRegionPrimitives(value, entityId, entityToGroup.get(entityId)!), legendIds);
           if (!world) continue;
           try {
-            replacements.set(entityId, compileLinearRegionPrimitives(world, transformPlan.transformFor(entityId), transformPlan.viewportFor(entityId)));
+            replacements.set(entityId, compileLinearRegionPrimitives(world, transformPlan.transformFor(entityId), transformPlan.viewportFor(entityId), linearLabelFontPx));
           } catch { /* An indistinguishable alternative stays atomically refused. */ }
         }
         const emitted = new Set<string>();
@@ -1547,6 +1635,34 @@ function matchingQuantityText(
   return `${value}${unit}`;
 }
 
+export function quantityCalloutRows(designator: string, quantities: SceneDocument["quantities"]): string[] | undefined {
+  const scalar = matchingQuantityText(designator, quantities, true);
+  const quantity = quantities.find(candidate => candidate.id === designator);
+  if (!scalar || !quantity || typeof quantity.value !== "number" || !Number.isFinite(quantity.value)) return undefined;
+  const symbol = typeof quantity.symbol === "string" ? quantity.symbol.trim() : "";
+  const value = String(quantity.value);
+  const unit = typeof quantity.unit === "string" && !/^(?:1|dimensionless)$/i.test(quantity.unit.trim()) ? quantity.unit.trim() : "";
+  const complete = symbol ? `${symbol}=${scalar}` : scalar;
+  if (complete.length <= 16) return [complete];
+  // Keep a quantity and its exact value together where possible; a long unit
+  // or symbol occupies a separate row.
+  const valueClaim = symbol ? `${symbol}=${value}` : value;
+  if (valueClaim.length <= 16 && unit && unit.length <= 16) return [valueClaim, unit];
+  if (symbol && symbol.length <= 16 && scalar.length <= 16) return [symbol, scalar];
+  const rows = [symbol, value, unit].filter(Boolean);
+  if (rows.length && rows.every(row => row.length <= 16)) return rows;
+  // A full double mantissa sometimes exceeds even a bare numeric row. Use an
+  // explicitly approximate scientific caption; the exact typed quantity and
+  // its source/solver proofs remain unchanged. Never trim a sign or exponent.
+  if (value.length > 16 && (!symbol || symbol.length <= 16) && (!unit || unit.length <= 16)) {
+    for (let digits = 15; digits >= 8; digits--) {
+      const approximate = `≈${quantity.value.toExponential(digits)}`;
+      if (approximate.length <= 16) return [symbol, approximate, unit].filter(Boolean);
+    }
+  }
+  return undefined;
+}
+
 function normalizeIdentifier(value: string): string {
   return value.trim().replace(/[₀-₉]/g, (digit) =>
     String("₀₁₂₃₄₅₆₇₈₉".indexOf(digit)),
@@ -1681,42 +1797,7 @@ function createEntityTransformPlan(
   );
   if (!fallback) return null;
 
-  const components = constructionComponents(document, geometry)
-    .map((ids) => ({
-      ids,
-      renderIds: ids.filter((id) => geometry.has(id) && !constructionOnlyIds.has(id) && entityToGroup.has(id)),
-    }))
-    .filter((component) => component.renderIds.length > 0);
-  const componentGroups = components.map((component) =>
-    [...new Set(component.renderIds.map((id) => entityToGroup.get(id)!).filter(Boolean))],
-  );
-  const distinctGroups = new Set(componentGroups.flat());
-  const componentByEntity = new Map(components.flatMap((component, index) =>
-    component.ids.map((id) => [id, index] as const),
-  ));
-  // Connected geometry is one physical figure even when its parts were
-  // constructed independently. Separate transforms would break the proven
-  // join and scale its measurements against different coordinate systems.
-  const connectsComponents = document.assertions.some((assertion) =>
-    // A common transform preserves every proved geometric relation, including
-    // incidence, midpoint and relative distance, not just circuit connections.
-    (isVerifiedPartsEnabled(document) || (assertion.predicate === "connected" && assertion.expected !== false)) &&
-    new Set(assertion.entities.flatMap((id) => {
-      const component = componentByEntity.get(id);
-      return component === undefined ? [] : [component];
-    })).size > 1,
-  );
-  // DSA example frames must keep the full diagram-zone width. Packing them
-  // into a 2-column grid shrinks each cell until the handwritten value
-  // fills the box and sits on the stroke.
-  const canPack = document.source.synthesizedDsa !== true &&
-    // Cartesian axes and all planar geometry share the document world frame.
-    // Reveal order cannot turn that frame into independently fitted panels.
-    (!isVerifiedPartsEnabled(document) || !renderGeometry.some(([, value]) => value.kind === "axes")) &&
-    !connectsComponents &&
-    components.length > 1 &&
-    componentGroups.every((groups) => groups.length === 1) &&
-    distinctGroups.size === components.length;
+  const { components, componentGroups, canPack } = partitionTransformViews(document, geometry, constructionOnlyIds, entityToGroup);
   if (!canPack) {
     return { transformFor: () => fallback, viewportFor: () => viewport };
   }
@@ -1754,33 +1835,6 @@ function createEntityTransformPlan(
   };
 }
 
-function constructionComponents(document: SceneDocument, geometry: Map<string, Geometry>): string[][] {
-  const parent = new Map<string, string>();
-  const find = (id: string): string => {
-    const current = parent.get(id) ?? id;
-    if (current === id) return id;
-    const root = find(current);
-    parent.set(id, root);
-    return root;
-  };
-  const union = (a: string, b: string) => {
-    const rootA = find(a);
-    const rootB = find(b);
-    if (rootA !== rootB) parent.set(rootB, rootA);
-  };
-  geometry.forEach((_, id) => parent.set(id, id));
-  for (const construction of document.constructions) {
-    const ids = construction.outputs.filter((id) => geometry.has(id));
-    collectStrings(construction.inputs, (id) => {
-      if (geometry.has(id)) ids.push(id);
-    });
-    const firstId = ids[0];
-    if (firstId) ids.slice(1).forEach((id) => union(firstId, id));
-  }
-  const byRoot = new Map<string, string[]>();
-  geometry.forEach((_, id) => byRoot.set(find(id), [...(byRoot.get(find(id)) ?? []), id]));
-  return [...byRoot.values()];
-}
 
 function viewSlots(viewport: Viewport, count: number): Viewport[] {
   const gap = 40;
@@ -1949,6 +2003,20 @@ function evaluateConstruction(
     case "rotational_motion":
     case "rotational_state":
     case "planar_torque": return evaluateRotationConstruction(operator, inputs, constructionContext);
+    case "mass_moments":
+    case "mass_property":
+    case "rigid_body_motion":
+    case "rigid_body_state":
+    case "rolling_contact":
+    case "angular_impulse":
+    case "axial_rotation": return evaluateMechanicsConstruction(operator, inputs, constructionContext);
+    case "bohr_orbit":
+    case "bohr_transition":
+    case "radioactive_decay":
+    case "nuclide_state":
+    case "nuclear_reaction":
+    case "nuclear_binding_curve":
+    case "rutherford_scattering": return evaluateAtomicConstruction(operator, inputs, constructionContext, document);
     case "set_partition":
     case "set_select": return evaluateSetConstruction(operator, inputs, constructionContext);
     case "harmonic_motion":
@@ -2929,6 +2997,8 @@ const DSA_LABEL_FONT_PX = 19;
 function createTransform(values: Geometry[], viewport: { x: number; y: number; width: number; height: number; padding?: number }): ((point: Point) => RenderPoint) | null {
   const points = fitGeometryPoints(values);
   if (points.length === 0) return null;
+  const calibratedPlot = atomicPlotTransform(values, points, viewport);
+  if (calibratedPlot) return calibratedPlot;
   const minX = Math.min(...points.map((point) => point.x));
   const maxX = Math.max(...points.map((point) => point.x));
   const minY = Math.min(...points.map((point) => point.y));
@@ -2965,7 +3035,7 @@ function createTransform(values: Geometry[], viewport: { x: number; y: number; w
 function fitGeometryPoints(values: Geometry[]): Point[] {
   const finite = values.flatMap((value) => {
     if (value.kind === "path" && value.infinite) return [];
-    return [...pointsOf(value), ...measuredLineReach(value)];
+    return [...pointsOf(value), ...measuredLineReach(value), ...("atomicObservable" in value && value.atomicObservable ? [...value.atomicObservable.labels.map(label => label.at), ...(value.atomicObservable.marks ?? []).flatMap(mark => mark.points)] : [])];
   }).filter(finitePoint);
   return finite.length > 0 ? finite : values.flatMap(pointsOf).filter(finitePoint);
 }
@@ -3097,11 +3167,11 @@ function linearRegionLegendPrimitives(world: RenderPrimitive[], legendIds: Reado
 }
 
 /** Captions are text rows, not metric points in the plot's coordinate frame. */
-function layoutLinearRegionPrimitives(world: RenderPrimitive[], viewport: Viewport): RenderPrimitive[] | null {
+function layoutLinearRegionPrimitives(world: RenderPrimitive[], viewport: Viewport, fontHeightPx: number): RenderPrimitive[] | null {
   const captions = world.filter(primitive => primitive.provenance?.linearRole === "caption");
   if (!captions.length) return null;
   const options: LabelEngineOptions = {
-    fontHeightPx: BOARD_TYPE_SCALE.annotation, paddingPx: 2, minGapPx: 3,
+    fontHeightPx, paddingPx: 2, minGapPx: 3,
     measureTextPx: measureTextWidth, measureTextInkBounds,
   };
   const padding = viewport.padding ?? 24;
@@ -3138,8 +3208,8 @@ function layoutLinearRegionPrimitives(world: RenderPrimitive[], viewport: Viewpo
     ? [captionAnchors.get(primitive.id)!] : primitive.points.map(plotTransform) }));
 }
 
-function compileLinearRegionPrimitives(world: RenderPrimitive[], transform: (point: Point) => RenderPoint, viewport: Viewport): RenderPrimitive[] {
-    const result = layoutLinearRegionPrimitives(world, viewport) ?? world.map((primitive) => ({
+function compileLinearRegionPrimitives(world: RenderPrimitive[], transform: (point: Point) => RenderPoint, viewport: Viewport, fontHeightPx: number = BOARD_TYPE_SCALE.annotation): RenderPrimitive[] {
+    const result = layoutLinearRegionPrimitives(world, viewport, fontHeightPx) ?? world.map((primitive) => ({
       ...primitive,
       points: primitive.points.map(transform),
       provenance: primitive.provenance,
@@ -3157,10 +3227,10 @@ function compileLinearRegionPrimitives(world: RenderPrimitive[], transform: (poi
     return result;
 }
 
-function toPrimitives(entityId: string, entityKind: string, value: Geometry, groupId: string, transform: (point: Point) => RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }, forceFinite: boolean, dimensionOffsetPx = 0, label?: string, provenance?: Record<string, unknown>, directionOverlay = false): RenderPrimitive[] {
+function toPrimitives(entityId: string, entityKind: string, value: Geometry, groupId: string, transform: (point: Point) => RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }, forceFinite: boolean, dimensionOffsetPx = 0, label?: string, provenance?: Record<string, unknown>, directionOverlay = false, linearLabelFontPx: number = BOARD_TYPE_SCALE.annotation): RenderPrimitive[] {
   if (value.kind === "pv_plot") return pvPlotPrimitives(value, entityId, groupId, transform);
   if (value.kind === "linear_region") {
-    return compileLinearRegionPrimitives(linearRegionPrimitives(value, entityId, groupId), transform, viewport);
+    return compileLinearRegionPrimitives(linearRegionPrimitives(value, entityId, groupId), transform, viewport, linearLabelFontPx);
   }
   // Laid out in board pixels by the engine; no world transform applies.
   if (value.kind === "block_flow") return blockFlowPrimitives(value, entityId, groupId);

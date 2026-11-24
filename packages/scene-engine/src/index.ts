@@ -1,3 +1,4 @@
+import "./synthesize/independentSourceReplay";
 export * from "./types";
 export * from "./chemistry/representation";
 export * from "./capability/capabilityManifest";
@@ -72,3 +73,22 @@ export { normalizeVerifiedPartsInputs } from "./document/verifiedPartsInputs";
 export { validateRepairSurvivorship, validateRepairCandidateSetSurvivorship } from "./compile/repairSurvivorship";
 export { deferVerifiedAnswerLabels } from "./compile/answerLabels";
 export { prepareVerifiedCircularParts } from "./physics/verifiedCircularParts";
+
+// Native source proof and cosmetic palette composition. Scientific authority
+// remains with the complete source/compiler/save checks.
+export { compileGeneratedSceneGuide, verifyGeneratedSceneGuide, type GeneratedSceneGuide } from "./compile/generatedSceneGuide";
+export { SCIENTIFIC_STYLE_SCHEMA, SCIENTIFIC_STYLE_PALETTES, type ScientificStylePaletteId } from "./compile/generatedSceneStyle";
+export { validateAtomicSourceBinding, validateAtomicSceneTruth } from "./physics/atomicSceneAuthority";
+export { validatePublicAtomicSceneAdmission } from "./physics/atomicPublicAdmission";
+export { ATOMIC_OPERATORS } from "./compile/atomicGeometry";
+export { MECHANICS_OPERATORS } from "./compile/mechanicsGeometry";
+export { validateMechanicsSceneSourceBinding, withMechanicsSceneSource } from "./physics/mechanicsSceneAuthority";
+export { buildMechanicsTeachingAuthority } from "./physics/mechanicsTeachingAuthority";
+export { sourceDirectedDisplayIssues } from "./compile/sourceDirectedDisplay";
+
+export { atomicGeneratedLabelBindings } from "./compile/answerLabels";
+export { quantityCalloutRows } from "./compile/compiler";
+export { buildAtomicTeachingAuthority } from "./physics/atomicSceneAuthority";
+export { validateSubmittedCoulombSceneTruth } from "./physics/sourceCoulombObligation";
+export { sourceRequestedViewEligibility } from "./archetypes/requestedViewEligibility";
+export { validateSourceObservableUnitObligations } from "./document/sourceObservableUnitObligation";

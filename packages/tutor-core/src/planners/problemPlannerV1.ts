@@ -42,6 +42,21 @@ export interface ProblemAuthorityV1Response {
   traceId?: string;
 }
 
+const COMPUTED_QUANTITY_ID = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
+
+/** Restore missing numeric target identities; this never verifies or changes a value. */
+export function withComputedQuantityRoster(plan: TurnPlanV3): TurnPlanV3 {
+  if (!Array.isArray(plan.unknowns) || plan.unknowns.length !== 0 || !Array.isArray(plan.derived) || plan.derived.length === 0 || plan.derived.length > 256) return plan;
+  const ids = new Set<string>(), givenIds = new Set(Array.isArray(plan.givens) ? plan.givens.map(quantity => quantity?.id) : []);
+  const targets: TurnPlanV3["unknowns"] = [];
+  for (const quantity of plan.derived) {
+    if (!isRecord(quantity) || typeof quantity.id !== "string" || !COMPUTED_QUANTITY_ID.test(quantity.id) || ids.has(quantity.id) || givenIds.has(quantity.id) || typeof quantity.symbol !== "string" || !quantity.symbol.trim() || quantity.symbol.length > 64 || typeof quantity.value !== "number" || !Number.isFinite(quantity.value) || quantity.provenance !== "derived" || quantity.unit !== undefined && (typeof quantity.unit !== "string" || !quantity.unit.trim() || quantity.unit.length > 64)) return plan;
+    ids.add(quantity.id);
+    targets.push({ id: quantity.id, symbol: quantity.symbol, ...(quantity.unit === undefined ? {} : { unit: quantity.unit }) });
+  }
+  return { ...plan, unknowns: targets };
+}
+
 /**
  * Formulate the question as ProblemIR and solve it deterministically.
  *

@@ -1,0 +1,1 @@
+tsx scripts/verify/verify-atomic-teaching-truth.ts --prompt-only

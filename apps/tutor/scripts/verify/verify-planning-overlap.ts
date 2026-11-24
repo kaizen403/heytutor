@@ -67,6 +67,7 @@ type PlanCall = {
   signal: AbortSignal;
   timeoutMs: number;
   atMs: number;
+  getAuthority(): Authority | null;
   /** The repair hold's settled value: undefined while pending, "none" when absent. */
   hold: { value: boolean | undefined } | "none";
   reply: ReturnType<typeof deferred<Result | null>>;
@@ -75,6 +76,7 @@ type PlanCall = {
 interface Script {
   initialPlan?: TurnPlanV3;
   authority?: "none" | "pending" | "resolved";
+  reconcileAuthority?: (raw: Authority) => Authority;
   speculationAllowed?: boolean;
   /** Gate per plan and authority. Defaults to one stable projectile gate. */
   gate?: (plan: TurnPlanV3, authority: Authority | null) => Partial<Gate>;
@@ -135,7 +137,7 @@ function harness(script: Script) {
     deriveGate,
     applyAuthority: (authorityPlan, answered) => ({
       turnPlan: answered.plan ?? authorityPlan,
-      authority: answered,
+      authority: script.reconcileAuthority?.(answered) ?? answered,
     }),
     fastFigureBlocked: (answered) => answered?.contradiction === true,
     recover: script.recover === undefined ? undefined : () => script.recover ?? null,
@@ -148,7 +150,7 @@ function harness(script: Script) {
       });
       // Like planSceneDocumentWithRepair, an aborted run settles promptly.
       run.signal.addEventListener("abort", () => reply.resolve(null), { once: true });
-      planCalls.push({ gate, plan: scenePlan, signal: run.signal, timeoutMs: run.timeoutMs, atMs: nowMs, hold, reply });
+      planCalls.push({ gate, plan: scenePlan, signal: run.signal, timeoutMs: run.timeoutMs, atMs: nowMs, getAuthority: run.getAuthority, hold, reply });
       record("plan-scene", { plan: gate.planId });
       return reply.promise;
     },
@@ -334,6 +336,7 @@ async function main(): Promise<void> {
     assert.equal(h.planCalls.length, 1, "then the planner, once");
     assert.equal(h.planCalls[0]!.gate.planId, "final");
     assert.equal(h.planCalls[0]!.hold, "none", "nothing is held");
+    assert.equal(h.planCalls[0]!.getAuthority()?.id, "ir", "serial candidate validation sees the final authority");
     h.planCalls[0]!.reply.resolve(h.result("serial", h.planCalls[0]!));
     const outcome = await h.outcome;
     assert.deepEqual(outcome.speculation, { started: false, kept: false, abortReason: null, restarted: false });
@@ -352,6 +355,7 @@ async function main(): Promise<void> {
     assert.equal(h.planCalls.length, 1);
     assert.equal(h.planCalls[0]!.gate.planId, "speculative", "no authority: the turn plan is the final plan");
     assert.equal(h.planCalls[0]!.plan, h.initialPlan);
+    assert.equal(h.planCalls[0]!.getAuthority(), null);
     assert(!names(h.events).some((name) => name.startsWith("scene-speculative")));
     h.planCalls[0]!.reply.resolve(h.result("only", h.planCalls[0]!));
     const outcome = await h.outcome;
@@ -364,7 +368,8 @@ async function main(): Promise<void> {
   });
 
   await scenario("speculation starts while ProblemIR is pending and is kept when the facts hold", async () => {
-    const h = harness({ plannerStartedAt: 0 });
+    const reconciledAuthority = { id: "reconciled" };
+    const h = harness({ plannerStartedAt: 0, reconcileAuthority: () => reconciledAuthority });
     h.advance(9_000);
     await flush();
     assert.equal(h.planCalls.length, 1, "the scene planner starts before ProblemIR answers");
@@ -372,11 +377,13 @@ async function main(): Promise<void> {
     assert.equal(h.planCalls[0]!.timeoutMs, 51_000, "it runs inside the same 60s planner budget");
     assert.equal(names(h.events).indexOf("scene-speculative-start") > names(h.events).indexOf("plan-scene"), true);
     assert.deepEqual(h.planCalls[0]!.hold, { value: undefined }, "a speculative run holds its repairs");
+    assert.equal(h.planCalls[0]!.getAuthority(), null);
     h.advance(6_000);
     h.authority.resolve({ id: "ir" });
     await flush();
     assert.equal(h.planCalls.length, 1, "kept: no second planner run");
     assert.deepEqual(h.planCalls[0]!.hold, { value: true }, "keeping the run releases its repairs");
+    assert.equal(h.planCalls[0]!.getAuthority(), reconciledAuthority, "released validation sees reconciled authority");
     assert(!h.planCalls[0]!.signal.aborted);
     h.advance(10_000);
     h.planCalls[0]!.reply.resolve(h.result("spec", h.planCalls[0]!));
@@ -423,6 +430,7 @@ async function main(): Promise<void> {
     assert(h.planCalls[0]!.signal.aborted);
     assert.deepEqual(h.planCalls[0]!.hold, { value: false }, "a discarded run never launched a repair");
     assert.equal(h.planCalls[1]!.hold, "none", "the restart repairs freely");
+    assert.equal(h.planCalls[1]!.getAuthority()?.id, "ir", "the restart uses the final authority");
     assert.equal(h.planCalls[1]!.gate.planId, "final", "the restart uses the gate inferred with ProblemIR");
     assert.equal(h.planCalls[1]!.timeoutMs, 41_500,
       "the restart waits out the abort notice, then gets only what is left of 60s");
@@ -879,6 +887,12 @@ async function main(): Promise<void> {
   assert(/holdValidationUntil: run\.holdValidationUntil/.test(hook) &&
     /holdValidationUntil: sceneRun\.holdValidationUntil/.test(bench),
     "both callers pass the repair hold to the scene planner");
+  for (const [source, runName] of [[hook, "run"], [bench, "sceneRun"]]) {
+    assert(source.includes(`validateCandidateAgainstPlan(candidate, planningTurnPlan, ${runName}.getAuthority()?.problemIR ?? null)`),
+      "both planner callbacks read reconciled ProblemIR during validation");
+    assert(/validateProductionSceneCandidate\(\{ candidate, question, turnPlan: authoritativePlan, problemIR,/.test(source),
+      "both planner validators forward ProblemIR to production admission");
+  }
   assert(/tel\.span\("turn-plan", "planner"\)/.test(hook) && /tel\.span\("problem-ir", "planner"\)/.test(hook),
     "turn-plan and problem-ir spans are children of planner");
   passed += 1;

@@ -16,12 +16,13 @@ import type { LectureRun } from "../lecture-lab/lecturePipeline";
 const source = readFileSync(new URL("../lecture-lab/lecturePipeline.ts", import.meta.url), "utf8");
 const start = source.indexOf("    const sceneSelectionInput:");
 const oldStart = source.indexOf("    const sceneSelection = selectProductionScene({");
-const end = source.indexOf("    const selected = sceneSelection.representation;");
+const end = Math.max(source.indexOf("    const selected = sceneSelection.representation;"),
+  source.indexOf("    const selected = withScientificStyleNativeRepresentation(sceneSelection.representation, options.scientificStyle);"));
 assert(end > 0 && (start > 0 || oldStart > 0), "actual stock final-selection call must be located");
 const lines = source.slice(start > 0 ? start : oldStart, end);
 const execute = new Function("question", "turnPlan", "problemAuthority", "sceneCapabilities", "result", "fastRepresentation",
   "planning", "solverAuthorityBlocked", "REQUIRED_DIAGRAM_RETRY_ENABLED", "FIGURE_SOURCES", "diagramStrategyAllowsFigureSource",
-  "selectProductionScene", "problemAuthorityPromise", "run", "blockFlowEligible", "chemistryRefusesPlannerFigure", "classifiedSubject", "strictAdmitsOwningOpticsArchetype", "resolveOpticsArchetypeInStrict",
+  "selectProductionScene", "problemAuthorityPromise", "run", "blockFlowEligible", "chemistryRefusesPlannerFigure", "classifiedSubject", "strictAdmitsOwningOpticsArchetype", "resolveOpticsArchetypeInStrict", "options",
   ts.transpileModule(lines, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText + "\nreturn {run,sceneSelection};");
 
 const question = "Draw the Lewis structure of the H2O molecule with 2 O-H bonds, 0 pi bonds, 2 oxygen lone pairs and a bond angle of 104.5 degrees.";
@@ -62,7 +63,7 @@ function capture(withAuthority: boolean, attempted: boolean, extra: Partial<Prod
     false, true, FIGURE_SOURCES,
     (_strategy: unknown, figureSource: typeof FIGURE_SOURCES[number]) => extra.policy?.allowedFigureSources?.includes(figureSource) ?? true,
     selectProductionScene, attempted ? Promise.resolve(null) : null, run, extra.blockFlowEligible ?? false,
-    chemistryRefusesPlannerFigure, classifiedSubject, strictAdmitsOwningOpticsArchetype, resolveOpticsArchetypeInStrict);
+    chemistryRefusesPlannerFigure, classifiedSubject, strictAdmitsOwningOpticsArchetype, resolveOpticsArchetypeInStrict, { scientificStyle: null });
 }
 const full = capture(true, true);
 assert(full.run.figureReplayInputs, "stock artifact must retain full selection inputs instead of only run.plan summaries");

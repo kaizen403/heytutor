@@ -176,13 +176,13 @@ function graphMatches(document: SceneDocument, fresh: SceneDocument, plan: TurnP
     if (source.diagramYieldPolicy !== "verified_parts") return false;
     expected.source.diagramYieldPolicy = "verified_parts";
   }
-  if (source.answerLabelEntityIds !== undefined || source.answerLabelAnnotationIds !== undefined) {
+  if (source.answerLabelEntityIds !== undefined || source.answerLabelAnnotationIds !== undefined || source.answerLabelPrimitiveIds !== undefined) {
     const compiled = compileSceneDocument(expected);
     if (!compiled.ok || !compiled.renderScene) return false;
     // Without retained planner claims there are no planner-derived answers to
     // stage. Only empty staging arrays can accompany the exact native graph.
     const staged = plan ? deferVerifiedAnswerLabels(expected, plan, compiled.renderScene) : expected;
-    for (const key of ["answerLabelEntityIds", "answerLabelAnnotationIds"] as const) {
+    for (const key of ["answerLabelEntityIds", "answerLabelAnnotationIds", "answerLabelPrimitiveIds"] as const) {
       if (source[key] !== undefined) {
         if (stable(source[key]) !== stable(staged.source[key] ?? [])) return false;
         expected.source[key] = source[key];

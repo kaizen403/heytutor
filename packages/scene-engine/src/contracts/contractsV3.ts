@@ -1,3 +1,9 @@
+import { validateAtomicSceneTruth } from "../physics/atomicSceneAuthority";
+import { validatePublicAtomicSceneAdmission } from "../physics/atomicPublicAdmission";
+import { validateSourceCoulombObligation } from "../physics/sourceCoulombObligation";
+import { validateMechanicsSceneSourceBinding } from "../physics/mechanicsSceneAuthority";
+import { MECHANICS_OPERATORS } from "../compile/mechanicsGeometry";
+import { validateSourceObservableUnitObligations, sourceObservableUnitMeasurements, sourceObservableQuantityProved } from "../document/sourceObservableUnitObligation";
 /**
  * Verified Diagram Engine v3 contracts.
  *
@@ -2897,6 +2903,7 @@ export function validateSceneQuantityAgreement(
           equivalentMeasuredQuantity(candidate.value, candidate.unit, numericValue, quantity.unit))
       : undefined);
     if (!planned && compatible) return;
+    if (!planned && sourceObservableQuantityProved(plan.question, quantity)) return;
     if (!planned && numericValue !== null && qualitativeEvidence.some((evidence) =>
       equivalentMeasuredQuantity(evidence.value, evidence.unit, numericValue, quantity.unit)
     )) return;
@@ -3029,13 +3036,36 @@ export function pruneUnverifiedSceneAnnotations(
  * is meant to teach. The checks operate on semantic groups and topology only;
  * they do not prescribe coordinates or a topic-specific drawing template.
  */
+/** Additional original-source obligations for the native physical operators.
+ * Existing metric, function and topology checks remain in their owners. */
+export function validatePlanOwnedSceneTruth(document: SceneDocument, plan: TurnPlanV3 | null | undefined,
+  problemIR?: unknown, originalQuestion?: string): SceneIssue[] {
+  if (document.visualDecision.mode !== "scene") return [];
+  const question = originalQuestion ?? plan?.question ?? document.source.question;
+  return [
+    ...validatePublicAtomicSceneAdmission(document, question),
+    ...(!plan && document.constructions.some(construction =>
+      (MECHANICS_OPERATORS as readonly string[]).includes(construction.operator))
+      ? [{ code: "mechanics_source_authority_missing", message: "A numeric mechanics scene requires its retained accepted turn plan.",
+        severity: "fatal" as const, failureKind: "truth" as const, path: "sceneArtifacts.turnPlan" }] : []),
+    ...validateAtomicSceneTruth(document, plan ?? undefined, problemIR),
+    ...validateSourceCoulombObligation(document, plan, originalQuestion),
+    ...validateMechanicsSceneSourceBinding(document, problemIR, plan?.question ??
+      (typeof document.source.question === "string" ? document.source.question : ""), plan),
+    ...validateSourceObservableUnitObligations(document, plan, problemIR, originalQuestion),
+  ];
+}
+
 export function validateTurnPlanSceneProofs(
   document: SceneDocument,
   plan: TurnPlanV3 | null | undefined,
+  problemIR?: unknown,
+  originalQuestion?: string,
 ): SceneIssue[] {
   if (document.visualDecision.mode !== "scene") return [];
-  const sourceQuestion = plan?.question ?? document.source.question;
+  const sourceQuestion = originalQuestion ?? plan?.question ?? document.source.question;
   const issues = [
+    ...validatePlanOwnedSceneTruth(document, plan, problemIR, originalQuestion),
     ...validateCoordinateDistanceSourceInputs(document, sourceQuestion),
     ...validatePointLineSourceInputs(document, sourceQuestion),
     ...validateSectionPointSourceInputs(document, sourceQuestion),
@@ -4603,7 +4633,7 @@ function pruneUnsupportedMeasuredLabel(text: string, plan: TurnPlanV3): string {
 function supportedSceneDisplayMeasurements(plan: TurnPlanV3): Array<{ value: number; unit: string }> {
   return [...plan.givens, ...plan.derived].map((quantity) => ({
     value: quantity.value, unit: quantity.unit ?? "",
-  })).concat(plan.qualitativeClaims.flatMap((claim) => [claim.claim, ...(claim.relatedEntityHints ?? [])])
+  })).concat(sourceObservableUnitMeasurements(plan.question)).concat(plan.qualitativeClaims.flatMap((claim) => [claim.claim, ...(claim.relatedEntityHints ?? [])])
     .flatMap((text) => extractMeasuredValues(text, plan)));
 }
 
@@ -5485,6 +5515,7 @@ export interface VisualReviewV3 {
 export const FIGURE_SOURCES = [
   "planner",
   "fast_family",
+  "native_source",
   "family",
   "archetype",
   // The engine's own lens or mirror figure, admitted by the strict policy

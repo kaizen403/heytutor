@@ -1,3 +1,4 @@
+import { parseScientificStyleLecture, type ScientificStyleLecture } from "@/lib/scene/scientificStyleLecture";
 import { parseDiagramYieldPolicy, type DiagramYieldPolicy } from "@heytutor/scene-engine";
 import { resolveApiUrl, parseDiagramStrictSubjects, type DiagramSubject } from "@heytutor/tutor-core";
 import type { CheckoutPlanId } from "./catalog";
@@ -33,6 +34,8 @@ export interface BeginTurnOk {
   solverDisagreementStops?: boolean;
   /** Default off: draw a judged reference picture when no verified figure is drawn. */
   referencePicture?: boolean;
+  /** Source-proved native fallback, styled from one server-validated existing sample. */
+  scientificStyle?: ScientificStyleLecture;
   /** Default off: the pen may point at a reference picture's located parts and key rows. */
   referencePicturePartFocus?: boolean;
   /** Default off (`DIAGRAM_DOUBT_POINTING`): a doubt walks, rings and letters the figure on the board. */
@@ -246,6 +249,7 @@ async function beginTurnOnce(input: {
     opticsArchetypeInStrict: payload.opticsArchetypeInStrict === true,
     solverDisagreementStops: payload.solverDisagreementStops === true,
     referencePicture: payload.referencePicture === true,
+    ...(parseScientificStyleLecture(payload.scientificStyle) ? { scientificStyle: parseScientificStyleLecture(payload.scientificStyle)! } : {}),
     referencePicturePartFocus: payload.referencePicturePartFocus === true,
     doubtPointing: payload.doubtPointing === true,
     doubtFigures: payload.doubtFigures === true,

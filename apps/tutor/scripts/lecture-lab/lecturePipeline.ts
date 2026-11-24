@@ -1,3 +1,5 @@
+import { parseScientificStyleLecture, withScientificStyleNativeRepresentation, type ScientificStyleLecture } from "@/lib/scene/scientificStyleLecture";
+import { selectProductionNativeSourceRepresentation } from "@/features/tutor-session/lib/scene/productionSceneSelection";
 import { parseCurveLabelSwitch, parseDiagramYieldPolicy } from "@heytutor/scene-engine";
 /**
  * Runs one whole lecture turn without a browser.
@@ -41,6 +43,7 @@ import {
 } from "@heytutor/tutor-core";
 import {
   FIGURE_SOURCES,
+  SCIENTIFIC_STYLE_PALETTES,
   buildSolverAuthorityProjection,
   reconcileTurnPlanWithSolver,
   verifyTurnPlanAgainstSolver,
@@ -49,14 +52,13 @@ import {
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import {
-  deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
+  deriveSceneGate as deriveProductionSceneGate, selectProductionFastRepresentation, selectProductionScene, validateProductionSceneCandidate,
   settleSelectionDegradation, type DroppedSceneCandidate, type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "@/features/tutor-session/lib/scene/productionSceneSelection";
 import { chemistryRefusesPlannerFigure, diagramStrategyAllowsFigureSource, strictAdmitsOwningOpticsArchetype } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { resolveOpticsArchetypeInStrict } from "@/lib/scene/diagramStrategy.server";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import {
-  selectFastVerifiedRepresentation,
   type RepresentationTier,
 } from "@/features/tutor-session/lib/scene/representationFallback";
 import {
@@ -214,6 +216,9 @@ export interface LectureRun {
   referencePicture?: LabReferencePictureRecord;
   diagram: PlannerEvidence & {
     committed: boolean;
+    /** Actual native fallback paint; absent when an earlier verified engine wins. */
+    scientificStyle?: ScientificStyleLecture;
+    svgPurpose?: "complete_scene_diagnostic";
     /**
      * A representation was built and then refused for carrying no readable
      * label. That is the guard working, not the engine failing to produce one.
@@ -320,6 +325,8 @@ export interface RunLectureOptions {
   onModelCost?: (usd: number) => void;
   /** Replay the live reference picture step (`--reference-picture`); off keeps the lab unchanged. */
   referencePicture?: boolean;
+  /** Exact server sample descriptor, pinned by the runner's execution identity. */
+  scientificStyle?: ScientificStyleLecture | null;
   /** The planner's later-figures addon and the offline later figures (DIAGRAM_LESSON_FIGURES), as live grants them. */
   lessonFigures?: boolean;
   /** Build the picture with part focus targets (the live begin-turn `referencePicturePartFocus`). */
@@ -567,7 +574,7 @@ export async function runLecture(
     if (options.productionStrictSubjects) run.productionStrategy = { classifiedSubject, strategy: pickerDecision.strategy };
     // As live: right after the merged requirement, before the picker and scene
     // planning, for every subject outside the chemistry lane.
-    if (referencePicture && startsReferencePictureEarly({
+    if (referencePicture && options.scientificStyle == null && startsReferencePictureEarly({
       chemistryLane: pickerGate.chemistryLane, visualRequirement: turnPlan.visualRequirement })) {
       referencePicture.start(classifiedSubject, true);
     }
@@ -610,9 +617,10 @@ export async function runLecture(
     const candidateClocks = new WeakMap<Record<string, unknown>, number>();
     const validateCandidateAgainstPlan = (
       candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
+      problemIR: ProblemAuthorityV1Response["problemIR"] | null,
     ): SceneCandidateValidation<ValidatedSceneCandidate> => {
       const startedAt = performance.now();
-      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY), curveLabels: parseCurveLabelSwitch(process.env.DIAGRAM_CURVE_LABELS), blockFlowEligible });
+      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, problemIR, yieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY), curveLabels: parseCurveLabelSwitch(process.env.DIAGRAM_CURVE_LABELS), blockFlowEligible });
       candidateClocks.set(candidate, performance.now() - startedAt);
       return validation;
     };
@@ -661,7 +669,7 @@ export async function runLecture(
     const planning = await runScenePlanningOverlap<
       ProblemAuthorityV1Response,
       BenchSceneGate,
-      NonNullable<ReturnType<typeof selectFastVerifiedRepresentation>>,
+      NonNullable<ReturnType<typeof selectProductionFastRepresentation>>,
       ScenePlanWithRepairResult<ValidatedSceneCandidate>
     >({
       turnPlan,
@@ -702,8 +710,12 @@ export async function runLecture(
         };
       },
       fastFigureBlocked: (authority) => authority?.audit.status === "contradiction",
+      ...(options.scientificStyle != null ? {
+        selectNative: (planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null) =>
+          selectProductionNativeSourceRepresentation(question, planningTurnPlan, authority?.problemIR ?? null),
+      } : {}),
       selectFast: (planningTurnPlan, authority, gate) =>
-        selectFastVerifiedRepresentation({
+        selectProductionFastRepresentation({
           question,
           turnPlan: planningTurnPlan,
           problemIR: authority?.problemIR ?? null,
@@ -712,7 +724,7 @@ export async function runLecture(
       planScene: (gate, planningTurnPlan, sceneRun) =>
         planSceneDocumentWithRepair(
           question,
-          (candidate) => validateCandidateAgainstPlan(candidate, planningTurnPlan),
+          (candidate) => validateCandidateAgainstPlan(candidate, planningTurnPlan, sceneRun.getAuthority()?.problemIR ?? null),
           {
             proxyUrl: plannerUrl,
             signal: sceneRun.signal,
@@ -730,9 +742,9 @@ export async function runLecture(
             ...gate.request,
           },
         ).catch(() => null),
-      revalidate: (sceneResult, authoritativeTurnPlan) =>
+      revalidate: (sceneResult, authoritativeTurnPlan, authority) =>
         revalidateScenePlanWithRepairResult(sceneResult, (candidate) =>
-          validateCandidateAgainstPlan(candidate, authoritativeTurnPlan),
+          validateCandidateAgainstPlan(candidate, authoritativeTurnPlan, authority?.problemIR ?? null),
           (response, validation) => recordValidation(response, validation, "authority_revalidation"),
         ),
     });
@@ -822,8 +834,9 @@ export async function runLecture(
       solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
       policy: {
         preferPlanner: planning.gate.diagramStrategy.strategy === "strict",
-        allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source) &&
-          !chemistryRefusesPlannerFigure(classifiedSubject, source)),
+        allowedFigureSources: FIGURE_SOURCES.filter((source) => (diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source) &&
+          !chemistryRefusesPlannerFigure(classifiedSubject, source)) ||
+          (source === "native_source" && options.scientificStyle != null && !chemistryRefusesPlannerFigure(classifiedSubject, source))),
         // The lab selects in its own process and never calls begin-turn, so it reads the
         // server's switch from the lab's env with the server's resolver: off unless the
         // lab runs with OPTICS_ARCHETYPE_IN_STRICT=on (match the dev server's env).
@@ -841,7 +854,7 @@ export async function runLecture(
       authorityAttempted: problemAuthorityPromise !== null,
     });
     const sceneSelection = selectProductionScene(sceneSelectionInput);
-    const selected = sceneSelection.representation;
+    const selected = withScientificStyleNativeRepresentation(sceneSelection.representation, options.scientificStyle);
     // completion-diagnostics:begin
     run.diagram.completion = sceneSelection.completion;
     // completion-diagnostics:end
@@ -927,7 +940,12 @@ export async function runLecture(
       }
       run.diagram.primitiveCount = renderScene.primitives.length;
       run.diagram.assertionCount = sceneDocument.assertions.length;
+      const scientificStyle = parseScientificStyleLecture(sceneDocument.source.scientificStyle);
+      if (scientificStyle) run.diagram.scientificStyle = scientificStyle;
+      const palette = SCIENTIFIC_STYLE_PALETTES.find(item => item.paletteId === scientificStyle?.paletteId);
+      run.diagram.svgPurpose = "complete_scene_diagnostic";
       run.diagram.svg = renderSceneSvg(renderScene, {
+        ...(palette ? { ink: palette.ink } : {}),
         title: question.slice(0, 110),
         subtitle: `family=${run.diagram.family ?? "?"} tier=${run.diagram.tier ?? "?"} labels=${run.diagram.renderedLabels.join(" | ")}`,
       });

@@ -20,6 +20,10 @@
  */
 import type { SceneDocument } from "../types";
 import { isAtomicTransitionStem, isChemistryQuestion } from "../chemistry";
+import { readSourceFigureModelRequests, readSourceParametricFigureSetups } from "../chemistry/figureSourceOwnership";
+import { readSourcePlanarGeometry, sameSourcePlanarPoint } from "../document/sourcePlanarGeometry";
+import { readSourcePlanarViews } from "../document/sourcePlanarViews";
+import { sourceUnquotedText } from "../document/sourceRequestScope";
 import { CONIC_OPERATORS } from "../compile/conicGeometry";
 import {
   circuitDemandMayBeMultiLoop,
@@ -42,6 +46,7 @@ export type PictureFeature =
   | "plotted_conic"
   | "point_charges"
   | "bohr_levels"
+  | "bohr_orbit"
   | "resistor_chain"
   | "river_banks"
   | "slit_pattern"
@@ -294,6 +299,20 @@ export function sceneDemand(
     requires.push(isParametricAnglePointStem(stem) ? "plotted_conic" : "conic");
   }
 
+  // A requested orbit is a spatial view. Neither a level ladder nor a pair
+  // of Coulomb charges can stand in for the electron's path.
+  const orbitRequests = [...readSourceParametricFigureSetups(question),
+    ...readSourceFigureModelRequests(question).filter(request => request.model === "semiclassical_orbit")];
+  if (orbitRequests.some(request => {
+    const display = sourceUnquotedText(request.source.text).split(
+      /\b(?:and|then|also)\s+(?:(?:then|also)\s+)?(?:calculate|find|compute|derive|determine|estimate|explain|describe|discuss)\b/i,
+    )[0]!;
+    return /\b(?:bohr|electron|nucleus|atomic|hydrogenic)\b/i.test(display) &&
+      /\b(?:bohr|circular|classical|semiclassical)[- ]+(?:bohr[- ]+)?orbits?\b/i.test(display);
+  })) {
+    requires.push("bohr_orbit");
+  }
+
   if (isRiverBoatStem(stem)) requires.push("river_banks");
 
   if (isMagneticSource(stem) && !ELECTROSTATIC_SUBJECT.test(stem)) {
@@ -413,6 +432,7 @@ export function pictureFeatures(document: SceneDocument): Set<PictureFeature> {
   ) {
     features.add("bohr_levels");
   }
+  if (operators.has("bohr_orbit") || hasElectronOrbit(document)) features.add("bohr_orbit");
   if (symbols.has("resistor") && isSeriesChain(document)) features.add("resistor_chain");
   if (/\bbank\b/i.test(entityText)) features.add("river_banks");
   if (document.entities.some((entity) => SUSPENDED_BODY_ROLE.test(entity.role ?? ""))) {
@@ -440,6 +460,36 @@ export function pictureFeatures(document: SceneDocument): Set<PictureFeature> {
   return features;
 }
 
+
+// A circle's label cannot establish orbit incidence. Read the actual circle
+// and electron in the same source frame. The compiler still owns all physics.
+function hasElectronOrbit(document: SceneDocument): boolean {
+  const rings = document.entities.filter(entity =>
+    entity.kind === "circle" && /\b(?:orbit|electron (?:path|trajectory))\b/i.test(`${entity.role ?? ""} ${entity.label ?? ""}`));
+  if (!rings.length) return false;
+  const nuclei = document.entities.filter(entity => (entity.kind === "point" || entity.kind === "circle") &&
+    /\bnucleus\b/i.test(`${entity.role ?? ""} ${entity.label ?? ""}`));
+  if (nuclei.length !== 1) return false;
+  const geometry = readSourcePlanarGeometry(document);
+  const nucleusId = nuclei[0]!.id;
+  const nucleus = geometry.point(nucleusId) ?? geometry.circle(nucleusId)?.center;
+  if (!nucleus) return false;
+  const views = readSourcePlanarViews(document, new Map());
+  const view = views?.owner(nucleusId);
+  if (view === undefined) return false;
+  const electrons = document.entities.filter(entity =>
+    entity.kind === "point" && /\belectron\b/i.test(entity.role ?? "") && views?.owner(entity.id) === view);
+  return rings.some(entity => {
+    const ring = geometry.circle(entity.id);
+    if (!ring || views?.owner(entity.id) !== view || !sameSourcePlanarPoint(ring.center, nucleus)) return false;
+    return electrons.some(electron => {
+      const point = geometry.point(electron.id);
+      if (!point || point.frame !== ring.center.frame) return false;
+      const distance = Math.hypot(point.x - ring.center.x, point.y - ring.center.y);
+      return Math.abs(distance - ring.radius) <= 1e-8 * ring.radius;
+    });
+  });
+}
 
 /**
  * A chain is a topology, not a component list: every terminal carries at most

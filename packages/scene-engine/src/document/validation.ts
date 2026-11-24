@@ -32,6 +32,7 @@ import { ANALYTIC_LINE_OPERATORS, validateAnalyticLineConstruction as validateCo
 import { RIGID_MASS_OPERATORS, validateRigidMassConstruction } from "../compile/rigidMassGeometry";
 import { MATRIX_ARRAY_OPERATORS, validateMatrixArrayConstruction } from "../compile/matrixArrayGeometry";
 import { validateBlockFlowConstruction } from "../compile/blockFlowGeometry";
+import { ATOMIC_OUTPUT_KINDS, validateAtomicConstruction } from "../compile/atomicGeometry";
 import { LINEAR_REGION_OPERATORS, validateLinearRegionConstruction } from "../compile/linearRegionGeometry";
 import { validateMatrixSourceBinding } from "../compile/matrixSourceBinding";
 import { CIRCLE_OPERATORS, validateCircleConstruction } from "../compile/circleGeometry";
@@ -80,6 +81,8 @@ const INDUCTION_CONSTRUCTIONS = new Set<string>(INDUCTION_OPERATORS);
 
 import { ROTATION_OPERATORS, validateRotationConstruction } from "../compile/rotationGeometry";
 const ROTATION_CONSTRUCTIONS = new Set<string>(ROTATION_OPERATORS);
+import { MECHANICS_OPERATORS, validateMechanicsConstruction } from "../compile/mechanicsGeometry";
+const MECHANICS_CONSTRUCTIONS = new Set<string>(MECHANICS_OPERATORS);
 
 import { COMBINATORICS_OPERATORS, validateCombinatoricsConstruction } from "../compile/combinatoricsGeometry";
 const COMBINATORICS_CONSTRUCTIONS = new Set<string>(COMBINATORICS_OPERATORS);
@@ -98,7 +101,7 @@ const DIPOLE_FIELD_CONSTRUCTIONS = new Set<string>(DIPOLE_FIELD_OPERATORS);
 const COORDINATE_LINE_CONSTRUCTIONS = new Set<string>(ANALYTIC_LINE_OPERATORS);
 const RIGID_MASS_CONSTRUCTIONS = new Set<string>(RIGID_MASS_OPERATORS);
 const MATRIX_ARRAY_CONSTRUCTIONS = new Set<string>(MATRIX_ARRAY_OPERATORS);
-const VARIABLE_KIND_CONSTRUCTIONS = new Set<string>([...ANALYTIC_LINE_OPERATORS, ...RIGID_MASS_OPERATORS]);
+const VARIABLE_KIND_CONSTRUCTIONS = new Set<string>([...ANALYTIC_LINE_OPERATORS, ...RIGID_MASS_OPERATORS, ...MECHANICS_OPERATORS]);
 const CIRCLE_CONSTRUCTIONS = new Set<string>(CIRCLE_OPERATORS);
 const AFFINE_CONSTRUCTIONS = new Set<string>(AFFINE_OPERATORS);
 const VECTOR_CONSTRUCTIONS = new Set<string>(VECTOR_OPERATORS);
@@ -161,8 +164,9 @@ const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
   linear_feasible_region: "linear_region", linear_system: "linear_region",
 };
 
-function visibleConstructionKind(construction: Record<string, unknown>): string | undefined {
+function visibleConstructionKind(construction: Record<string, unknown>, outputIndex = 0): string | undefined {
   if (typeof construction.operator !== "string") return undefined;
+  if (ATOMIC_OUTPUT_KINDS[construction.operator]) return ATOMIC_OUTPUT_KINDS[construction.operator]![outputIndex];
   if (construction.operator === "equipotential" && isRecord(construction.inputs)) {
     if (construction.inputs.source === "point_charge") return "circle";
     if (construction.inputs.source === "dipole") return "polyline";
@@ -340,6 +344,25 @@ export function pruneDeadSceneEntities(raw: Record<string, unknown>): Record<str
     if (Array.isArray(raw[field])) {
       collectEntityReferencesInto(raw[field], entityIds, nonAssertionReferenced);
       collectEntityReferencesInto(raw[field], entityIds, contractReferenced);
+    }
+  }
+  // Source selectors consume executable scene outputs. Preserve only their
+  // entity-reference fields; IR facts and request/step prose are not ownership.
+  // Strict source replay still validates every retained selector independently.
+  if (isRecord(raw.source)) {
+    for (const field of ["mechanicsBindings", "mechanicsBoundaryBindings"] as const) {
+      const bindings = raw.source[field];
+      if (!Array.isArray(bindings)) continue;
+      const keys = field === "mechanicsBindings" ? ["outputId"] : ["outputId", "modelOutputId"];
+      for (const binding of bindings) {
+        if (!isRecord(binding)) continue;
+        for (const key of keys) {
+          if (typeof binding[key] !== "string") continue;
+          collectEntityReferences(binding[key]);
+          collectEntityReferencesInto(binding[key], entityIds, nonAssertionReferenced);
+          collectEntityReferencesInto(binding[key], entityIds, contractReferenced);
+        }
+      }
     }
   }
   if (Array.isArray(raw.assertions)) {
@@ -1920,7 +1943,7 @@ function normalizeMechanicalPlannerArtifacts(raw: Record<string, unknown>): Reco
       for (const [key, value] of Object.entries(inputs)) {
         // These operator contracts consume a coordinate value, not a point-entity reference.
         if (key === "origin" && typeof operator === "string" &&
-          (MATRIX_ARRAY_CONSTRUCTIONS.has(operator) || ROTATION_CONSTRUCTIONS.has(operator))) continue;
+          (MATRIX_ARRAY_CONSTRUCTIONS.has(operator) || ROTATION_CONSTRUCTIONS.has(operator) || MECHANICS_CONSTRUCTIONS.has(operator))) continue;
         const inlinePoint = isInlineCoordinatePoint(value)
           ? value
           : inlinePointInputKeys.has(key) &&
@@ -4459,6 +4482,21 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       }
     }
     if (isRecord(construction.inputs)) {
+      const atomicKinds = ATOMIC_OUTPUT_KINDS[construction.operator];
+      if (atomicKinds) {
+        issues.push(...validateAtomicConstruction(construction.operator, construction.inputs, document, "constructions[" + index + "].inputs"));
+        if (construction.outputs.length !== atomicKinds.length) {
+          issues.push({ code: "invalid_atomic_outputs", message: construction.operator + " requires exactly " + atomicKinds.length + " typed outputs",
+            path: "constructions[" + index + "].outputs", severity: "fatal", expected: atomicKinds.length, actual: construction.outputs.length });
+        }
+        construction.outputs.forEach((id, outputIndex) => {
+          const actual = document.entities.find(entity => entity.id === id)?.kind;
+          if (actual && actual !== atomicKinds[outputIndex]) issues.push({
+            code: "invalid_atomic_output_kind", message: construction.operator + " output " + outputIndex + " must be " + atomicKinds[outputIndex],
+            path: "constructions[" + index + "].outputs[" + outputIndex + "]", severity: "fatal", entityIds: [id], expected: atomicKinds[outputIndex], actual,
+          });
+        });
+      }
       if (COMPLEX_CONSTRUCTIONS.has(construction.operator)) validateComplexConstruction(construction, index, document, constructionByOutput, issues);
       if (MAGNETIC_CONSTRUCTIONS.has(construction.operator)) validateMagneticConstruction(construction, index, document, constructionByOutput, issues);
       if (RELATIVE_MOTION_CONSTRUCTIONS.has(construction.operator)) validateRelativeMotionConstruction(construction, index, document, constructionByOutput, issues);
@@ -4475,6 +4513,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       if (SET_CONSTRUCTIONS.has(construction.operator)) validateSetConstruction(construction, index, document, constructionByOutput, issues);
       if (INDUCTION_CONSTRUCTIONS.has(construction.operator)) validateInductionConstruction(construction, index, document, constructionByOutput, issues);
       if (ROTATION_CONSTRUCTIONS.has(construction.operator)) validateRotationConstruction(construction, index, document, constructionByOutput, issues);
+      if (MECHANICS_CONSTRUCTIONS.has(construction.operator)) validateMechanicsConstruction(construction, index, document, constructionByOutput, issues);
       if (STATISTICAL_CONSTRUCTIONS.has(construction.operator)) validateStatisticsConstruction(construction, index, document, constructionByOutput, issues);
       if (TRIANGLE_CONSTRUCTIONS.has(construction.operator)) validateTriangleConstruction(construction, index, document, constructionByOutput, issues);
       if (CONIC_CONSTRUCTIONS.has(construction.operator)) validateConicConstruction(construction, index, document, constructionByOutput, issues);
@@ -5066,9 +5105,9 @@ function reconcileConstructionOwnership(raw: Record<string, unknown>): void {
     for (const output of construction.outputs) {
       if (typeof output === "string") producerByOutput.set(output, construction);
     }
-    const kind = visibleConstructionKind(construction);
-    if (!kind) continue;
-    for (const output of construction.outputs) {
+    for (const [outputIndex, output] of construction.outputs.entries()) {
+      const kind = visibleConstructionKind(construction, outputIndex);
+      if (!kind) continue;
       if (typeof output !== "string") continue;
       const declared = entityIds.has(output);
       if (!declared) {
@@ -7036,6 +7075,7 @@ function isCompactDiagramLabel(text: string): boolean {
   const normalized = text.trim().replace(/\s+/g, " ");
   return normalized.length > 0 && normalized.length <= 16;
 }
+
 
 /**
  * The operator that derives a tangent depends on the curve it touches: a

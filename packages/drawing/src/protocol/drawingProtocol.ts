@@ -38,6 +38,8 @@ export type DrawCommandType =
 export type DrawStrokeRole = 'primary' | 'construction' | 'trace';
 
 export interface DrawCommandVisualStyle {
+  /** Engine palette only; parser-produced model commands never set it. */
+  scientificPalette?: 'navy' | 'teal' | 'indigo' | 'forest' | 'slate' | 'burgundy';
   strokeRole?: DrawStrokeRole;
   strokeWidth?: number;
   dashed?: boolean;

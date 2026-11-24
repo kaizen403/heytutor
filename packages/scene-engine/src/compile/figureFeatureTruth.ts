@@ -138,7 +138,9 @@ export function validatePointLabelPlacement(document: SceneDocument, primitives:
  * and marks overlap whatever they name. */
 const MIN_READABLE_FIGURE_PX = 100;
 
-export function validateFigureLegibility(primitives: RenderPrimitive[]): SceneIssue[] {
+// Native guide callers retain source context; main's geometric legibility
+// policy still measures the verified marks with the same thresholds.
+export function validateFigureLegibility(primitives: RenderPrimitive[], _document?: SceneDocument): SceneIssue[] {
   const xs: number[] = [], ys: number[] = [];
   for (const p of primitives) {
     if (p.kind === "label" || p.provenance?.labelLeader) continue;

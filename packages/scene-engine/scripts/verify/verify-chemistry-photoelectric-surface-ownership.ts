@@ -102,6 +102,38 @@ for (const [index, row] of allRows.entries()) {
           for (const label of ["φ=2 eV", "hν=3 eV", "K=1 eV"]) assert.ok(prior.labels.includes(label), "full unsupported default artifact is retained");
         }
         if (baseline) assert.deepEqual(persisted(baseline[index]!.outcome), fixed.outcome, `${row.id} original false-default artifact remains exact`);
+      } else if (row.id === "C-SHARED-LEVEL" && actual.ordinary?.labels.includes("Balmer")) {
+        // The source-certified version keeps the same ordered states and
+        // emission while adding the independently owned series name.
+        assert.equal(row.question, "A hydrogen atom emits a photon during the transition from n = 4 to n = 2. Draw the energy level diagram.");
+        const { ordinary, lastResort, ...unchanged } = persisted(actual);
+        const { ordinary: priorOrdinary, lastResort: priorLastResort, ...prior } = fixed.outcome;
+        assert.deepEqual(unchanged, prior, "subject ownership and both direct routes preserve the full old outcome");
+        assert.deepEqual(priorOrdinary?.labels, ["n=2", "n=4"]);
+        assert.deepEqual(priorLastResort?.labels, ["n=2", "n=4"]);
+        for (const [drawn, tier] of [[ordinary, "qualitative_verified"], [lastResort, "question_representation"]] as const) {
+          assert.ok(drawn?.family === "energy_level" && drawn.nonMetric && drawn.validationReport.valid);
+          assert.equal(drawn.tier, tier);
+          assert.equal(drawn.document.source.question, row.question);
+          assert.deepEqual([...drawn.labels].sort(), ["Balmer", "n=2", "n=4"]);
+          const primitives = drawn.renderScene.primitives;
+          assert.equal(primitives.length, 6, "only the two levels, one arrow and three labels draw");
+          const arrows = primitives.filter(mark => mark.kind === "vector");
+          assert.equal(arrows.length, 1);
+          const arrow = arrows[0]!;
+          assert.equal(primitives.find(mark => mark.text === "Balmer")?.entityId, arrow.entityId);
+          for (const [name, at] of [["n=4", arrow.points[0]], ["n=2", arrow.points.at(-1)]] as const) {
+            const id = primitives.find(mark => mark.kind === "label" && mark.text === name)?.entityId;
+            const stroke = primitives.find(mark => mark.kind === "line" && mark.entityId === id);
+            assert.ok(stroke && at && stroke.points.length === 2);
+            const left = stroke.points[0]!, right = stroke.points[1]!;
+            assert.equal(left.y, right.y);
+            assert.equal(at.y, left.y);
+            assert(at.x >= Math.min(left.x, right.x) && at.x <= Math.max(left.x, right.x));
+          }
+          assert(arrow.points[0]!.y < arrow.points.at(-1)!.y, "emission ends on the lower energy level");
+        }
+        if (baseline) assert.deepEqual(persisted(baseline[index]!.outcome), fixed.outcome, "the frozen entire old shared outcome remains exact");
       } else {
         assert.deepEqual(persisted(actual), fixed.outcome, `${row.id} default entire main outcome`);
         if (baseline) assert.deepEqual(persisted(actual), persisted(baseline[index]!.outcome), `${row.id} entire main outcome`);

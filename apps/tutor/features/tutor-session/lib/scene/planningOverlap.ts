@@ -129,8 +129,10 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
   /** A solver contradiction keeps the deterministic figure off, as before. */
   fastFigureBlocked(authority: A | null): boolean;
   /** A stored verified scene, validated against the final plan. */
-  recover?(gate: G, plan: TurnPlanV3): R | null;
+  recover?(gate: G, plan: TurnPlanV3, authority: A | null): R | null;
   selectFast(plan: TurnPlanV3, authority: A | null, gate: G, phase: "prediction" | "selection"): F | null;
+  /** Opt-in source proof on final numeric authority, before paid planning. */
+  selectNative?(plan: TurnPlanV3, authority: A | null, gate: G): F | null;
   /**
    * One planSceneDocumentWithRepair run whose validator is bound to `plan`.
    * A speculative run passes `holdValidationUntil`: it fetches initial
@@ -144,13 +146,15 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
       signal: AbortSignal;
       timeoutMs: number;
       holdValidationUntil?: Promise<boolean>;
+      /** Read the reconciled authority in the validator, after any hold. */
+      getAuthority(): A | null;
       maxConcurrentRequests: number;
       /** Shared by every scene search in the turn; each request spends one. */
       requestBudget: { remaining: number };
     },
   ): Promise<R | null>;
   /** Revalidate every candidate against the final plan. */
-  revalidate(result: R, plan: TurnPlanV3): Promise<R>;
+  revalidate(result: R, plan: TurnPlanV3, authority: A | null): Promise<R>;
 }
 
 export interface ScenePlanningOverlapOutcome<A, G, F, R> {
@@ -163,7 +167,7 @@ export interface ScenePlanningOverlapOutcome<A, G, F, R> {
   scene: R | null;
   recovered: boolean;
   /** Provenance of the pre-fallback path that produced the usable candidate. */
-  figureSource: Extract<FigureSource, "fast_family" | "planner" | "verified_recovery"> | null;
+  figureSource: Extract<FigureSource, "fast_family" | "native_source" | "planner" | "verified_recovery"> | null;
   speculation: {
     started: boolean;
     /** The speculative run produced `scene`. */
@@ -280,6 +284,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
   };
   let deterministicAttempted = false;
   let plannerAttempted = false;
+  let authority: A | null = null;
 
   type Run = {
     controller: AbortController;
@@ -317,6 +322,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       timeoutMs: remainingMs(),
       maxConcurrentRequests: SCENE_MAX_CONCURRENT_REQUESTS,
       requestBudget,
+      getAuthority: () => authority,
       ...(holdValidationUntil ? { holdValidationUntil } : {}),
     });
     // An abandoned run settles on its own; nothing may observe its result.
@@ -380,7 +386,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       typeof input.selectionOrder === "function"
         ? input.selectionOrder(gate)
         : input.selectionOrder ?? "current";
-    if (speculationEnabled && input.speculationAllowed && authorityPending) {
+    if (!input.selectNative && speculationEnabled && input.speculationAllowed && authorityPending) {
       const gate = input.deriveGate(input.turnPlan, null);
       const plannerFirst = selectionOrderFor(gate) === "planner_first";
       const budgetMs = remainingMs();
@@ -404,7 +410,6 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       }
     }
 
-    let authority: A | null = null;
     let turnPlan = input.turnPlan;
     if (authorityPromise) {
       const waitStartedAt = now();
@@ -415,10 +420,11 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
 
     const gate = input.deriveGate(turnPlan, authority);
     const plannerFirst = selectionOrderFor(gate) === "planner_first";
-    let scene = input.recover?.(gate, turnPlan) ?? null;
+    let scene = input.recover?.(gate, turnPlan, authority) ?? null;
     const recovered = scene !== null;
 
     let fast: F | null = null;
+    let nativeSelected = false;
     if (!plannerFirst && !scene && gate.shouldPlanExactScene && !input.fastFigureBlocked(authority)) {
       deterministicAttempted = true;
       const span = input.telemetry?.span("deterministic-figure", parent);
@@ -426,6 +432,18 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       fast = input.selectFast(turnPlan, authority, gate, "selection");
       timings.deterministicFigureMs = now() - fastStartedAt;
       span?.end({ selected: fast !== null });
+    }
+    if (!fast && !scene && gate.shouldPlanExactScene && !input.fastFigureBlocked(authority) && input.selectNative && remainingMs() > 0) {
+      input.signal?.throwIfAborted();
+      deterministicAttempted = true;
+      const startedAt = now();
+      const span = input.telemetry?.span("native-source-figure", parent);
+      const native = input.selectNative(turnPlan, authority, gate);
+      input.signal?.throwIfAborted();
+      fast = remainingMs() > 0 ? native : null;
+      nativeSelected = fast !== null;
+      timings.deterministicFigureMs += now() - startedAt;
+      span?.end({ selected: nativeSelected, deadline_remaining_ms: remainingMs() });
     }
 
     let validatedAgainst: TurnPlanV3 = turnPlan;
@@ -481,12 +499,12 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
         problemAuthorityAvailable: authority !== null,
         planningTurnPlan: validatedAgainst,
         authoritativeTurnPlan: turnPlan,
-        // Every validator here is bound to the plan it was handed and nothing
-        // else, so an identical final plan cannot change any verdict.
+        // The validators share the reconciled authority, including those in a
+        // kept speculative run. Plan equality is enough to reuse their verdicts.
         candidatesValidatedAgainst: validatedAgainst,
         revalidate: (result) => {
           revalidated = true;
-          return input.revalidate(result, turnPlan);
+          return input.revalidate(result, turnPlan, authority);
         },
       }));
       scene = finalized;
@@ -503,7 +521,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       fast,
       scene,
       recovered,
-      figureSource: fast ? "fast_family" : scene ? recovered ? "verified_recovery" : "planner" : null,
+      figureSource: fast ? nativeSelected ? "native_source" : "fast_family" : scene ? recovered ? "verified_recovery" : "planner" : null,
       speculation: { started: kept || abortReason !== null, kept, abortReason, restarted },
       timings,
       attempts: {

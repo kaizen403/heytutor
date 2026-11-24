@@ -1,0 +1,45 @@
+{
+  "sources": [
+    {
+      "term": "k e\u00b2",
+      "expected": true
+    },
+    {
+      "term": "ke\u00b2",
+      "expected": true
+    },
+    {
+      "term": "k e^2",
+      "expected": true
+    },
+    {
+      "term": "k E\u00b2",
+      "expected": false
+    },
+    {
+      "term": "K e\u00b2",
+      "expected": false
+    },
+    {
+      "term": "K E\u00b2",
+      "expected": false
+    },
+    {
+      "term": "KE\u00b2",
+      "expected": false
+    },
+    {
+      "term": "k \u00ea\u00b2",
+      "expected": false
+    },
+    {
+      "term": "k_e\u00b2",
+      "expected": false
+    }
+  ],
+  "alternatives": [
+    "Plot y = 2*x + 1 for x from -2 to 2 and label the axes.",
+    "Draw the energy-level diagram for the Balmer series of hydrogen atom.",
+    "Given v=10 m/s. Show v in m/s and km/h."
+  ]
+}
