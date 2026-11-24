@@ -1542,10 +1542,11 @@ export function useQuestionHandler(
         });
         const validateCandidateAgainstPlan = (
           candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
+          problemIR: ProblemAuthorityV1Response["problemIR"] | null,
           context: "search" | "revalidate" | "recovery" = "search",
         ): SceneCandidateValidation<ValidatedSceneCandidate> =>
           measureSceneCandidateValidation(tel, { validationCallIndex: ++validationCallIndex, context }, () =>
-            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: context === "recovery" ? "off" : billed.diagramYieldPolicy, curveLabels: context !== "recovery" && billed.diagramCurveLabels === true, blockFlowEligible }));
+            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, problemIR, yieldPolicy: context === "recovery" ? "off" : billed.diagramYieldPolicy, curveLabels: context !== "recovery" && billed.diagramCurveLabels === true, blockFlowEligible }));
         const deriveSceneGate = (
           planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
         ): SceneGate => {
@@ -1628,12 +1629,13 @@ export function useQuestionHandler(
             };
           },
           fastFigureBlocked: (authority) => authority?.audit.status === "contradiction",
-          recover: (gate, planningTurnPlan) => {
+          recover: (gate, planningTurnPlan, authority) => {
             const recovery = recoveredScene;
             if (!gate.shouldPlanExactScene || !recovery) return null;
             const validation = validateCandidateAgainstPlan(
               recovery.document as unknown as Record<string, unknown>,
               planningTurnPlan,
+              authority?.problemIR ?? null,
               "recovery",
             );
             if (!validation.valid) {
@@ -1685,7 +1687,7 @@ export function useQuestionHandler(
             const { diagramExampleIds: pickedIds = [], ...plannerRequest } = gate.request;
             return planSceneDocumentWithRepair(
               question,
-              (candidate) => validateCandidateAgainstPlan(candidate, planningTurnPlan),
+              (candidate) => validateCandidateAgainstPlan(candidate, planningTurnPlan, run.getAuthority()?.problemIR ?? null),
               {
                 proxyUrl: scenePlannerUrlWithExampleIds(plannerUrl, pickedIds, diagramSubject),
                 sessionId: sessionId ?? undefined,
@@ -1717,9 +1719,9 @@ export function useQuestionHandler(
               },
             ).catch(() => null);
           },
-          revalidate: (sceneResult, authoritativeTurnPlan) => revalidateScenePlanWithRepairResult(
+          revalidate: (sceneResult, authoritativeTurnPlan, authority) => revalidateScenePlanWithRepairResult(
             sceneResult,
-            (candidate) => validateCandidateAgainstPlan(candidate, authoritativeTurnPlan, "revalidate"),
+            (candidate) => validateCandidateAgainstPlan(candidate, authoritativeTurnPlan, authority?.problemIR ?? null, "revalidate"),
           ),
         });
         turnPlan = planning.turnPlan;

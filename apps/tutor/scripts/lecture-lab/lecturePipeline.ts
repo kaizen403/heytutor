@@ -617,9 +617,10 @@ export async function runLecture(
     const candidateClocks = new WeakMap<Record<string, unknown>, number>();
     const validateCandidateAgainstPlan = (
       candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
+      problemIR: ProblemAuthorityV1Response["problemIR"] | null,
     ): SceneCandidateValidation<ValidatedSceneCandidate> => {
       const startedAt = performance.now();
-      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY), curveLabels: parseCurveLabelSwitch(process.env.DIAGRAM_CURVE_LABELS), blockFlowEligible });
+      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, problemIR, yieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY), curveLabels: parseCurveLabelSwitch(process.env.DIAGRAM_CURVE_LABELS), blockFlowEligible });
       candidateClocks.set(candidate, performance.now() - startedAt);
       return validation;
     };
@@ -723,7 +724,7 @@ export async function runLecture(
       planScene: (gate, planningTurnPlan, sceneRun) =>
         planSceneDocumentWithRepair(
           question,
-          (candidate) => validateCandidateAgainstPlan(candidate, planningTurnPlan),
+          (candidate) => validateCandidateAgainstPlan(candidate, planningTurnPlan, sceneRun.getAuthority()?.problemIR ?? null),
           {
             proxyUrl: plannerUrl,
             signal: sceneRun.signal,
@@ -741,9 +742,9 @@ export async function runLecture(
             ...gate.request,
           },
         ).catch(() => null),
-      revalidate: (sceneResult, authoritativeTurnPlan) =>
+      revalidate: (sceneResult, authoritativeTurnPlan, authority) =>
         revalidateScenePlanWithRepairResult(sceneResult, (candidate) =>
-          validateCandidateAgainstPlan(candidate, authoritativeTurnPlan),
+          validateCandidateAgainstPlan(candidate, authoritativeTurnPlan, authority?.problemIR ?? null),
           (response, validation) => recordValidation(response, validation, "authority_revalidation"),
         ),
     });
