@@ -52,8 +52,8 @@ import {
   type DoubtFigureNeedInput,
   type DoubtFigureNeedResult,
 } from "@/lib/llm/doubtFigureNeed";
-import { selectFastVerifiedRepresentation, type SelectedRepresentation } from "../scene/representationFallback";
-import { deriveSceneGate, selectProductionScene } from "../scene/productionSceneSelection";
+import type { SelectedRepresentation } from "../scene/representationFallback";
+import { deriveSceneGate, selectProductionFastRepresentation, selectProductionScene } from "../scene/productionSceneSelection";
 import { buildVerifiedDiagramPresentation } from "../scene/verifiedScenePresentation";
 import { turnPlanNeedsNumericAuthority } from "../scene/diagramGeneration";
 import { refreshSolverAuthorityForPlan } from "./refreshSolverAuthority";
@@ -173,7 +173,7 @@ export function selectFastFigure(input: {
   authority: ProblemAuthorityV1Response | null;
   families: readonly string[];
 }): SelectedRepresentation | null {
-  return selectFastVerifiedRepresentation({
+  return selectProductionFastRepresentation({
     question: input.question,
     turnPlan: input.turnPlan,
     problemIR: input.authority?.problemIR ?? null,

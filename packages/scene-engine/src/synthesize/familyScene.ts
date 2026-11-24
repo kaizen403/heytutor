@@ -3,12 +3,14 @@
  * family. Geometry comes from operators and plan quantities — never from
  * planner-authored pixels.
  */
+import { buildSourceCertifiedScientificScene } from "./sourceCertifiedScientificScene";
 import { stemKnowns } from "../archetypes/generators/constantAcceleration";
 import { buildNeutralDecayScene, readNeutralDecaySource } from "../physics/neutralDecaySource";
 import { buildParticleRadiationScene, readRadiationSource } from "../physics/radiationSource";
 import { readSourceLawGraph } from "../chemistry/sourceLawGraph";
 import { readApertureSource, readYoungRepresentationRequest, readTwoLoopTopology, twoLoopTopologyClaimed, readCircuitLawExample, readSeriesParallelSourceComparison, type TwoLoopSource } from "../physics/apparatusSource";
 import { compileSceneDocument } from "../compile/compiler";
+import { validatePublicAtomicSceneAdmission } from "../physics/atomicPublicAdmission";
 import { buildCircuitLawExample } from "../physics/circuitLawExample";
 import { groundedOhmScene } from "../compile/ohmTopicGeometry";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
@@ -151,6 +153,14 @@ interface PlanQuantity {
 }
 
 export function synthesizeFamilyScene(input: FamilySceneInput): SynthesizedFamilyScene | null {
+  const scientific = buildSourceCertifiedScientificScene(input.question, input.turnPlan);
+  if (scientific) {
+    const compiled = tryCompile(scientific.document);
+    if (compiled && !demandRejection(compiled.document, sceneDemand(input.question, input.problemIR))) {
+      return { ...compiled, family: scientific.family, tier: "qualitative_verified", nonMetric: true,
+        reason: "Native operators compiled from the complete original source certificate" };
+    }
+  }
   return synthesizeFromFamilies(input, false) ?? synthesizePlanExampleScene(input);
 }
 
@@ -169,6 +179,14 @@ function synthesizePlanExampleScene(input: FamilySceneInput): SynthesizedFamilyS
 }
 
 export function synthesizeLastResortScene(input: FamilySceneInput): SynthesizedFamilyScene | null {
+  const scientific = buildSourceCertifiedScientificScene(input.question, input.turnPlan);
+  if (scientific) {
+    const compiled = tryCompile(scientific.document);
+    if (compiled && !demandRejection(compiled.document, sceneDemand(input.question, input.problemIR))) {
+      return { ...compiled, family: scientific.family, tier: "question_representation", nonMetric: true,
+        reason: "Native operators compiled from the complete original source certificate" };
+    }
+  }
   return synthesizeFromFamilies(input, true);
 }
 
@@ -4604,7 +4622,7 @@ function tryCompile(document: SceneDocument): {
 } | null {
   const pruned = pruneDeadSceneEntities(document as unknown as Record<string, unknown>);
   const validated = validateSceneDocument(pruned);
-  if (!validated.document) return null;
+  if (!validated.document || validatePublicAtomicSceneAdmission(validated.document, document.source.question).length) return null;
   const compiled = compileSceneDocument(validated.document);
   if (
     !compiled.ok

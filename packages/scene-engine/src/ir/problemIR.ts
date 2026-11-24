@@ -1,5 +1,6 @@
 import { parseMathExpression } from "../math/expression";
 import { validateDcNetwork, type DcNetwork, type DcNetworkOutput } from "./circuitNetwork";
+import { solveMechanicsProgram, type MechanicsProgram } from "./mechanicsProgram";
 
 export const PROBLEM_IR_VERSION = "problem-ir/v1" as const;
 
@@ -78,6 +79,7 @@ export interface SolveResultBinding {
 }
 
 export type SolveRequest =
+  | { id: string; kind: "mechanics"; program: MechanicsProgram; resultBinding?: SolveResultBinding }
   | { id: string; kind: "dc_network"; network: DcNetwork; output: DcNetworkOutput; resultBinding?: SolveResultBinding }
   | { id: string; kind: "evaluate"; expressionId: string; resultBinding?: SolveResultBinding }
   | { id: string; kind: "roots"; expressionId: string; variable: string; domain: SolveDomain; resultBinding?: SolveResultBinding }
@@ -283,6 +285,11 @@ function validateIntent(raw: unknown, facts: Set<string>, entities: Set<string>,
 function validateSolveRequest(raw: unknown, expressions: Set<string>, facts: Set<string>, path: string, issues: ProblemIRIssue[], problem: ProblemIR): void {
   if (!isRecord(raw)) return add(issues, "invalid_solve_request", path, "solve request must be an object");
   validateResultBinding(raw.resultBinding, facts, `${path}.resultBinding`, issues);
+  if (raw.kind === "mechanics") {
+    try { solveMechanicsProgram(problem, raw.program, raw.resultBinding as SolveResultBinding | undefined); }
+    catch (error) { add(issues, "invalid_mechanics_program", path, error instanceof Error ? error.message : "Invalid mechanics program"); }
+    return;
+  }
   if (raw.kind === "dc_network") {
     try {
       const network = validateDcNetwork(problem, raw.network);

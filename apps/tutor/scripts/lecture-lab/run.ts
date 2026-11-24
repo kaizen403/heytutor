@@ -57,6 +57,7 @@ import { normalizeTutorQuestion } from "@heytutor/tutor-core";
 import { calculateLlmCostDetails, resolveLlmRates, type LlmRate } from "../../lib/obs/usageCost";
 import { assertLabSpendMode, assertLabUsageCheckpoint, hasPricedUsage, LabRequestNotDispatchedError, type LabSpendMode, type LabUnresolvedCall, type LabUsageObservation } from "./labSpend";
 import type { SceneDeclinePolicy } from "./sceneDeclineExperiment";
+import { resolveScientificStyleLecture, scientificStyleLectureIdentity } from "../../lib/scene/scientificStyleLecture.server";
 import {
   budgetedReferencePictureFetch,
   labReferencePicturePolicy,
@@ -923,8 +924,15 @@ async function main(): Promise<void> {
   const configResponse = await fetch(`${options.origin}/api/lecture-lab/config`, { headers: configHeaders });
   if (!configResponse.ok) throw new Error("authenticated lab provider preflight failed");
   const serverConfig = await configResponse.json() as LabBudgetServerConfig & { visualNeed?: Record<string, unknown>;
+    scientificStyle?: ReturnType<typeof scientificStyleLectureIdentity>;
     planningSpeed?: { sceneEffort: string; priority: boolean; requestTier: string } };
   assertLabBudgetPreflight(modelProfile, serverConfig);
+  const scientificStyleIdentity = scientificStyleLectureIdentity();
+  if (JSON.stringify(serverConfig.scientificStyle) !== JSON.stringify(scientificStyleIdentity)) {
+    throw new Error("server scientific-style mode/sample does not match the lecture lab");
+  }
+  const scientificStyle = await resolveScientificStyleLecture();
+  if (scientificStyleIdentity.enabled && !scientificStyle) throw new Error("scientific-style sample is not valid");
   if (!serverConfig.visualNeed || Object.entries(LAB_VISUAL_NEED_POLICY).some(([key, value]) => serverConfig.visualNeed?.[key] !== value)) {
     throw new Error("server visual-need policy does not match the live-matching lab");
   }
@@ -936,6 +944,7 @@ async function main(): Promise<void> {
       requestTier: serverConfig.planningSpeed?.requestTier ?? "auto",
       priority: serverConfig.planningSpeed?.priority === true },
     figureSelectionPolicy: PRODUCTION_SCENE_SELECTION_VERSION,
+    scientificStyle: { ...scientificStyleIdentity, descriptor: scientificStyle },
     diagramYieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY),
     figureOnly: options.figureOnly, scenePlannerLimitMs: options.scenePlannerLimitMs,
     familiarity: options.familiarity, narrationLanguage: options.narrationLanguage,
@@ -1240,6 +1249,7 @@ async function main(): Promise<void> {
           diagramExampleCatalogue,
           spendMode: options.spendMode,
           referencePicture: options.referencePicture,
+          scientificStyle,
           referencePicturePartFocus: options.referencePicturePartFocus,
           onReferencePictureImage: (image) => { pictureImage = image; },
         });

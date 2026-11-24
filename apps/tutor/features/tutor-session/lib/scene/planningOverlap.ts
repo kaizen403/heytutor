@@ -131,6 +131,8 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
   /** A stored verified scene, validated against the final plan. */
   recover?(gate: G, plan: TurnPlanV3): R | null;
   selectFast(plan: TurnPlanV3, authority: A | null, gate: G, phase: "prediction" | "selection"): F | null;
+  /** Opt-in source proof on final numeric authority, before paid planning. */
+  selectNative?(plan: TurnPlanV3, authority: A | null, gate: G): F | null;
   /**
    * One planSceneDocumentWithRepair run whose validator is bound to `plan`.
    * A speculative run passes `holdValidationUntil`: it fetches initial
@@ -163,7 +165,7 @@ export interface ScenePlanningOverlapOutcome<A, G, F, R> {
   scene: R | null;
   recovered: boolean;
   /** Provenance of the pre-fallback path that produced the usable candidate. */
-  figureSource: Extract<FigureSource, "fast_family" | "planner" | "verified_recovery"> | null;
+  figureSource: Extract<FigureSource, "fast_family" | "native_source" | "planner" | "verified_recovery"> | null;
   speculation: {
     started: boolean;
     /** The speculative run produced `scene`. */
@@ -380,7 +382,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       typeof input.selectionOrder === "function"
         ? input.selectionOrder(gate)
         : input.selectionOrder ?? "current";
-    if (speculationEnabled && input.speculationAllowed && authorityPending) {
+    if (!input.selectNative && speculationEnabled && input.speculationAllowed && authorityPending) {
       const gate = input.deriveGate(input.turnPlan, null);
       const plannerFirst = selectionOrderFor(gate) === "planner_first";
       const budgetMs = remainingMs();
@@ -419,6 +421,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     const recovered = scene !== null;
 
     let fast: F | null = null;
+    let nativeSelected = false;
     if (!plannerFirst && !scene && gate.shouldPlanExactScene && !input.fastFigureBlocked(authority)) {
       deterministicAttempted = true;
       const span = input.telemetry?.span("deterministic-figure", parent);
@@ -426,6 +429,18 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       fast = input.selectFast(turnPlan, authority, gate, "selection");
       timings.deterministicFigureMs = now() - fastStartedAt;
       span?.end({ selected: fast !== null });
+    }
+    if (!fast && !scene && gate.shouldPlanExactScene && !input.fastFigureBlocked(authority) && input.selectNative && remainingMs() > 0) {
+      input.signal?.throwIfAborted();
+      deterministicAttempted = true;
+      const startedAt = now();
+      const span = input.telemetry?.span("native-source-figure", parent);
+      const native = input.selectNative(turnPlan, authority, gate);
+      input.signal?.throwIfAborted();
+      fast = remainingMs() > 0 ? native : null;
+      nativeSelected = fast !== null;
+      timings.deterministicFigureMs += now() - startedAt;
+      span?.end({ selected: nativeSelected, deadline_remaining_ms: remainingMs() });
     }
 
     let validatedAgainst: TurnPlanV3 = turnPlan;
@@ -503,7 +518,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       fast,
       scene,
       recovered,
-      figureSource: fast ? "fast_family" : scene ? recovered ? "verified_recovery" : "planner" : null,
+      figureSource: fast ? nativeSelected ? "native_source" : "fast_family" : scene ? recovered ? "verified_recovery" : "planner" : null,
       speculation: { started: kept || abortReason !== null, kept, abortReason, restarted },
       timings,
       attempts: {

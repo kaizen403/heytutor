@@ -1,3 +1,4 @@
+import { resolveScientificStyleLecture } from "@/lib/scene/scientificStyleLecture.server";
 import { beginTurnFromRequest } from "@/lib/billing/gate";
 import { billingResponse } from "@/lib/billing/errors";
 import { cacheUsageOnUser } from "@/lib/billing/ledger";
@@ -24,6 +25,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!result.grant) {
     return billingResponse("no_grant", result.remainingPct);
   }
+  const scientificStyle = await resolveScientificStyleLecture();
   void cacheUsageOnUser({
     userId: result.grant.userId,
     planId: result.planId,
@@ -44,6 +46,7 @@ export async function POST(request: Request): Promise<Response> {
     opticsArchetypeInStrict: resolveOpticsArchetypeInStrict(),
     ...(resolveSolverDisagreementStops() ? { solverDisagreementStops: true } : {}),
     referencePicture: resolveReferencePictureEnabled(),
+    ...(scientificStyle ? { scientificStyle } : {}),
     referencePicturePartFocus: resolveReferencePicturePartFocusEnabled(),
     doubtPointing: resolveDoubtPointingEnabled(),
     doubtFigures: resolveDoubtFiguresEnabled(),

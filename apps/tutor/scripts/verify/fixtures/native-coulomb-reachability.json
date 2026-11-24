@@ -1,0 +1,925 @@
+{
+  "schemaVersion": "native-coulomb-reachability-private-fixture/v1",
+  "purpose": "Portable data for a new app-owned durable regression gate after independent review; no runtime output dependency",
+  "captureSha256": "c53a00e678605b1bb274f7e4c84c0c031ced571b01c938f68be529326dc15148",
+  "question": "In the classical heavy fixed-target approximation, a +2e alpha particle with kinetic energy 5.00 MeV approaches a +79e nucleus head-on. Use k e² = 1.44 MeV fm. Find the closest approach and draw the turning point outside the nucleus.",
+  "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "In the classical heavy fixed-target approximation, a +2e alpha particle with kinetic energy 5.00 MeV approaches a +79e nucleus head-on. Use k e² = 1.44 MeV fm. Find the closest approach and draw the turning point outside the nucleus.",
+    "givens": [
+      {
+        "id": "qAlpha",
+        "symbol": "qα",
+        "value": 2,
+        "unit": "e",
+        "sourceText": "+2e alpha particle",
+        "provenance": "given"
+      },
+      {
+        "id": "K",
+        "symbol": "K",
+        "value": 5,
+        "unit": "MeV",
+        "sourceText": "kinetic energy 5.00 MeV",
+        "provenance": "given"
+      },
+      {
+        "id": "qNucleus",
+        "symbol": "qN",
+        "value": 79,
+        "unit": "e",
+        "sourceText": "+79e nucleus",
+        "provenance": "given"
+      },
+      {
+        "id": "ke2",
+        "symbol": "ke²",
+        "value": 1.44,
+        "unit": "MeV fm",
+        "sourceText": "k e² = 1.44 MeV fm",
+        "provenance": "given"
+      }
+    ],
+    "unknowns": [
+      {
+        "id": "rMin",
+        "symbol": "rmin",
+        "unit": "fm"
+      }
+    ],
+    "derived": [
+      {
+        "id": "rMin",
+        "symbol": "rmin",
+        "value": 45.504,
+        "unit": "fm",
+        "sourceText": "rmin = (2 × 79 × 1.44)/5.00",
+        "provenance": "derived",
+        "dependsOn": [
+          "qAlpha",
+          "qNucleus",
+          "ke2",
+          "K"
+        ]
+      }
+    ],
+    "qualitativeClaims": [
+      {
+        "id": "turningPoint",
+        "claim": "Locate the head-on turning point outside the nucleus.",
+        "expected": "The alpha particle turns at rmin ≈ 45.5 fm from the nucleus’s center, along its approach line; its speed is momentarily zero there.",
+        "relatedQuantityIds": [
+          "rMin"
+        ],
+        "relatedEntityHints": [
+          "alpha particle",
+          "nucleus",
+          "turning point"
+        ]
+      }
+    ],
+    "lawIds": [
+      "conservation of mechanical energy",
+      "Coulomb potential energy"
+    ],
+    "assumptions": [
+      "The nucleus is fixed and the interaction is classical Coulomb repulsion.",
+      "The nucleus’s radius is less than 45.504 fm, so the calculated turning point lies outside it."
+    ],
+    "visualRequirement": "required"
+  },
+  "problemIR": {
+    "facts": [
+      {
+        "id": "fApprox",
+        "kind": "assumption",
+        "statement": "Classical heavy fixed-target approximation",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 49,
+          "quote": "In the classical heavy fixed-target approximation"
+        }
+      },
+      {
+        "id": "fAlpha",
+        "kind": "given",
+        "statement": "Alpha particle charge is +2e",
+        "evidence": {
+          "source": "question",
+          "start": 51,
+          "end": 71,
+          "quote": "a +2e alpha particle"
+        }
+      },
+      {
+        "id": "fEnergy",
+        "kind": "given",
+        "statement": "Alpha kinetic energy is 5.00 MeV",
+        "evidence": {
+          "source": "question",
+          "start": 72,
+          "end": 100,
+          "quote": "with kinetic energy 5.00 MeV"
+        }
+      },
+      {
+        "id": "fNucleus",
+        "kind": "given",
+        "statement": "Nucleus charge is +79e",
+        "evidence": {
+          "source": "question",
+          "start": 112,
+          "end": 126,
+          "quote": "a +79e nucleus"
+        }
+      },
+      {
+        "id": "fConstant",
+        "kind": "given",
+        "statement": "Coulomb constant product is 1.44 MeV fm",
+        "evidence": {
+          "source": "question",
+          "start": 136,
+          "end": 158,
+          "quote": "Use k e² = 1.44 MeV fm"
+        }
+      },
+      {
+        "id": "fRequest",
+        "kind": "requested",
+        "statement": "Find closest approach",
+        "evidence": {
+          "source": "question",
+          "start": 160,
+          "end": 185,
+          "quote": "Find the closest approach"
+        }
+      },
+      {
+        "id": "fDraw",
+        "kind": "requested",
+        "statement": "Draw turning point outside nucleus",
+        "evidence": {
+          "source": "question",
+          "start": 190,
+          "end": 232,
+          "quote": "draw the turning point outside the nucleus"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "alpha",
+        "kind": "body",
+        "label": "alpha particle",
+        "evidenceFactIds": [
+          "fAlpha",
+          "fEnergy"
+        ]
+      },
+      {
+        "id": "nucleus",
+        "kind": "body",
+        "label": "nucleus",
+        "evidenceFactIds": [
+          "fNucleus"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "eDistance",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fAlpha",
+          "fEnergy",
+          "fNucleus",
+          "fConstant"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 1.44
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 79
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 5
+          }
+        }
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "iTurningPoint",
+        "kind": "conceptual",
+        "entityIds": [
+          "alpha",
+          "nucleus"
+        ],
+        "evidenceFactIds": [
+          "fRequest",
+          "fDraw"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sClosest",
+        "kind": "evaluate",
+        "expressionId": "eDistance",
+        "resultBinding": {
+          "turnPlanQuantityId": "rMin",
+          "symbol": "rmin",
+          "unit": "fm",
+          "evidenceFactIds": [
+            "fRequest"
+          ]
+        }
+      }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "In the classical heavy fixed-target approximation, a +2e alpha particle with kinetic energy 5.00 MeV approaches a +79e nucleus head-on. Use k e² = 1.44 MeV fm. Find the closest approach and draw the turning point outside the nucleus."
+  },
+  "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+      {
+        "id": "value_sClosest",
+        "requestId": "sClosest",
+        "valueType": "scalar",
+        "exact": {
+          "kind": "rational",
+          "value": "5688/125"
+        },
+        "approximate": 45.504,
+        "errorBound": 0
+      }
+    ],
+    "proofs": [
+      {
+        "id": "proof_sClosest",
+        "requestId": "sClosest",
+        "method": "exact_arithmetic",
+        "expressionIds": [
+          "eDistance"
+        ],
+        "verified": true,
+        "residual": 0,
+        "tolerance": 1e-09,
+        "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+      }
+    ],
+    "issues": []
+  },
+  "currentPolicy": {
+    "preferPlanner": false,
+    "allowedFigureSources": [
+      "planner",
+      "fast_family",
+      "family",
+      "archetype",
+      "optics_archetype",
+      "chemistry_family",
+      "matrix_source",
+      "linear_source",
+      "source_grounded",
+      "last_resort",
+      "text_only",
+      "dsa_trace",
+      "verified_recovery"
+    ],
+    "admitOwningOpticsArchetype": false
+  },
+  "cases": [
+    {
+      "name": "captured-plan-e-missing-b",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "Source-bound classical Coulomb model"
+        },
+        "source": {
+          "question": "In the classical heavy fixed-target approximation, a +2e alpha particle with kinetic energy 5.00 MeV approaches a +79e nucleus head-on. Use k e² = 1.44 MeV fm. Find the closest approach and draw the turning point outside the nucleus.",
+          "representationTier": "qualitative_verified",
+          "nonMetric": true
+        },
+        "quantities": [
+          {
+            "id": "qAlpha",
+            "symbol": "q1",
+            "value": 2,
+            "unit": "e"
+          },
+          {
+            "id": "qNucleus",
+            "symbol": "q2",
+            "value": 79,
+            "unit": "e"
+          },
+          {
+            "id": "ke2",
+            "symbol": "k e^2",
+            "value": 1.44,
+            "unit": "MeV fm"
+          },
+          {
+            "id": "K",
+            "symbol": "E",
+            "value": 5,
+            "unit": "MeV"
+          }
+        ],
+        "entities": [
+          {
+            "id": "owner_57",
+            "kind": "polyline",
+            "role": "projectile trajectory"
+          }
+        ],
+        "constructions": [
+          {
+            "id": "op_92",
+            "operator": "rutherford_scattering",
+            "inputs": {
+              "model": "fixed_target_coulomb",
+              "projectileCharge": "qAlpha",
+              "targetCharge": "qNucleus",
+              "kEnergyLength": "ke2",
+              "energy": "K",
+              "resultBindings": {
+                "closestApproach": "rMin"
+              }
+            },
+            "outputs": [
+              "owner_57"
+            ]
+          }
+        ],
+        "relations": [],
+        "assertions": [],
+        "annotations": [],
+        "requiredEntityIds": [
+          "owner_57"
+        ],
+        "revealGroups": [
+          {
+            "id": "model_view",
+            "entityIds": [
+              "owner_57"
+            ],
+            "dependsOn": [],
+            "narrationCue": "Classical point-target model; nuclear size is unspecified"
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "expected": {
+        "compileOk": true,
+        "candidateValid": true,
+        "selectedNative": true,
+        "saveFailure": null,
+        "readAccepted": true,
+        "restoreAccepted": true,
+        "codes": [
+          "coulomb_finite_body_unproved"
+        ]
+      }
+    },
+    {
+      "name": "qAlpha-unit-mutation-e-to-1-against-same-plan",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "Source-bound classical Coulomb model"
+        },
+        "source": {
+          "question": "In the classical heavy fixed-target approximation, a +2e alpha particle with kinetic energy 5.00 MeV approaches a +79e nucleus head-on. Use k e² = 1.44 MeV fm. Find the closest approach and draw the turning point outside the nucleus.",
+          "representationTier": "qualitative_verified",
+          "nonMetric": true
+        },
+        "quantities": [
+          {
+            "id": "qAlpha",
+            "symbol": "q1",
+            "value": 2,
+            "unit": "1"
+          },
+          {
+            "id": "qNucleus",
+            "symbol": "q2",
+            "value": 79,
+            "unit": "e"
+          },
+          {
+            "id": "ke2",
+            "symbol": "k e^2",
+            "value": 1.44,
+            "unit": "MeV fm"
+          },
+          {
+            "id": "K",
+            "symbol": "E",
+            "value": 5,
+            "unit": "MeV"
+          }
+        ],
+        "entities": [
+          {
+            "id": "owner_57",
+            "kind": "polyline",
+            "role": "projectile trajectory"
+          }
+        ],
+        "constructions": [
+          {
+            "id": "op_92",
+            "operator": "rutherford_scattering",
+            "inputs": {
+              "model": "fixed_target_coulomb",
+              "projectileCharge": "qAlpha",
+              "targetCharge": "qNucleus",
+              "kEnergyLength": "ke2",
+              "energy": "K",
+              "resultBindings": {
+                "closestApproach": "rMin"
+              }
+            },
+            "outputs": [
+              "owner_57"
+            ]
+          }
+        ],
+        "relations": [],
+        "assertions": [],
+        "annotations": [],
+        "requiredEntityIds": [
+          "owner_57"
+        ],
+        "revealGroups": [
+          {
+            "id": "model_view",
+            "entityIds": [
+              "owner_57"
+            ],
+            "dependsOn": [],
+            "narrationCue": "Classical point-target model; nuclear size is unspecified"
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "expected": {
+        "compileOk": true,
+        "candidateValid": false,
+        "selectedNative": false,
+        "saveFailure": "scene quantities disagree with TurnPlanV3: scene_quantity_mismatch: Quantity qAlpha (symbol q1) is written as 2 1, which is not the value TurnPlanV3 holds for qAlpha. Valid when its value and unit are copied exactly from the AUTHORITATIVE TURN PLAN V3 entry qAlpha, or the quantity is left out.; scene_unit_mismatch: Quantity qAlpha has unit \"1\", not the unit TurnPlanV3 holds for qAlpha. Valid when the unit is copied exactly from the AUTHORITATIVE TURN PLAN V3 entry qAlpha.",
+        "readAccepted": false,
+        "restoreAccepted": false,
+        "codes": [
+          "coulomb_finite_body_unproved",
+          "atomic_source_quantity_unbound",
+          "scene_quantity_mismatch",
+          "scene_unit_mismatch"
+        ]
+      }
+    },
+    {
+      "name": "qAlpha-wrong-unit-C",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "Source-bound classical Coulomb model"
+        },
+        "source": {
+          "question": "In the classical heavy fixed-target approximation, a +2e alpha particle with kinetic energy 5.00 MeV approaches a +79e nucleus head-on. Use k e² = 1.44 MeV fm. Find the closest approach and draw the turning point outside the nucleus.",
+          "representationTier": "qualitative_verified",
+          "nonMetric": true
+        },
+        "quantities": [
+          {
+            "id": "qAlpha",
+            "symbol": "q1",
+            "value": 2,
+            "unit": "C"
+          },
+          {
+            "id": "qNucleus",
+            "symbol": "q2",
+            "value": 79,
+            "unit": "e"
+          },
+          {
+            "id": "ke2",
+            "symbol": "k e^2",
+            "value": 1.44,
+            "unit": "MeV fm"
+          },
+          {
+            "id": "K",
+            "symbol": "E",
+            "value": 5,
+            "unit": "MeV"
+          }
+        ],
+        "entities": [
+          {
+            "id": "owner_57",
+            "kind": "polyline",
+            "role": "projectile trajectory"
+          }
+        ],
+        "constructions": [
+          {
+            "id": "op_92",
+            "operator": "rutherford_scattering",
+            "inputs": {
+              "model": "fixed_target_coulomb",
+              "projectileCharge": "qAlpha",
+              "targetCharge": "qNucleus",
+              "kEnergyLength": "ke2",
+              "energy": "K",
+              "resultBindings": {
+                "closestApproach": "rMin"
+              }
+            },
+            "outputs": [
+              "owner_57"
+            ]
+          }
+        ],
+        "relations": [],
+        "assertions": [],
+        "annotations": [],
+        "requiredEntityIds": [
+          "owner_57"
+        ],
+        "revealGroups": [
+          {
+            "id": "model_view",
+            "entityIds": [
+              "owner_57"
+            ],
+            "dependsOn": [],
+            "narrationCue": "Classical point-target model; nuclear size is unspecified"
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "expected": {
+        "compileOk": false,
+        "candidateValid": false,
+        "selectedNative": false,
+        "saveFailure": "scene quantities disagree with TurnPlanV3: scene_quantity_mismatch: Quantity qAlpha (symbol q1) is written as 2 C, which is not the value TurnPlanV3 holds for qAlpha. Valid when its value and unit are copied exactly from the AUTHORITATIVE TURN PLAN V3 entry qAlpha, or the quantity is left out.; scene_unit_mismatch: Quantity qAlpha has unit \"C\", not the unit TurnPlanV3 holds for qAlpha. Valid when the unit is copied exactly from the AUTHORITATIVE TURN PLAN V3 entry qAlpha.",
+        "readAccepted": false,
+        "restoreAccepted": false,
+        "codes": [
+          "invalid_atomic_source"
+        ]
+      }
+    },
+    {
+      "name": "false-extra-caption:Outside the nucleus",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "Source-bound classical Coulomb model"
+        },
+        "source": {
+          "question": "In the classical heavy fixed-target approximation, a +2e alpha particle with kinetic energy 5.00 MeV approaches a +79e nucleus head-on. Use k e² = 1.44 MeV fm. Find the closest approach and draw the turning point outside the nucleus.",
+          "representationTier": "qualitative_verified",
+          "nonMetric": true
+        },
+        "quantities": [
+          {
+            "id": "qAlpha",
+            "symbol": "q1",
+            "value": 2,
+            "unit": "e"
+          },
+          {
+            "id": "qNucleus",
+            "symbol": "q2",
+            "value": 79,
+            "unit": "e"
+          },
+          {
+            "id": "ke2",
+            "symbol": "k e^2",
+            "value": 1.44,
+            "unit": "MeV fm"
+          },
+          {
+            "id": "K",
+            "symbol": "E",
+            "value": 5,
+            "unit": "MeV"
+          }
+        ],
+        "entities": [
+          {
+            "id": "owner_57",
+            "kind": "polyline",
+            "role": "projectile trajectory"
+          }
+        ],
+        "constructions": [
+          {
+            "id": "op_92",
+            "operator": "rutherford_scattering",
+            "inputs": {
+              "model": "fixed_target_coulomb",
+              "projectileCharge": "qAlpha",
+              "targetCharge": "qNucleus",
+              "kEnergyLength": "ke2",
+              "energy": "K",
+              "resultBindings": {
+                "closestApproach": "rMin"
+              }
+            },
+            "outputs": [
+              "owner_57"
+            ]
+          }
+        ],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "falseClaim",
+            "kind": "callout",
+            "targetIds": [
+              "owner_57"
+            ],
+            "text": "Outside the nucleus"
+          }
+        ],
+        "requiredEntityIds": [
+          "owner_57"
+        ],
+        "revealGroups": [
+          {
+            "id": "model_view",
+            "entityIds": [
+              "owner_57"
+            ],
+            "dependsOn": [],
+            "narrationCue": "Classical point-target model; nuclear size is unspecified"
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "expected": {
+        "compileOk": false,
+        "candidateValid": false,
+        "selectedNative": false,
+        "saveFailure": "scene source inputs are unsupported or disagree: coulomb_finite_body_claim_unproved: No finite nuclear radius is supplied/proved; point-target geometry cannot certify an outside-surface assertion.; coulomb_finite_body_unproved: This source supplies no nuclear radius. A point-target Coulomb program cannot certify an outside-finite-nucleus assertion.",
+        "readAccepted": false,
+        "restoreAccepted": false,
+        "codes": [
+          "coulomb_finite_body_claim_unproved",
+          "coulomb_finite_body_unproved"
+        ]
+      }
+    },
+    {
+      "name": "false-extra-caption:collision",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "Source-bound classical Coulomb model"
+        },
+        "source": {
+          "question": "In the classical heavy fixed-target approximation, a +2e alpha particle with kinetic energy 5.00 MeV approaches a +79e nucleus head-on. Use k e² = 1.44 MeV fm. Find the closest approach and draw the turning point outside the nucleus.",
+          "representationTier": "qualitative_verified",
+          "nonMetric": true
+        },
+        "quantities": [
+          {
+            "id": "qAlpha",
+            "symbol": "q1",
+            "value": 2,
+            "unit": "e"
+          },
+          {
+            "id": "qNucleus",
+            "symbol": "q2",
+            "value": 79,
+            "unit": "e"
+          },
+          {
+            "id": "ke2",
+            "symbol": "k e^2",
+            "value": 1.44,
+            "unit": "MeV fm"
+          },
+          {
+            "id": "K",
+            "symbol": "E",
+            "value": 5,
+            "unit": "MeV"
+          }
+        ],
+        "entities": [
+          {
+            "id": "owner_57",
+            "kind": "polyline",
+            "role": "projectile trajectory"
+          }
+        ],
+        "constructions": [
+          {
+            "id": "op_92",
+            "operator": "rutherford_scattering",
+            "inputs": {
+              "model": "fixed_target_coulomb",
+              "projectileCharge": "qAlpha",
+              "targetCharge": "qNucleus",
+              "kEnergyLength": "ke2",
+              "energy": "K",
+              "resultBindings": {
+                "closestApproach": "rMin"
+              }
+            },
+            "outputs": [
+              "owner_57"
+            ]
+          }
+        ],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "falseClaim",
+            "kind": "callout",
+            "targetIds": [
+              "owner_57"
+            ],
+            "text": "collision"
+          }
+        ],
+        "requiredEntityIds": [
+          "owner_57"
+        ],
+        "revealGroups": [
+          {
+            "id": "model_view",
+            "entityIds": [
+              "owner_57"
+            ],
+            "dependsOn": [],
+            "narrationCue": "Classical point-target model; nuclear size is unspecified"
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "expected": {
+        "compileOk": false,
+        "candidateValid": false,
+        "selectedNative": false,
+        "saveFailure": "scene source inputs are unsupported or disagree: coulomb_collision_claim_unproved: A repulsive point-target Coulomb trajectory proves no contact/collision event; extra collision claims and geometry remain unproved.; coulomb_finite_body_unproved: This source supplies no nuclear radius. A point-target Coulomb program cannot certify an outside-finite-nucleus assertion.",
+        "readAccepted": false,
+        "restoreAccepted": false,
+        "codes": [
+          "coulomb_collision_claim_unproved",
+          "coulomb_finite_body_unproved"
+        ]
+      }
+    },
+    {
+      "name": "explicit-false-impact-reference",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "Source-bound classical Coulomb model"
+        },
+        "source": {
+          "question": "In the classical heavy fixed-target approximation, a +2e alpha particle with kinetic energy 5.00 MeV approaches a +79e nucleus head-on. Use k e² = 1.44 MeV fm. Find the closest approach and draw the turning point outside the nucleus.",
+          "representationTier": "qualitative_verified",
+          "nonMetric": true
+        },
+        "quantities": [
+          {
+            "id": "qAlpha",
+            "symbol": "q1",
+            "value": 2,
+            "unit": "e"
+          },
+          {
+            "id": "qNucleus",
+            "symbol": "q2",
+            "value": 79,
+            "unit": "e"
+          },
+          {
+            "id": "ke2",
+            "symbol": "k e^2",
+            "value": 1.44,
+            "unit": "MeV fm"
+          },
+          {
+            "id": "K",
+            "symbol": "E",
+            "value": 5,
+            "unit": "MeV"
+          },
+          {
+            "id": "bFalse",
+            "value": 3,
+            "unit": "fm"
+          }
+        ],
+        "entities": [
+          {
+            "id": "owner_57",
+            "kind": "polyline",
+            "role": "projectile trajectory"
+          }
+        ],
+        "constructions": [
+          {
+            "id": "op_92",
+            "operator": "rutherford_scattering",
+            "inputs": {
+              "model": "fixed_target_coulomb",
+              "projectileCharge": "qAlpha",
+              "targetCharge": "qNucleus",
+              "kEnergyLength": "ke2",
+              "energy": "K",
+              "resultBindings": {
+                "closestApproach": "rMin"
+              },
+              "impactParameter": "bFalse"
+            },
+            "outputs": [
+              "owner_57"
+            ]
+          }
+        ],
+        "relations": [],
+        "assertions": [],
+        "annotations": [],
+        "requiredEntityIds": [
+          "owner_57"
+        ],
+        "revealGroups": [
+          {
+            "id": "model_view",
+            "entityIds": [
+              "owner_57"
+            ],
+            "dependsOn": [],
+            "narrationCue": "Classical point-target model; nuclear size is unspecified"
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "expected": {
+        "compileOk": false,
+        "candidateValid": false,
+        "selectedNative": false,
+        "saveFailure": "scene quantities disagree with TurnPlanV3: scene_quantity_unverified: bFalse is not supported by TurnPlanV3",
+        "readAccepted": false,
+        "restoreAccepted": false,
+        "codes": [
+          "coulomb_source_operand_unproved",
+          "coulomb_finite_body_unproved"
+        ]
+      }
+    }
+  ],
+  "constraints": [
+    "Question and accepted plan retained unchanged in every listed case.",
+    "No invented impact-parameter quantity in the positive case.",
+    "Finite nuclear size remains unproved.",
+    "Fixture values are test oracles only, not runtime authority."
+  ]
+}

@@ -1,3 +1,5 @@
+import { applyScientificStyleToPresentation } from "@/lib/scene/scientificStyleLecture";
+import { deriveNativeSceneStaging } from "@/lib/scene/nativeSceneStaging";
 import { regionalNarration } from "@heytutor/tutor-core";
 import { prepareNeutralPanelPresentation } from "./neutralPanelPresentation";
 export { NeutralPanelPresentationDeclined } from "./neutralPanelPresentation";
@@ -25,6 +27,8 @@ import type {
 } from "@heytutor/scene-engine";
 import {
   compileSceneDocument,
+  buildAtomicTeachingAuthority,
+  buildMechanicsTeachingAuthority,
   verifiedVseprStructure,
   verifiedOrganicNeighbourhoodStructure,
   describeSceneFamily,
@@ -40,7 +44,7 @@ import { DSA_CODE_PANEL_RECT, DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildLabelGlossary } from "./labelGlossary";
 import { hinglishFigureNarration } from "./figureNarrationLanguage";
 import { isDsaConstructionGuide } from "./diagramInk";
-import { answerLabelPrimitiveIds, isAnswerLabel } from "./answerLabelReveal";
+import { answerLabelPrimitiveIds, atomicSetupLabelPrimitiveIds, isAnswerLabel, regeneratedQuantityCalloutRows } from "./answerLabelReveal";
 
 /** Named axis marks stay small so they read as dots, not hollow letters. */
 const DIAGRAM_POINT_RADIUS = 2;
@@ -49,7 +53,7 @@ export interface VerifiedScenePresentationOptions {
   /** External turn source for independently recomputed molecular structure. */
   originalQuestion?: string;
   /** Accepted numeric authority: source givens may appear before derivation. */
-  turnPlan?: Pick<TurnPlanV3, "givens" | "derived">;
+  turnPlan?: Pick<TurnPlanV3, "givens" | "derived"> & Partial<TurnPlanV3>;
   /** Narration follows the turn's voice; every figure label stays unchanged. */
   narrationLanguage?: NarrationLanguage;
   /**
@@ -125,6 +129,13 @@ function presentationOrNoInk(
   };
 }
 
+function hasCompleteTurnPlan(plan: VerifiedScenePresentationOptions["turnPlan"]): plan is TurnPlanV3 {
+  return Boolean(plan && plan.schemaVersion === "turn-plan/v3" && typeof plan.question === "string" &&
+    Array.isArray(plan.unknowns) && Array.isArray(plan.qualitativeClaims) &&
+    Array.isArray(plan.assumptions) && Array.isArray(plan.lawIds) &&
+    ["required", "optional", "none"].includes(plan.visualRequirement ?? ""));
+}
+
 function buildDiagramPresentation(
   document: SceneDocument,
   renderScene: RenderScene,
@@ -145,13 +156,26 @@ function buildDiagramPresentation(
     }
   }
   const layout = labelLayoutFor(options.layout ?? "standard");
+  // A caption stamp, renderer string or caller coordinates never authorize
+  // board ink. Rebuild the complete native source and its exact render first.
+  const nativeStaging = options.layout !== "code_lesson" && options.originalQuestion && hasCompleteTurnPlan(options.turnPlan)
+    ? deriveNativeSceneStaging(document, options.originalQuestion, options.turnPlan, document.source.mechanicsProblemIR, renderScene)
+    : undefined;
+  if (nativeStaging?.matched) document = nativeStaging.document;
   const source = document.source as Record<string, unknown> | undefined;
+  const nativeCaption = nativeStaging?.caption;
+  const physicalAuthority = hasCompleteTurnPlan(options.turnPlan)
+    ? buildAtomicTeachingAuthority(document, options.turnPlan, options.originalQuestion) : null;
+  const mechanicsAuthority = hasCompleteTurnPlan(options.turnPlan)
+    ? buildMechanicsTeachingAuthority(document, options.turnPlan) : null;
+  const atomicSetupLabels = physicalAuthority ? atomicSetupLabelPrimitiveIds(document, renderScene.primitives, options.turnPlan) : new Set<string>();
+  const givenQuantityRows = sourceGivenQuantityRowIds(document, renderScene.primitives, options.turnPlan);
   const answerEntityIds = new Set(document.entities.filter((entity) => isAnswerLabel(document, {
     id: `primitive_${entity.id}_label`, entityId: entity.id, text: entity.label,
-  })).map((entity) => entity.id));
+  }, options.turnPlan)).map((entity) => entity.id));
   const answerAnnotationIds = new Set(document.annotations.filter((annotation) => isAnswerLabel(document, {
     id: annotation.id, annotationId: annotation.id, text: annotation.text, entityId: annotation.targetIds[0],
-  })).map((annotation) => annotation.id));
+  }, options.turnPlan)).map((annotation) => annotation.id));
   const answerTargets = new Set<string>();
   // A caption or targetless callout carrying a staged answer ("R=80 m") would
   // be drawn and spoken before teaching. Withhold that caption entirely.
@@ -163,7 +187,7 @@ function buildDiagramPresentation(
     caption && answerTexts.some((text) => caption.includes(text)) ? undefined : caption;
   const answerGroupIds = new Set<string>();
   const nonMetric = source?.nonMetric === true;
-  const answerIds = options.layout === "code_lesson" ? new Set<string>() : answerLabelPrimitiveIds(document, renderScene.primitives);
+  const answerIds = options.layout === "code_lesson" ? new Set<string>() : answerLabelPrimitiveIds(document, renderScene.primitives, options.turnPlan);
   const representationTier = typeof source?.representationTier === "string"
     ? source.representationTier
     : "exact_verified";
@@ -218,7 +242,8 @@ function buildDiagramPresentation(
     .filter((primitive) => (primitive.kind === "label" || primitive.kind === "dimension")
       && !answerIds.has(primitive.id)
       && (drawnEntityIds.has(primitive.entityId) || labelOnlyGiven(primitive))
-      && isSourceGivenMeasurement(primitive, primitive.text, document, options.turnPlan))
+      && (atomicSetupLabels.has(primitive.id) || givenQuantityRows.has(primitive.id)
+        || isSourceGivenMeasurement(primitive, primitive.text, document, options.turnPlan)))
     .map((primitive) => primitive.id));
   // Textless companions (bars, witnesses, entity wide leaders) cannot prove
   // identity from a number of their own: only drawn parts lend them one.
@@ -421,6 +446,25 @@ function buildDiagramPresentation(
     });
   });
 
+  if (nativeCaption && commands.length > 0) {
+    const captionCommands: VerifiedDiagramCommand[] = nativeCaption.board.lines.map((row, index) => ({
+      type: "LABEL",
+      params: [row.glyphOrigin.x, row.glyphOrigin.y, nativeCaption.fontPx],
+      text: row.text,
+      semanticRef: { entityId: "native_scene_caption", primitiveId: `scene_caption_${index}` },
+    }));
+    const captionIndices = captionCommands.map(command => commands.push(command) - 1);
+    if (nativeCaption.revealAfter === "teaching_complete") {
+      deferred.push(...captionIndices.map(index => ({ index, entityId: "native_scene_caption", groupId: "native_scene_caption",
+        pullable: false, revealAfter: "teaching_complete" as const })));
+    } else {
+      reveals.push({ narration: nativeCaption.text, commandIndices: captionIndices, kind: "reveal", targetId: "native_scene_caption" });
+      const drawCommands = captionCommands.map(command => verifiedDiagramCommandToDrawCommand(command));
+      introSegments.push({ narration: nativeCaption.text, command: drawCommands[0] ?? null, commands: drawCommands,
+        verifiedDiagramIntro: true });
+    }
+  }
+
   // Timeline focus/annotate traces stay out of the intro. Circling and labels
   // during the opening beat bury the figure; teaching [FOCUS:id] traces the
   // verified geometry live and reveals withheld labels as they are named.
@@ -498,6 +542,12 @@ function buildDiagramPresentation(
   const deferredIds = [...new Set([...deferredByEntity.values()].filter((entry) => !entry.revealAfter).map((entry) => entry.entityId.split(",")[0]!))].join(", ");
   const hasDrawableInk = verifiedDiagramHasDrawableInk({ commands });
   const teachingNotes = chemistryFamilyTeachingNotes(chemistryTeachingFamilyId(document));
+  const physicalTeachingContext = physicalAuthority
+    ? `\nSOURCE-BOUND PHYSICAL OUTPUTS\n${JSON.stringify(physicalAuthority)}\nOnly the explicit resultId bindings above confirm requested numeric answers. Match their identity and unit; do not extend their authority to unrelated planner working. Explain the listed model conditions before applying its law. Source coordinate values and physical units remain authoritative when the plot uses a different display scale. For a transition series, compare the computed wavelength limits and individual wavelength before assigning a spectral band; a series name alone does not establish that every transition lies in the same band.\n`
+    : "";
+  const mechanicsTeachingContext = mechanicsAuthority
+    ? `\nSOURCE-BOUND MECHANICS OUTPUTS\n${JSON.stringify(mechanicsAuthority)}\nOnly these explicit resultId bindings confirm numeric answers. Preserve their owner, axis, unit and absolute uncertainty; do not transfer a result to another body, axis or time. Explain the original source conditions before applying each law. Display distances never supply missing physical data.\n`
+    : "";
   const familyTeachingContext = teachingNotes.length > 0
     ? `\nFamily teaching context for this compiled figure:\n${teachingNotes.map((note) => `- ${note}`).join("\n")}\nExplain the law’s conditions before applying it, and define quantities and units before examples. This teaching context supplies no new numeric givens or diagram authority.\n`
     : "";
@@ -544,7 +594,7 @@ ${options.layout === "code_lesson"
 This turn overrides the FOCUS instructions above. A [FOCUS] here names a FRAME from the FIGURE BEATS list, not an entity: the runtime advances the worked example to that frame and puts the spotlight on the part of it that changed. No frame is on the board to begin with: the first [FOCUS] draws the first frame. Do not focus entity ids, and do not focus anything on a step that reveals code. If FIGURE BEATS says there are none, the figure does not move and you must not use [FOCUS] at all.
 Always write it as [FOCUS:frame_id|spotlight], at most one per step. Never a bare [FOCUS:id], never |pulse, and never traces, underlines, or circles.`
   : "WRITE the left work column as the student notebook: names, definitions, relations, substitutions, and results (x below 360). Short phrases are allowed. Do not save writing for the last line, and do not speak a step with the marker parked."}
-The scene engine owns all diagram geometry, labels, annotations, directions, connections, and markings.${familyTeachingContext}`,
+The scene engine owns all diagram geometry, labels, annotations, directions, connections, and markings.${familyTeachingContext}${physicalTeachingContext}${mechanicsTeachingContext}`,
   };
 
   const spokenIntro = collapseIntroSpeech(introSegments, {
@@ -557,6 +607,7 @@ The scene engine owns all diagram geometry, labels, annotations, directions, con
 
   const presentation = { diagram, introSegments: spokenIntro };
   neutralPolicy?.assertComplete(presentation);
+  applyScientificStyleToPresentation(presentation, document.source.scientificStyle);
   return { ok: true, presentation };
 }
 
@@ -795,6 +846,23 @@ function isSourceGivenMeasurement(
     const bound = given.id === binding || given.symbol === binding;
     return bound && texts.some((text) => text === value);
   });
+}
+
+function sourceGivenQuantityRowIds(document: SceneDocument, primitives: readonly RenderPrimitive[],
+  plan: VerifiedScenePresentationOptions["turnPlan"]): Set<string> {
+  const ids = new Set<string>();
+  if (!plan) return ids;
+  const annotations = new Set(document.annotations.filter(annotation => {
+    if (annotation.kind !== "callout" || !annotation.quantityId || annotation.text) return false;
+    const quantity = document.quantities.find(quantity => quantity.id === annotation.quantityId);
+    const given = plan.givens.find(given => given.id === annotation.quantityId);
+    return Boolean(quantity && given && quantity.value === given.value && (quantity.unit ?? "1") === (given.unit ?? "1") &&
+      (!quantity.symbol || quantity.symbol === given.symbol || quantity.symbol === given.id));
+  }).map(annotation => annotation.id));
+  if (!annotations.size) return ids;
+  const rows = regeneratedQuantityCalloutRows(document, primitives.filter(primitive => primitive.kind === "label"));
+  for (const [id, row] of rows) if (annotations.has(row.annotationId)) ids.add(id);
+  return ids;
 }
 
 function annotationVisualStyle(
@@ -2020,7 +2088,9 @@ function addLabel(
   x: number,
   y: number,
 ): void {
-  const text = primitive.provenance?.linearSolution
+  const compilerPlacedLabel = primitive.kind === "label" && primitive.labelPlacement === "absolute" &&
+    labelBoundsFromProvenance(primitive.provenance) !== null;
+  const text = compilerPlacedLabel ? primitive.text : primitive.provenance?.linearSolution
     ? boundedLinearLabel(primitive.text)
     : compactDiagramLabel(primitive.text);
   if (!text) return;

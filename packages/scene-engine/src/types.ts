@@ -201,6 +201,8 @@ export interface ValidationResult {
 }
 
 export interface CompileOptions {
+  /** Fixed board font used for native affine guide labels. */
+  linearLabelFontPx?: 24;
   /** Additional source obligations, checked in world geometry before layout.
    * These can only add proof failures; they never replace document guards. */
   sourceFunctionChecks?: ReadonlyArray<{

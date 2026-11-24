@@ -1,3 +1,5 @@
+import type { ATOMIC_OPERATORS } from "../compile/atomicGeometry";
+
 export type SceneProofPredicateEvaluator = "geometry" | "topology";
 
 export interface SceneProofPredicateCapability<Id extends string = string> {
@@ -111,6 +113,13 @@ export const SCENE_CAPABILITY_MANIFEST = defineSceneCapabilityManifest({
     "polygon",
     "polyline",
     "function_curve",
+    "bohr_orbit",
+    "bohr_transition",
+    "radioactive_decay",
+    "nuclide_state",
+    "nuclear_reaction",
+    "nuclear_binding_curve",
+    "rutherford_scattering",
     "function_region",
     "constraint_region",
     "number_line_set",
@@ -225,6 +234,13 @@ export const SCENE_CAPABILITY_MANIFEST = defineSceneCapabilityManifest({
     "rotational_motion",
     "rotational_state",
     "planar_torque",
+    "mass_moments",
+    "mass_property",
+    "rigid_body_motion",
+    "rigid_body_state",
+    "rolling_contact",
+    "angular_impulse",
+    "axial_rotation",
     "set_partition",
     "set_select",
     "harmonic_motion",
@@ -353,17 +369,36 @@ export const SCENE_CAPABILITY_MANIFEST = defineSceneCapabilityManifest({
 export const SUPPORTED_SCENE_CONSTRUCTION_OPERATORS =
   SCENE_CAPABILITY_MANIFEST.constructionOperators;
 
+// The compiler can exercise all of these kernels. Public admission requires
+// a proof of the complete physical program against the original question.
+const ATOMIC_SOURCE_ADMISSION: Readonly<Record<string, "source_checked" | "kernel_only">> = {
+  bohr_orbit: "kernel_only",
+  bohr_transition: "kernel_only",
+  radioactive_decay: "kernel_only",
+  nuclide_state: "kernel_only",
+  nuclear_reaction: "kernel_only",
+  nuclear_binding_curve: "kernel_only",
+  rutherford_scattering: "source_checked",
+} satisfies Record<(typeof ATOMIC_OPERATORS)[number], "source_checked" | "kernel_only">;
+
+export function isKernelOnlyAtomicOperator(operator: string): boolean {
+  return ATOMIC_SOURCE_ADMISSION[operator] === "kernel_only";
+}
+
 /**
  * Operators a planner sees only when a scoped request names them: a selected
  * family (the qualitative fluid apparatus) or a gate admission (block_flow).
  * The universal catalog leaves them out so it stays inside its transport
  * budget; they are executable either way.
  */
-export const FAMILY_SCOPED_SCENE_CONSTRUCTION_OPERATORS = ["submerged_body", "hydraulic_press", "block_flow"] as const;
+export const FAMILY_SCOPED_SCENE_CONSTRUCTION_OPERATORS = ["submerged_body", "hydraulic_press", "block_flow",
+  "rutherford_scattering",
+  "mass_moments", "mass_property", "rigid_body_motion", "rigid_body_state", "rolling_contact", "angular_impulse", "axial_rotation"] as const;
 const FAMILY_SCOPED_SCENE_CONSTRUCTION_OPERATOR_SET = new Set<string>(FAMILY_SCOPED_SCENE_CONSTRUCTION_OPERATORS);
 
 export const PLANNER_VISIBLE_SCENE_CONSTRUCTION_OPERATORS =
-  SUPPORTED_SCENE_CONSTRUCTION_OPERATORS.filter((operator) => !FAMILY_SCOPED_SCENE_CONSTRUCTION_OPERATOR_SET.has(operator));
+  SUPPORTED_SCENE_CONSTRUCTION_OPERATORS.filter((operator) =>
+    !FAMILY_SCOPED_SCENE_CONSTRUCTION_OPERATOR_SET.has(operator) && !isKernelOnlyAtomicOperator(operator));
 
 export type SupportedSceneConstructionOperator =
   (typeof SUPPORTED_SCENE_CONSTRUCTION_OPERATORS)[number];
@@ -384,7 +419,7 @@ export function isExecutableSceneConstructionOperator(
 export function isPlannerVisibleSceneConstructionOperator(
   operator: string,
 ): operator is PlannerVisibleSceneConstructionOperator {
-  return EXECUTABLE_SCENE_CONSTRUCTION_OPERATOR_SET.has(operator);
+  return EXECUTABLE_SCENE_CONSTRUCTION_OPERATOR_SET.has(operator) && !isKernelOnlyAtomicOperator(operator);
 }
 
 export const EXECUTABLE_SCENE_PROOF_PREDICATES = capabilityIds(

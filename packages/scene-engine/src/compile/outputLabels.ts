@@ -29,6 +29,7 @@ import { setGeometryLabel, validateEvaluatedSetLabels } from "./setGeometry";
 
 import { inductionConstructionOutputLabels, validateEvaluatedInductionLabels } from "./inductionGeometry";
 import { rotationGeometryLabel, validateEvaluatedRotationLabels } from "./rotationGeometry";
+import { mechanicsGeometryLabel, validateEvaluatedMechanicsLabels } from "./mechanicsGeometry";
 
 import { combinatoricsGeometryLabel, validateEvaluatedCombinatoricsLabels } from "./combinatoricsGeometry";
 import { elasticityGeometryLabel, validateEvaluatedElasticityLabels } from "./elasticityGeometry";
@@ -80,6 +81,16 @@ export function withEvaluatedOutputLabels(
     case "planar_torque":
       validateEvaluatedRotationLabels(construction, index, document, outputs, issues);
       labels = outputs.map((geometry, outputIndex) => rotationGeometryLabel(geometry, document.entities.find((entity) => entity.id === construction.outputs[outputIndex])?.label));
+      break;
+    case "mass_moments":
+    case "mass_property":
+    case "rigid_body_motion":
+    case "rigid_body_state":
+    case "rolling_contact":
+    case "angular_impulse":
+    case "axial_rotation":
+      validateEvaluatedMechanicsLabels(construction, index, document, outputs, issues);
+      labels = outputs.map((geometry, outputIndex) => mechanicsGeometryLabel(geometry, document.entities.find((entity) => entity.id === construction.outputs[outputIndex])?.label));
       break;
     case "set_partition":
     case "set_select":

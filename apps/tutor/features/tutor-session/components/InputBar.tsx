@@ -1,5 +1,7 @@
 "use client";
 
+import { markPhotoQuestion } from "../lib/input/questionSource";
+
 import { figureQuestionNote } from "@/lib/scene/figureQuestion";
 import { Highlighter, Settings } from "lucide-react";
 import { resolveApiUrl, type SubjectFamiliarity } from "@heytutor/tutor-core";
@@ -160,6 +162,7 @@ export function InputBar({
 }: InputBarProps) {
   const [question, setQuestion] = useState("");
   const questionInputRef = useRef<HTMLTextAreaElement>(null);
+  const photoSourceRef = useRef(false);
   // Adjusted during render, not in an effect: the text is in the box on the
   // very render that asked for it.
   const [prefillNonce, setPrefillNonce] = useState<number | null>(null);
@@ -169,6 +172,7 @@ export function InputBar({
   }
   useEffect(() => {
     if (prefillNonce === null) return;
+    photoSourceRef.current = false;
     const field = questionInputRef.current;
     if (!field || field.disabled) return;
     field.focus();
@@ -229,6 +233,7 @@ export function InputBar({
 
   const finishInput = useCallback((submittedQuestion?: string) => {
     onUserInteractionChange?.(true);
+    if (submittedQuestion === undefined || questionInputRef.current?.value === submittedQuestion) photoSourceRef.current = false;
     setQuestion((current) => submittedQuestion === undefined || current === submittedQuestion ? "" : current);
     setExtractLatencyMs(null);
     setExtractError(null);
@@ -247,6 +252,7 @@ export function InputBar({
       else setSubmitError("Your lesson could not start. Try again — your question is still here.");
     };
     try {
+      if (photoSourceRef.current) markPhotoQuestion(trimmed);
       const admission = onSubmit(trimmed);
       if (admission) void admission.then(settle, () => settle(false));
       else settle(true); // Synchronous next-board navigation retains the question in its route.
@@ -492,6 +498,8 @@ export function InputBar({
           );
         }
         onImageSelect?.(file);
+        photoSourceRef.current = true;
+        markPhotoQuestion(data.question);
         setQuestion(data.question);
         setExtractLatencyMs(
           typeof data.latencyMs === "number"
@@ -673,6 +681,7 @@ export function InputBar({
             setSubmitError(null);
             setExtractError(null);
             setExtractLatencyMs(null);
+            if (!event.target.value.trim()) photoSourceRef.current = false;
             setQuestion(event.target.value);
             if (event.target.value.trim().length > 0) {
               pauseForDoubt();

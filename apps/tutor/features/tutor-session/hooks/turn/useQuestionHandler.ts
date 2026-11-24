@@ -1,3 +1,4 @@
+import { isPhotoQuestion } from "../../lib/input/questionSource";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import {
   lessonNarrationText,
@@ -147,12 +148,14 @@ import {
   type StoredReferencePicture,
 } from "../../lib/scene/referencePicturePresentation";
 import { preloadReferencePictureWithin, REFERENCE_PICTURE_PRELOAD_TIMEOUT_MS } from "../../lib/scene/referencePicturePreload";
+import { withScientificStyleNativeRepresentation } from "@/lib/scene/scientificStyleLecture";
 import {
   selectFastVerifiedRepresentation,
   type RepresentationTier,
 } from "../../lib/scene/representationFallback";
 import {
   deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
+  selectProductionNativeSourceRepresentation,
   settleSelectionDegradation,
   type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "../../lib/scene/productionSceneSelection";
@@ -1234,6 +1237,8 @@ export function useQuestionHandler(
       let referencePictureShown: StoredReferencePicture | null = null;
       let earlyChemistryLane = false;
       const startReferencePicture = (speculative: boolean) => {
+        // Final native source proof precedes any paid reference acquisition.
+        if (speculative && billed.scientificStyle !== undefined) return;
         if (referencePicturePending || !referencePictureAllowed) return;
         const controller = new AbortController();
         const abortWithTurn = () => controller.abort();
@@ -1666,6 +1671,10 @@ export function useQuestionHandler(
               }],
             };
           },
+          ...(billed.scientificStyle !== undefined && !doubt && !resume && !isPhotoQuestion(question) ? {
+            selectNative: (planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null) =>
+              selectProductionNativeSourceRepresentation(question, planningTurnPlan, authority?.problemIR ?? null),
+          } : {}),
           selectFast: (planningTurnPlan, authority, gate, phase) => measureSceneSelection(tel, "fast", () => selectFastFigure({
             question,
             turnPlan: planningTurnPlan,
@@ -1812,11 +1821,12 @@ export function useQuestionHandler(
             admitOwningOpticsArchetype: strictAdmitsOwningOpticsArchetype(diagramStrategyDecision),
             // The strategy reads only an accepted plan's subject; a chemistry
             // consensus from rejected plans still refuses planner figures.
-            allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source) &&
-              !chemistryRefusesPlannerFigure(diagramSubject, source)),
+            allowedFigureSources: FIGURE_SOURCES.filter((source) => (diagramStrategyAllowsFigureSource(diagramStrategyDecision, source) &&
+              !chemistryRefusesPlannerFigure(diagramSubject, source)) ||
+              (source === "native_source" && billed.scientificStyle !== undefined && !chemistryRefusesPlannerFigure(diagramSubject, source))),
           },
         }));
-        const selected = sceneSelection.representation;
+        const selected = withScientificStyleNativeRepresentation(sceneSelection.representation, billed.scientificStyle);
         const attempted = sceneSelection.attemptedRepresentation;
         if (!selected && !page.failureTelemetry?.code) {
           const failure = solverAuthorityBlocked ? { stage: "solver", code: "solver_contradiction" } as const

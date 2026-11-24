@@ -1,3 +1,4 @@
+import { validatePlanOwnedSceneTruth } from "@heytutor/scene-engine";
 /**
  * The scene checks a lecture save applies, as one pure function, so the live
  * turn can run exactly the same ones before it draws.
@@ -249,6 +250,7 @@ export function sceneSaveAdmissionFailure(input: {
   question: string;
   turnPlan: TurnPlanV3 | null;
   tier: SaveAdmissionTier;
+  problemIR?: unknown;
 }): string | null {
   const { document, question, turnPlan, tier } = input;
   // Source geometry never becomes optional with the planner metadata. Legacy
@@ -299,6 +301,7 @@ export function sceneSaveAdmissionFailure(input: {
     }
   }
   const sourceInputIssues = [
+    ...validatePlanOwnedSceneTruth(document, turnPlan, input.problemIR, question),
     ...validateSourceFunctionInventory(document, question),
     ...(turnPlan ? validateProjectileMeasurementPlan(document, turnPlan) : []),
     ...validateLinearSourcePlan(question, turnPlan),
@@ -334,6 +337,7 @@ export function liveSceneSaveFailure(input: {
   question: string;
   turnPlan: TurnPlanV3 | null;
   tier: SaveAdmissionTier;
+  problemIR?: unknown;
 }): string | null {
   if (input.turnPlan && figureQuestionChars(input.question) > FIGURE_QUESTION_CHARS) {
     return `scene question is over the ${FIGURE_QUESTION_CHARS} character figure size`;

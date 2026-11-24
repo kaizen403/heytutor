@@ -1,5 +1,6 @@
 import { parseMathExpression } from "../math/expression";
 import { solveDcNetwork, dcNetworkValue } from "./circuitNetwork";
+import { solveMechanicsProgram } from "./mechanicsProgram";
 import {
   expressionToSafeSource,
   validateProblemIR,
@@ -38,6 +39,8 @@ export interface SolverProofEvidence {
   method:
     | "exact_arithmetic"
     | "exact_network_kcl_kvl"
+    | "source_bound_mechanics"
+    | "source_bound_mechanics_quadrature"
     | "polynomial_roots"
     | "numeric_bracketing"
     | "exact_polynomial_integral"
@@ -206,6 +209,12 @@ export function validateSolverResult(raw: unknown, problem?: ProblemIR): SolverR
     if (typeof value.errorBound !== "number" || !Number.isFinite(value.errorBound) || value.errorBound < 0) add(issues, "invalid_error_bound", `${path}.errorBound`, "errorBound must be finite and non-negative");
     if (problem && typeof value.requestId === "string") {
       const request = problem.solveRequests.find((candidate) => candidate.id === value.requestId);
+      if (request?.kind === "mechanics") {
+        try {
+          const expected = solveMechanicsProgram(problem, request.program, request.resultBinding);
+          if (value.valueType !== "scalar" || value.approximate !== expected.approximate || value.errorBound !== expected.errorBound || value.exact !== undefined) add(issues, "mechanics_result_mismatch", path, "Mechanics scalar/component and uncertainty must match independently recomputed source authority");
+        } catch (error) { add(issues, "invalid_mechanics_result", path, error instanceof Error ? error.message : "Mechanics recomputation failed"); }
+      }
       if (request?.kind === "dc_network") {
         try {
           const expected = dcNetworkValue(solveDcNetwork(problem, request.network), request.output);
@@ -234,11 +243,17 @@ export function validateSolverResult(raw: unknown, problem?: ProblemIR): SolverR
       if (proofRequestIds.has(proof.requestId)) add(issues, "duplicate_proof", `${path}.requestId`, `duplicate proof for ${proof.requestId}`);
       proofRequestIds.add(proof.requestId);
     }
-    if (!["exact_arithmetic", "exact_network_kcl_kvl", "polynomial_roots", "numeric_bracketing", "exact_polynomial_integral", "numeric_quadrature", "analytic_trig_integral", "analytic_trig_roots"].includes(String(proof.method))) add(issues, "invalid_proof_method", `${path}.method`, "invalid proof method");
-    if (!Array.isArray(proof.expressionIds) || (proof.expressionIds.length === 0 && proof.method !== "exact_network_kcl_kvl") || proof.expressionIds.some((id) => typeof id !== "string" || (problem !== undefined && !expressionIds.has(id)))) {
+    if (!["exact_arithmetic", "exact_network_kcl_kvl", "source_bound_mechanics", "source_bound_mechanics_quadrature", "polynomial_roots", "numeric_bracketing", "exact_polynomial_integral", "numeric_quadrature", "analytic_trig_integral", "analytic_trig_roots"].includes(String(proof.method))) add(issues, "invalid_proof_method", `${path}.method`, "invalid proof method");
+    if (!Array.isArray(proof.expressionIds) || (proof.expressionIds.length === 0 && !["exact_network_kcl_kvl", "source_bound_mechanics", "source_bound_mechanics_quadrature"].includes(String(proof.method))) || proof.expressionIds.some((id) => typeof id !== "string" || (problem !== undefined && !expressionIds.has(id)))) {
       add(issues, "invalid_proof_inputs", `${path}.expressionIds`, "expressionIds must reference known expressions");
     } else if (problem && typeof proof.requestId === "string") {
       const request = problem.solveRequests.find((candidate) => candidate.id === proof.requestId);
+      if (request?.kind === "mechanics") {
+        try {
+          const expected = solveMechanicsProgram(problem, request.program, request.resultBinding);
+          if (proof.method !== (expected.integration ? "source_bound_mechanics_quadrature" : "source_bound_mechanics") || proof.residual !== 0 || proof.tolerance !== expected.errorBound || proof.expressionIds.length !== expected.expressionIds.length || expected.expressionIds.some(id => !(proof.expressionIds as unknown[]).includes(id))) add(issues, "invalid_mechanics_proof", path, "Mechanics proof must preserve its source expression inputs and actual physical error bound");
+        } catch (error) { add(issues, "invalid_mechanics_proof", path, error instanceof Error ? error.message : "Mechanics proof recomputation failed"); }
+      }
       if (request?.kind === "dc_network" && (proof.method !== "exact_network_kcl_kvl" || proof.residual !== 0 || proof.tolerance !== 0)) add(issues, "invalid_network_proof", path, "Network proof must establish exact KCL/KVL substitution");
       const requiredIds = requestExpressionIds(request);
       if (requiredIds.some((id) => !(proof.expressionIds as unknown[]).includes(id))) add(issues, "ungrounded_proof", `${path}.expressionIds`, "proof does not cite every expression used by its request");
@@ -267,6 +282,13 @@ export function validateSolverResult(raw: unknown, problem?: ProblemIR): SolverR
 }
 
 function solveRequest(request: SolveRequest, expressions: Map<string, ProblemExpression>, problem: ProblemIR): { value: SolverValue; proof: SolverProofEvidence } {
+  if (request.kind === "mechanics") {
+    const solution = solveMechanicsProgram(problem, request.program, request.resultBinding);
+    return {
+      value: { id: `value_${request.id}`, requestId: request.id, valueType: "scalar", approximate: solution.approximate, errorBound: solution.errorBound },
+      proof: proof(request.id, solution.integration ? "source_bound_mechanics_quadrature" : "source_bound_mechanics", solution.expressionIds, 0, solution.errorBound, `Recomputed ${solution.claim.symbol} through source-bound mechanics operators; ${solution.factIds.length} owner/model/axis/input/request facts. ${solution.integration ? "Inherited density-integral uncertainty is retained." : "Finite arithmetic error is retained."}`),
+    };
+  }
   if (request.kind === "dc_network") {
     const solution = solveDcNetwork(problem, request.network);
     const result = dcNetworkValue(solution, request.output);
@@ -1130,6 +1152,7 @@ function validateExactAgreement(rawExact: unknown, rawApproximate: unknown, set:
 
 function requestExpressionIds(request: SolveRequest | undefined): string[] {
   if (!request) return [];
+  if (request.kind === "mechanics") return [...new Set(request.program.inputs.map(input => input.expressionId))];
   if (request.kind === "dc_network") return [...new Set(request.network.branches.flatMap((branch) => branch.quantityExpressionId ? [branch.quantityExpressionId] : []))];
   if (request.kind === "intersections") return [request.leftExpressionId, request.rightExpressionId];
   return [request.expressionId];
@@ -1177,4 +1200,15 @@ function add(issues: SolverIssue[], code: string, path: string, message: string)
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function certifyClosedSourceExpression(root: ExpressionNodeIR): { approximate: number; errorBound: number; exact?: ExactSolverValue } {
+  const exact = fractionExpression(root);
+  if (exact) {
+    const approximate = fractionNumber(exact);
+    if (exact.numerator !== 0n && approximate === 0) throw new Error("source result underflows its exact nonzero value");
+    return { approximate, exact: exactValue(exact), errorBound: 2 * Number.EPSILON * Math.abs(approximate) };
+  }
+  const value = parseMathExpression(expressionToSafeSource(root)).certifiedJetAt(0);
+  return { approximate: value.value, errorBound: Math.max(value.errorBounds.value, 2 * Number.EPSILON * Math.abs(value.value)) };
 }

@@ -1,3 +1,4 @@
+import { resolveScientificStyleLecture } from "./scientificStyleLecture.server";
 import { figureQuestionTooLong } from "@/lib/scene/figureQuestion";
 import type { PageLessonCurveLabelsLoader, PageLessonFigureQuestionLoader } from "@/lib/scene/pageFigureLoader";
 import {
@@ -140,7 +141,7 @@ export type TurnSceneRejectionCode =
   | "scene_document_invalid" | "scene_turn_plan_invalid" | "scene_representation_not_scene"
   | "scene_source_question_mismatch" | "scene_document_tier_mismatch" | "scene_metric_geometry_outside_exact"
   | "scene_compile_failed" | "scene_proof_failed" | "scene_admission_failed" | "scene_validation_report_invalid"
-  | "scene_label_unplaced"
+  | "scene_label_unplaced" | "scene_native_source_mismatch"
   | "scene_point_line_annotation_invalid" | "scene_point_line_quantity_invalid"
   | "scene_point_line_solver_binding_required" | "scene_point_line_solver_evidence_invalid"
   | "scene_point_line_solver_quantity_mismatch" | "scene_solver_artifacts_incomplete"
@@ -422,7 +423,13 @@ export async function canonicalizeTurnSceneMetadata(
     sceneDocument: metadata.sceneDocument,
     sceneQuestion,
     turnPlan,
+    problemIR: metadata.sceneArtifacts.problemIR,
     submittedTier: tier,
+    nativeSource: validatedFigureSource(metadata.sceneArtifacts) === "native_source",
+    // Bind cosmetic provenance only to the configured server sample.
+    scientificStyle: isRecord(metadata.sceneDocument) && isRecord(metadata.sceneDocument.source) &&
+      metadata.sceneDocument.source.scientificStyle !== undefined && validatedFigureSource(metadata.sceneArtifacts) === "native_source"
+      ? await resolveScientificStyleLecture() : null,
     narrationLanguage,
     planSubmitted: metadata.sceneArtifacts.turnPlan != null,
     planIssues: planResult.issues,

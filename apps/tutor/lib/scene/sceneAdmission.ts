@@ -1,3 +1,5 @@
+import { deriveNativeSceneStaging } from "./nativeSceneStaging";
+import { bindScientificStyleSource, type ScientificStyleLecture } from "./scientificStyleLecture";
 /**
  * Admit one stored scene at the server boundary: structure, source question,
  * tier, proofs, compile, save admission and the intro presentation rebuilt
@@ -53,6 +55,7 @@ export type StoredSceneAdmissionCode =
   | "scene_representation_tier_invalid" | "scene_document_invalid" | "scene_turn_plan_invalid"
   | "scene_representation_not_scene" | "scene_source_question_mismatch" | "scene_document_tier_mismatch"
   | "scene_metric_geometry_outside_exact" | "scene_compile_failed" | "scene_proof_failed"
+  | "scene_native_source_mismatch"
   | "scene_admission_failed" | "scene_validation_report_invalid" | "scene_label_unplaced";
 
 export type StoredSceneAdmission =
@@ -71,6 +74,7 @@ export interface StoredSceneAdmissionInput {
   sceneQuestion: string;
   /** The plan validated against `sceneQuestion`, or null. */
   turnPlan: TurnPlanV3 | null;
+  problemIR?: unknown;
   submittedTier: unknown;
   narrationLanguage?: NarrationLanguage;
   /**
@@ -86,12 +90,17 @@ export interface StoredSceneAdmissionInput {
    * otherwise the figure is admitted as dev draws it.
    */
   curveLabels?: boolean;
+  /** Internal: exact descriptor independently resolved from the server sample. */
+  scientificStyle?: ScientificStyleLecture | null;
+  /** Internal route selection metadata; a claim requires a fresh complete source replay. */
+  nativeSource?: boolean;
 }
 
 const MEMO_LIMIT = 64;
 const memo = new Map<string, StoredSceneAdmission>();
 
 export function admitStoredScene(submitted: StoredSceneAdmissionInput): StoredSceneAdmission {
+  submitted = { ...submitted, sceneDocument: bindScientificStyleSource(submitted.sceneDocument, submitted.scientificStyle) };
   // A curve label stamp is kept only with the server's switch on, and only on a
   // figure dev admits: a figure dev refuses stays refused, and if the moved
   // labels would refuse it, lose a label, or name the wrong curve, dev's admission stands.
@@ -119,10 +128,13 @@ function admitMemoized(input: StoredSceneAdmissionInput): StoredSceneAdmission {
     input.sceneDocument ?? null,
     input.sceneQuestion,
     input.turnPlan,
+    input.problemIR ?? null,
     input.submittedTier ?? null,
     input.narrationLanguage ?? null,
     input.planSubmitted ?? null,
     input.planIssues ?? null,
+    input.scientificStyle ?? null,
+    input.nativeSource ?? false,
   ])).digest("hex");
   const hit = memo.get(key);
   if (hit) {
@@ -140,7 +152,11 @@ function admitUncached(input: StoredSceneAdmissionInput): StoredSceneAdmission {
   const { sceneQuestion, turnPlan } = input;
   const tier = input.submittedTier;
   if (!isRepresentationTier(tier)) return refuse("scene_representation_tier_invalid", "validated scene has an invalid representation tier");
-  const sceneDocument = withoutLegacyTeachingNotes(input.sceneDocument);
+  const submittedDocument = withoutLegacyTeachingNotes(input.sceneDocument);
+  const structuralSource = validateSceneDocument(submittedDocument).document;
+  const staging = structuralSource ? deriveNativeSceneStaging(structuralSource, sceneQuestion, turnPlan, input.problemIR) : null;
+  if (input.nativeSource && !staging?.matched) return refuse("scene_native_source_mismatch", "native source scene differs from its complete independent source reconstruction");
+  const sceneDocument = staging?.document ?? submittedDocument;
   const planIssues = input.planIssues ?? [];
   const planSubmitted = input.planSubmitted ?? turnPlan !== null;
   const nonMetric = tier !== "exact_verified";
@@ -242,7 +258,7 @@ function admitUncached(input: StoredSceneAdmissionInput): StoredSceneAdmission {
     && certifyVseprSourceDocument(document, sceneQuestion, null).status !== "not_applicable") {
     return refuse("scene_turn_plan_invalid", `native VSEPR scene has an invalid TurnPlanV3: ${formatIssues(planIssues)}`);
   }
-  const admissionFailure = sceneSaveAdmissionFailure({ document, question: sceneQuestion, turnPlan, tier });
+  const admissionFailure = sceneSaveAdmissionFailure({ document, question: sceneQuestion, turnPlan, tier, problemIR: input.problemIR });
   if (admissionFailure) return refuse("scene_admission_failed", admissionFailure);
 
   if (!report.valid || report.issues.some((issue) => issue.severity === "fatal")) {

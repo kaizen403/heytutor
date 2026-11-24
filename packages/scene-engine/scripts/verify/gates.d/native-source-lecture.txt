@@ -1,0 +1,3 @@
+tsx scripts/verify/verify-native-source-lecture.ts
+tsx scripts/verify/verify-native-main-compatibility.ts
+tsx scripts/verify/verify-native-physical-curve-compatibility.ts

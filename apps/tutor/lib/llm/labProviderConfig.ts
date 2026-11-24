@@ -8,6 +8,7 @@ import { VISUAL_NEED_CLIENT_TIMEOUT_MS, VISUAL_NEED_EVIDENCE_VERSION } from "../
 import { plannerSpeedSettings } from "./planningSpeed";
 import { buildLabModelProfile } from "./labModelProfile";
 import { liveDiagramPromptInputBounds } from "../scene/diagramExampleLibrary.server";
+import { scientificStyleLectureIdentity } from "../scene/scientificStyleLecture.server";
 
 /** A profile the lab cannot use (no relay prices, fallback on) is a reason, not a 500. */
 function standardProfile(endpoint: ReturnType<typeof resolveLlmEndpoint>) {
@@ -56,6 +57,7 @@ export function labProviderConfig() {
     // while the standard profile stays available.
     fastModelProfile: configured && endpoint.provider === "fireworks" ? fastProfileOrNull(endpoint) : null,
     inputBounds: liveDiagramPromptInputBounds(),
+    scientificStyle: scientificStyleLectureIdentity(),
     // The first translated body is the primary scene request, including Azure's or the relay's floor.
     planningSpeed: { sceneEffort: endpoint.provider !== "fireworks" ? String(plannerBodies[0]?.reasoning_effort ?? "unknown") : "low",
       ...(endpoint.provider === "azure" ? plannerSpeedSettings() : { priority: false }),

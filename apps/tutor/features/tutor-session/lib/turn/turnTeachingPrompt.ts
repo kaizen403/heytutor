@@ -96,6 +96,22 @@ export interface TurnTeachingPromptInput {
   laterFiguresOnBoard?: string;
 }
 
+/** Scientific interpretation is shared by fresh lessons and their continuations. */
+export const SCIENTIFIC_MODEL_TRUTH_ADDON = `SCIENTIFIC MODEL AND OBSERVABLE CHECKS
+- Keep each result within its stated model: a one-electron hydrogen-like law is not a many-electron atomic model. A schematic or qualitative trend does not establish measured values or exact isotope predictions.
+- In fixed-target scattering, the impact parameter b is the perpendicular distance from the target centre to the undeflected incoming asymptote. Distinguish b from the instantaneous radial separation and the actual distance of closest approach. Define the scattering angle from the forward incident direction to the outgoing asymptotic direction, not from the backward incident arm.
+- For a requested experimental setup, explain the input preparation and control, interaction region, detector/readout, and observations supporting the conclusion, as applicable to the stated experiment. Retain its standard components and their purposes; distinguish the apparatus scale from a microscopic explanatory view. An unavailable figure does not remove the requested setup explanation.
+- Keep the subject and its system distinct: an electron is not an atom and has no constituent protons or bound electrons. A hydrogen atom has one proton in its nucleus and one bound electron. For a one-electron nonrelativistic fixed-nucleus circular Coulomb model with nuclear charge +Ze, use the attractive force magnitude Z k e^2/r^2 and the balance Z k e^2/r^2 = m_e v^2/r. Use Z=1 only for hydrogen or an explicitly stated illustrative case; otherwise retain Z. The radius is radial and the instantaneous velocity is tangential, perpendicular to that radius.
+- Classify spectral lines individually from their transitions and wavelengths. The prominent Balmer lines are visible, but the series also extends into ultraviolet; never call its entire series visible. Distinguish emission from absorption and a series limit from a finite transition.
+- Define a signed system change as final minus initial. For emission, the positive photon energy is initial minus final; for absorption it is final minus initial. Keep the atom's signed change distinct from the positive transferred photon energy in speech and WRITE.
+- Use one consistent atomic or nuclear mass convention, with the electron accounting it requires. Binding changes a system's rest energy, not its proton/neutron inventory. Distinguish total rest energy of reaction participants from electronic energy levels. With Q defined as initial minus final total rest energy, positive Q means release and negative Q means energy input; a typical fission/fusion energy is not the Q of an unspecified channel.
+- A reaction's Q is not generally the energy of one photon or product. Account for initial kinetic energy and all final energy shares, including recoil; qualify any Q approximately equal to photon energy approximation in both speech and WRITE.
+- For a neutral atom, M_atom = M_nucleus + Z m_e - B_e/c^2, where B_e is its positive total electronic binding energy. If neglecting electronic binding, state that approximation and use approximately equal in both speech and WRITE; do not turn the mass sum into an exact equality. The atomic mass unit is one twelfth of the mass of a free neutral carbon-12 atom at rest in its ground state.
+- Binding energy per nucleon B/A is the average over complete nuclear disassembly into free nucleons. It is not the separation energy for removing one particular nucleon; that requires the appropriate initial and residual states.
+- Inventory every participant on both sides before applying conservation, including incident and emitted particles. Identify each nuclear species from both mass number and charge number; equal charge alone does not make two nuclei the same particle. For each specified nucleus, the proton count is Z and the neutron count is A-Z. Count free nucleons separately; do not assign them to an isotope whose stated A and Z exclude them.
+- Distinguish raw population, activity and detector count rate. Bq uses decays per second, so convert the decay constant to seconds before multiplying by population. A decay constant is an instantaneous probability rate, not a finite-interval probability. For constant lambda, an undecayed nucleus's probability of decay during a duration dt is 1-exp(-lambda*dt); lambda*dt is only a small-interval approximation when lambda*dt is much less than 1. A normalized fraction is dimensionless, not a nucleus count or Bq. For a finite positive half-life, single-parent exponential decay describes expected population; it does not promise that each random sample equals the mean exactly.
+- Preserve empirical qualifications: nuclear radius is an approximation, binding per nucleon has isotope variation and a broad iron/nickel-region maximum, and a general fusion/fission diagram does not prove every channel releases energy. Do not invent numerical inputs when the question requests a symbolic explanation.`;
+
 /** What the teaching stream may know of a later figure: its id, its kind, its parts. Never geometry. */
 export interface LaterFigurePrompt {
   id: string;
@@ -150,7 +166,7 @@ With no figure available, carry the setup in words and on the board: name every 
 const NO_FIGURE_NARRATION_ADDON = `BOARD STATE: NO VERIFIED FIGURE
 There is no diagram, plot, picture or worked-example figure on this board. This overrides any earlier example, opening or subject instruction that assumes a figure was revealed or tells you to read one.
 A diagram mentioned by the question or plan is not a picture on this board. Describe the stated setup and relations in words and symbolic notebook rows, without inventing visible geometry, labels, directions or apparatus.
-Never say "look at the figure", "as shown", "this arrow", "the graph on the right", or otherwise claim that an absent part is visible. Do not promise to draw or reveal a figure, announce that one failed, or explain internal tooling.
+Never say "look at the figure", "as shown", "this arrow", "the graph on the right", "the marked angle", or otherwise claim that an absent part is visible. Define an angle or other quantity in words instead of referring to a mark on an absent figure. Do not promise to draw or reveal a figure, announce that one failed, or explain internal tooling.
 You may discuss a graph, axis, curve or geometric object as mathematics: explain its definition or the relation it would represent, rather than saying the student can see it. Keep the question's actual quantities, reasoning and requested solution.
 Do not emit [FOCUS] or [ANNOTATE]. Existing notebook rows may still be referenced with [EMPHASIZE] under the normal visible-row rules. Keep this turn's existing WRITE or TYPE ownership; the absence of a figure does not change it.`;
 
@@ -235,6 +251,9 @@ function turnPlanPromptAddons(
 
   // A projection can confirm one output while unrelated planner working and
   // qualitative claims remain unproved. Never give the whole plan its status.
+  // V8 teaching repeatedly called wrong, unbound planner answers "audited".
+  // Send result identities here; numeric results come from explicit solver
+  // bindings below, and the lesson derives other answers from the question.
   // The planner also stores transport and repair notes in this legacy list.
   // Those explain pipeline decisions, never conditions of the student's problem.
   const assumptions = (turnPlan?.assumptions ?? []).filter((text) =>
@@ -242,14 +261,15 @@ function turnPlanPromptAddons(
   );
   const turnPlanPromptAddon = turnPlan
     ? `TURN PLAN V3 (PLANNER WORKING; NOT A GLOBAL ANSWER KEY)
-These are proposed working, not a globally verified answer key. A solver binding confirms only its own quantityId, symbol, unit and value; it does not confirm other derived quantities or qualitative claims below. Keep the question's stated givens and applicable laws, and label assumptions.
+The planner supplies quantity and claim identities and proposed modelling conditions, not a globally verified answer key. Derive answers from the original question. A solver binding confirms only its own quantityId, symbol, unit and value; it does not confirm other derived quantities or qualitative claims. An identity does not prove its value, direction or modelling condition. Keep the question's stated givens and applicable laws, and label assumptions. Never describe an unbound answer as audited or independently verified.
 Your own board working cannot override an explicitly solver-bound value. Recheck disagreements from the givens and applicable law and correct the working; if they cannot be resolved, state the unresolved discrepancy instead of inventing an alternative answer.
 For a quantity without a solver binding, correct an unsupported planner value only after checking its derivation from the givens, signs and units. Before using any result in a dependent calculation, check every adjacent equality in a chain. Before emitting a step, ensure its spoken quantities agree with the [WRITE] row.
+Any numeric side check needs its own WRITE equality. Multiply or divide operand units, preserve dimensions through averaging, and match every spoken result to the written value and unit.
 ${JSON.stringify({
   givens: turnPlan.givens,
   unknowns: turnPlan.unknowns,
-  derived: turnPlan.derived,
-  qualitativeClaims: turnPlan.qualitativeClaims,
+  derived: turnPlan.derived.map(({ id, symbol, unit }) => ({ id, symbol, unit })),
+  qualitativeClaims: turnPlan.qualitativeClaims.map(({ id }) => ({ id })),
   lawIds: turnPlan.lawIds,
   assumptions,
 })}${assumptions.length > 0 ? `
@@ -597,6 +617,7 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
       : "",
     turnPlanPromptAddon,
     solverPromptAddon,
+    !codeBoard ? SCIENTIFIC_MODEL_TRUTH_ADDON : "",
     !codeBoard && isChemistryQuestion(lessonQuestion) ? CHEMISTRY_LESSON_RUNTIME_ADDON : "",
     teachingPromptAddon({
       teachingNote: input.teachingNote,
@@ -843,6 +864,7 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
     }),
     !hasFigure ? noFigurePromptAddon(codeBoard) : "",
     RESUME_LENGTH_ADDON,
+    !codeBoard ? SCIENTIFIC_MODEL_TRUTH_ADDON : "",
     !codeBoard ? ROW_FIRST_TEACHING_PROMPT : "",
     resumeBlock,
     narrationLanguageAddon(input.narrationLanguage),
@@ -994,6 +1016,7 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
     // talk about givens.
     codeLesson ? "" : turnPlanPromptAddon,
     codeLesson ? "" : solverPromptAddon,
+    codeLesson ? "" : SCIENTIFIC_MODEL_TRUTH_ADDON,
     !codeLesson && isConceptLessonQuestion(question) ? CONCEPT_LESSON_RUNTIME_ADDON : "",
     // Chemistry keeps every rule of the base prompt and adds its notation:
     // subscripts, charges, state symbols, balanced rows, and the figure that

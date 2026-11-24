@@ -24,6 +24,7 @@ import {
   validateSceneQuantityAgreement,
   validateLinearSourcePlan,
   validateTurnPlanSceneProofs,
+  validatePublicAtomicSceneAdmission,
   validateTurnPlanV3,
   type ProblemStructureView,
   type RenderScene,
@@ -597,6 +598,8 @@ function checkUsableExactRepresentation(
   if (!normalized.document || !sameJsonStructure(normalized.document, candidate.sceneDocument, true)) {
     return reject("exact_not_normalized", "normalization changed the scene document");
   }
+  const atomicAdmissionIssue = validatePublicAtomicSceneAdmission(normalized.document, expectedQuestion)[0];
+  if (atomicAdmissionIssue) return reject(atomicAdmissionIssue.code, atomicAdmissionIssue.message);
   const currentCompile = compileSceneDocument(candidate.sceneDocument);
   const hasReadableInk = currentCompile.renderScene?.primitives.some((primitive) =>
     (primitive.kind === "label" || primitive.kind === "dimension") &&

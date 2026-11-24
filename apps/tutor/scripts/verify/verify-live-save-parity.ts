@@ -143,7 +143,8 @@ async function main(): Promise<void> {
   // The validated branch admits its scene through admitStoredScene (lane 4
   // extraction), which runs the shared check on the question it is given.
   const admission = readFileSync(join(__dirname, "../../lib/scene/sceneAdmission.ts"), "utf8");
-  assert(admission.includes("sceneSaveAdmissionFailure({ document, question: sceneQuestion, turnPlan, tier })") &&
+  const sharedSaveCheck = /sceneSaveAdmissionFailure\(\{ document, question: sceneQuestion, turnPlan, tier(?:, problemIR: input\.problemIR)? \}\)/;
+  assert(sharedSaveCheck.test(admission) &&
     /admitStoredScene\(\{\s*sceneDocument: metadata\.sceneDocument,\s*sceneQuestion,/.test(persistence) &&
     /const sceneQuestion = doubtFigure && doubtContinuation\s*\? composeDoubtFigureQuestion\(doubtContinuation\.lessonQuestion, question\)\s*: question;/.test(persistence),
     "the save runs the shared check on the scene's question");

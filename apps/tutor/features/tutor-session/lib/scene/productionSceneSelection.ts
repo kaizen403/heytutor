@@ -3,6 +3,9 @@
  * and presentation stay in the callers; admission and its order live here.
  */
 import {
+  compileGeneratedSceneGuide, validateTurnPlanV3, validatePlanOwnedSceneTruth, validatePublicAtomicSceneAdmission, validateSubmittedCoulombSceneTruth,
+  validateAtomicSourceBinding, validateSourceObservableUnitObligations, sourceRequestedViewEligibility, sourceDirectedDisplayIssues,
+  MECHANICS_OPERATORS, validateMechanicsSceneSourceBinding, withMechanicsSceneSource, type GeneratedSceneGuide,
   prepareVerifiedParts, prepareVerifiedCircularParts, normalizeVerifiedPartsInputs, deferVerifiedAnswerLabels, type DiagramYieldPolicy,
   withCurveLabelPlacement,
   curveLabelsNeverWorse,
@@ -19,18 +22,18 @@ import {
   readUniformCircularSource, synthesizeUniformCircularScene, validateUniformCircularSourceInputs,
   validateProblemIR, verifyTurnPlanAgainstSolver,
 } from "@heytutor/scene-engine";
-import { BLOCK_FLOW_SCENE_REQUEST, inferSceneCapabilities, questionRequiresVisual, type SceneCandidateValidation } from "@heytutor/tutor-core";
+import { BLOCK_FLOW_SCENE_REQUEST, inferSceneCapabilities, questionRequiresVisual, withComputedQuantityRoster, type SceneCandidateValidation } from "@heytutor/tutor-core";
 import type { VisualNeedDecision } from "@/lib/llm/visualNeedPolicy";
 import { liveSceneSaveFailure } from "@/lib/scene/sceneSaveAdmission";
 import { shouldAttemptExactScene } from "./diagramGeneration";
 import { projectileSpeedLiteralIssues } from "./projectileSpeedLiteral";
 import { resolveVisualRequirement } from "./visualRequirement";
 import {
-  selectVerifiedRepresentationExplained, validateSourceFunctionInventory, type ExactCandidateDecline, type SelectedRepresentation,
+  selectFastVerifiedRepresentation, selectVerifiedRepresentationExplained, validateSourceFunctionInventory, type ExactCandidateDecline, type RepresentationSelectionInput, type SelectedRepresentation,
 } from "./representationFallback";
 
 /** Lab execution identity: old rounds did not use all production admission guards. */
-export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v12";
+export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v14-native";
 
 export interface ProductionSceneInput {
   question: string;
@@ -75,11 +78,12 @@ export interface ProductionSceneGate {
 /** The live gate, including chemistry exemption and family/archetype/source-program admission. */
 export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGate {
   const { question, problemIR } = input;
+  const sourcePlan = withComputedQuantityRoster(input.turnPlan);
   const sceneCapabilities = input.sceneCapabilities ?? inferSceneCapabilities(question, {
     lawIds: input.turnPlan.lawIds, problemIR, turnPlan: input.turnPlan,
   });
-  const planningTurnPlan = input.visualNeedDecision === undefined ? input.turnPlan : {
-    ...input.turnPlan,
+  const planningTurnPlan = input.visualNeedDecision === undefined ? sourcePlan : {
+    ...sourcePlan,
     visualRequirement: resolveVisualRequirement(input.turnPlan.visualRequirement, input.visualNeedDecision,
       questionRequiresVisual(question), sceneCapabilities.hasSourceProgram === true),
   };
@@ -132,9 +136,45 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
   };
 }
 
+export function selectProductionFastRepresentation(input: RepresentationSelectionInput & { nativeSourceFallback?: boolean }): SelectedRepresentation | null {
+  const selected = selectFastVerifiedRepresentation(input);
+  const turnPlan = validateTurnPlanV3(input.turnPlan, input.question).plan;
+  if (!turnPlan) return null;
+  if (selected && !liveSceneSaveFailure({
+    document: selected.sceneDocument, question: input.question, turnPlan, tier: selected.tier, problemIR: input.problemIR,
+  })) return selected;
+  return input.nativeSourceFallback ? selectProductionNativeSourceRepresentation(input.question, turnPlan, input.problemIR) : null;
+}
+
+export function selectProductionNativeSourceRepresentation(question: string, turnPlan: TurnPlanV3, problemIR?: unknown):
+  (SelectedRepresentation & { nativeCaption?: NonNullable<GeneratedSceneGuide["caption"]> }) | null {
+  const result = compileGeneratedSceneGuide({ question, turnPlan, problemIR });
+  if (!result.ok) return null;
+  const document = structuredClone(result.guide.sourceScene.document) as SceneDocument;
+  // Native guides also conservatively defer numeric labels omitted from a
+  // sparse planner roster. Carry that engine decision into normal lecture
+  // presentation/replay; it changes timing, never value or source authority.
+  const deferred = result.guide.labelSlots.filter(slot => slot.revealAfter === "teaching_complete").map(slot => slot.primitiveId);
+  if (deferred.length) document.source.answerLabelPrimitiveIds = [...new Set([
+    ...(Array.isArray(document.source.answerLabelPrimitiveIds) ? document.source.answerLabelPrimitiveIds.filter((id): id is string => typeof id === "string") : []),
+    ...deferred,
+  ])];
+  const checked = validateProductionSceneCandidate({ question, turnPlan, problemIR,
+    candidate: document as unknown as Record<string, unknown>, yieldPolicy: "off" });
+  if (!checked.valid || !checked.value || checked.value.document.visualDecision.mode !== "scene") return null;
+  const tier = result.guide.sourceScene.tier;
+  if (liveSceneSaveFailure({ document: checked.value.document, question, turnPlan, tier, problemIR })) return null;
+  return { tier, nonMetric: result.guide.sourceScene.nonMetric, sceneDocument: checked.value.document,
+    renderScene: checked.value.renderScene, validationReport: checked.value.report, figureSource: "native_source",
+    ...(result.guide.caption ? { nativeCaption: result.guide.caption } : {}),
+    family: result.guide.sourceScene.family, reason: "Complete original-source proof compiled by native scene operators" };
+}
+
 /** Candidate validation order is unchanged: normalize/prune, quantities, source, obligations, compile. */
 type ProductionSceneCandidateInput = {
   candidate: Record<string, unknown>; question: string; turnPlan: TurnPlanV3;
+  /** Full original source; revalidated by the physical source guards. */
+  problemIR?: unknown;
   yieldPolicy?: DiagramYieldPolicy;
   /**
    * `DIAGRAM_CURVE_LABELS`, from begin-turn. True stamps a graph of y = f(x)
@@ -175,7 +215,36 @@ export function onStrokeKeepsDevLabels(
 
 
 function validateCandidateOnce(input: ProductionSceneCandidateInput): SceneCandidateValidation<ValidatedSceneCandidate> {
-  const { question, turnPlan: authoritativePlan } = input;
+  // Style is granted by the server from its configured sample after final
+  // native admission. A planner/cached candidate cannot supply that grant.
+  const rawSource = input.candidate.source;
+  if (rawSource && typeof rawSource === "object" && !Array.isArray(rawSource) && "scientificStyle" in rawSource) {
+    const source = { ...rawSource } as Record<string, unknown>;
+    delete source.scientificStyle;
+    input = { ...input, candidate: { ...input.candidate, source } };
+  }
+  const { question } = input;
+  const authoritativePlan = withComputedQuantityRoster(input.turnPlan);
+  const submittedTruthIssues = validateSubmittedCoulombSceneTruth(input.candidate, authoritativePlan, question);
+  if (submittedTruthIssues.some(issue => issue.severity === "fatal")) return { valid: false, errors: submittedTruthIssues };
+  // Source-owned observable claims are audited before pruning/label repair.
+  // Otherwise a false extra rate label can vanish while a correct pair remains.
+  // Presence is measured again on the final prepared document below; it may
+  // legitimately gain source bindings during the existing normalization path.
+  const original = validateSceneDocument(input.candidate).document;
+  const atomicAdmissionIssues = original ? validatePublicAtomicSceneAdmission(original, question) : [];
+  if (atomicAdmissionIssues.length) return { valid: false, errors: atomicAdmissionIssues };
+  const sourceObservableTruth = original
+    ? validateSourceObservableUnitObligations(original, authoritativePlan, input.problemIR)
+      .filter(issue => issue.code !== "source_observable_unit_label_missing") : [];
+  if (sourceObservableTruth.length) return { valid: false, errors: sourceObservableTruth };
+  // A nuclear caption may be shortened or removed by label preparation. Its
+  // submitted physical centre/containment claim must be checked first.
+  const submittedOrbitCentres = original ? validatePlanOwnedSceneTruth(original, authoritativePlan, input.problemIR)
+    .filter(issue => issue.code === "energy_orbit_centre_unproved" && issue.severity === "fatal") : [];
+  if (submittedOrbitCentres.length) return { valid: false, errors: submittedOrbitCentres };
+
+
   // A block diagram carries no planner text beyond its grounded boxes: its
   // narration notes and entity titles are dropped, never drawn (a title
   // "Mitosis stages" made cytokinesis read as a stage of mitosis).
@@ -203,6 +272,12 @@ function validateCandidateOnce(input: ProductionSceneCandidateInput): SceneCandi
       errors: validated.report.issues,
     };
   }
+  if (input.problemIR != null && validated.document.constructions.some(construction =>
+    (MECHANICS_OPERATORS as readonly string[]).includes(construction.operator))) {
+    validated.document = withMechanicsSceneSource(validated.document, input.problemIR);
+  }
+  const mechanicsSourceIssues = validateMechanicsSceneSourceBinding(validated.document, input.problemIR, question, authoritativePlan);
+  if (mechanicsSourceIssues.length) return { valid: false, errors: mechanicsSourceIssues };
   // The stamp is the engine's, set here from the switch: a candidate's own is replaced.
   if (input.curveLabels !== undefined) validated.document = withCurveLabelPlacement(validated.document, input.curveLabels);
   const routeNormalized = normalizeClaimedClosedRouteGeometry(
@@ -261,11 +336,12 @@ function validateCandidateOnce(input: ProductionSceneCandidateInput): SceneCandi
     ...validateProjectileMeasurementPlan(validated.document, authoritativePlan),
   ];
   const sourceIssues = [
+    ...validateAtomicSourceBinding(validated.document, authoritativePlan),
     ...validateSourceFunctionInventory(validated.document, question),
     ...validateMatrixSourceBinding(validated.document, question, authoritativePlan),
     ...validatePvSourceBinding(validated.document, question, authoritativePlan),
   ];
-  const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
+  const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan, input.problemIR, question);
   // A literal image point at a plan-derived distance from a refracting
   // surface's vertex must be where the spherical refraction law puts it.
   const refractionImageIssues = validateSphericalRefractionImagePlacements(validated.document, authoritativePlan);
@@ -285,6 +361,7 @@ function validateCandidateOnce(input: ProductionSceneCandidateInput): SceneCandi
     ...sourceIssues,
     ...authorityIssues,
     ...proofIssues,
+    ...sourceDirectedDisplayIssues(validated.document, compiledScene.renderScene ?? null, question),
     ...refractionImageIssues,
     ...blockFlowIssues,
     ...compiledScene.report.issues,
@@ -350,6 +427,11 @@ export interface ProductionSceneSelectionInput extends ProductionSceneInput {
      */
     admitOwningOpticsArchetype?: boolean;
   };
+}
+
+function originalProblemIR(input: ProductionSceneSelectionInput): unknown {
+  return input.solverAuthority && typeof input.solverAuthority === "object" && "problemIR" in input.solverAuthority
+    ? input.solverAuthority.problemIR : input.problemIR;
 }
 
 export interface SceneCompletionAdmission {
@@ -856,8 +938,27 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
         ? { code: "no_figure_asked", reason: "the question asks for no figure", preferred: true, replacedBy: null }
         : null);
     }
-    candidateValidation = input.candidate
-      ? validateProductionSceneCandidate({ candidate: input.candidate, question, turnPlan, blockFlowEligible: input.blockFlowEligible })
+    const problemIR = originalProblemIR(input);
+    // An unrelated catalogue law hint cannot replace a complete native source
+    // proof. Rebuild here instead of trusting a serialized provenance tag,
+    // caller render scene, tier or claimed successful fast admission.
+    const nativeFast = input.fastRepresentation?.figureSource === "native_source"
+      ? selectProductionNativeSourceRepresentation(question, turnPlan, problemIR) : null;
+    const retainedNativeFast = nativeFast && input.fastRepresentation &&
+      nativeFast.tier === input.fastRepresentation.tier && nativeFast.nonMetric === input.fastRepresentation.nonMetric &&
+      sameValue(nativeFast.sceneDocument, input.fastRepresentation.sceneDocument) &&
+      sameValue(nativeFast.renderScene, input.fastRepresentation.renderScene) ? nativeFast : null;
+    if (input.fastRepresentation?.figureSource === "native_source" && !retainedNativeFast) {
+      const status = resolveDiagramFailureStatus({ visualRequirement: turnPlan.visualRequirement,
+        requiredRetryEnabled: input.requiredRetryEnabled ?? true });
+      return empty("native source candidate differs from complete source replay", status === "retry_required" ? "retry_required" : "text_only");
+    }
+    const cachedDocument = input.candidateValidation?.value?.document;
+    const cachedMechanics = cachedDocument?.constructions.some(construction =>
+      (MECHANICS_OPERATORS as readonly string[]).includes(construction.operator));
+    const finalCandidate = input.candidate ?? (cachedMechanics ? cachedDocument : undefined);
+    candidateValidation = finalCandidate
+      ? validateProductionSceneCandidate({ candidate: finalCandidate as unknown as Record<string, unknown>, question, turnPlan, problemIR, blockFlowEligible: input.blockFlowEligible })
       : input.candidateValidation ?? null;
     // On the current lane a stem matched only through its plan's laws draws
     // nothing, planner candidate included: with that match refused, the next
@@ -867,6 +968,9 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
     // checked plan example (`lawOnlyLeadExemptExample`): the planner candidate
     // is never offered, and any other selected figure still declines here.
     const lawOnlyLead = !input.policy?.preferPlanner && lawOnlyArchetypeLead(question, { turnPlan, problemIR: input.problemIR ?? null });
+    const lawLead = lawOnlyLead ? detectArchetype(question, { turnPlan, problemIR: input.problemIR ?? null, keepLawOnlyLead: true }) : null;
+    const requestedView = lawLead && validScene(candidateValidation) && candidateValidation?.value && !input.fastRepresentation
+      ? sourceRequestedViewEligibility({ question, plan: turnPlan, document: candidateValidation.value.document, lawArchetype: lawLead.id, problemIR }) : null;
     const lawOnlyReason = "the stem matched an archetype only through its plan's laws";
     const lawOnlyDecline = (reason = lawOnlyReason, code: "law_only_archetype_lead" | "refused_archetype_lead" = "law_only_archetype_lead") => {
       const leadStatus = resolveDiagramFailureStatus({
@@ -876,13 +980,13 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
       return empty(reason, leadStatus === "retry_required" ? "retry_required" : "text_only",
         validScene(candidateValidation) ? { code, reason, preferred: false, replacedBy: null } : null);
     };
-    if (lawOnlyLead && buildPlanExampleDocument(question, turnPlan).status !== "built") return lawOnlyDecline();
+    if (lawOnlyLead && !requestedView && !retainedNativeFast && buildPlanExampleDocument(question, turnPlan).status !== "built") return lawOnlyDecline();
     // A refused lead declines the same way: once the family refuses, a planner
     // candidate is no longer outranked and would take the turn. Strict is unchanged.
     if (!input.policy?.preferPlanner && refusedArchetypeLead(question, { turnPlan, problemIR: input.problemIR ?? null })) {
       return lawOnlyDecline("the stem's leading archetype refuses this question", "refused_archetype_lead");
     }
-    const value = !lawOnlyLead && validScene(candidateValidation) && gate.shouldPlanExactScene ? candidateValidation?.value : undefined;
+    const value = (!lawOnlyLead || requestedView) && validScene(candidateValidation) && gate.shouldPlanExactScene ? candidateValidation?.value : undefined;
     const fallbackCapabilities = inferSceneCapabilities(question, {
       lawIds: turnPlan.lawIds, problemIR: input.problemIR, turnPlan,
     });
@@ -895,8 +999,10 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
       } : null,
       exactFigureSource: input.exactFigureSource ?? "planner",
     });
-    let selected = input.fastRepresentation ?? explained!.selected;
-    if (lawOnlyLead && !lawOnlyLeadExemptExample(selected, question, turnPlan)) return lawOnlyDecline();
+    let selected = retainedNativeFast ?? input.fastRepresentation ?? explained!.selected;
+    const retainedRequestedView = requestedView && !input.fastRepresentation && !explained?.exactDecline &&
+      selected.figureSource === (input.exactFigureSource ?? "planner") && requestedView.ownerIds.every(id => selected.sceneDocument.requiredEntityIds.includes(id));
+    if (lawOnlyLead && !retainedRequestedView && !retainedNativeFast && !lawOnlyLeadExemptExample(selected, question, turnPlan)) return lawOnlyDecline();
     const selectedHasInk = selected.renderScene.primitives.some((primitive) =>
       (primitive.kind === "label" || primitive.kind === "dimension") &&
       typeof primitive.text === "string" && primitive.text.trim().length > 0);
@@ -916,7 +1022,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
     };
     const selectedSourceAllowed = policySourceAllowed || strictOpticsAdmission?.admitted === true || circularSourceAdmitted;
     const saveFailure = selectedHasInk && selectedSourceAllowed && selected.sceneDocument.visualDecision.mode === "scene"
-      ? liveSceneSaveFailure({ document: selected.sceneDocument, question, turnPlan, tier: selected.tier }) : null;
+      ? liveSceneSaveFailure({ document: selected.sceneDocument, question, turnPlan, tier: selected.tier, problemIR }) : null;
     const selectedIsDrawable = !input.solverAuthorityBlocked && selectedHasInk && selectedSourceAllowed && !saveFailure &&
       selected.sceneDocument.visualDecision.mode === "scene";
     let completion: SceneCompletionAdmission | undefined;

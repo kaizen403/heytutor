@@ -15,6 +15,8 @@ import {
   sourceMensurationStructure,
   hasMatrixSourceProgram,
   SUPPORTED_SCENE_CONSTRUCTION_OPERATORS,
+  isPlannerVisibleSceneConstructionOperator,
+  MECHANICS_OPERATORS,
   PLANNER_VISIBLE_SCENE_PROOF_PREDICATES,
 } from "@heytutor/scene-engine";
 import type { ProblemStructureView, SceneVisualFamily } from "@heytutor/scene-engine";
@@ -137,8 +139,8 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
   ],
   solid_figure: ["solid_projection", "solid_cross_section", "solid_anchor", "space_frame", "space_point", "point", "dimension", "label"],
   fluid_apparatus: ["elastic_profile", "elastic_state","hydrostatic_profile", "hydrostatic_state", "buoyancy", "submerged_body", "hydraulic_press", "solid_projection", "solid_cross_section", "solid_anchor", "point", "rectangle", "polygon", "polyline", "connect", "vector", "dimension", "circle"],
-  point_field: ["point", "vector", "circle", "line", "dimension", "angle_mark", "electric_field", "field_components", "coulomb_pair", "point_charge_field", "field_lines", "dipole_field", "dipole_torque", "equipotential", "dipole_energy", "line_charge_field", "gauss_flux", "wire_field", "loop_field", "magnetic_force", "magnetic_components", "gravitational_field", "gravitational_force", "flux_process", "induction_state", "flux_sinusoid", "sinusoid_state", "current_element_field", "conductor_force", "parallel_wire_force", "magnetic_dipole_field", "solenoid_field", "loop_torque", "galvanometer", "bar_magnet", "cyclotron"],
-  energy_level: ["axes", "segment", "vector", "dimension", "label", "rectangle", "point"],
+  point_field: ["point", "vector", "circle", "line", "dimension", "angle_mark", "electric_field", "field_components", "coulomb_pair", "point_charge_field", "field_lines", "dipole_field", "dipole_torque", "equipotential", "dipole_energy", "line_charge_field", "gauss_flux", "wire_field", "loop_field", "magnetic_force", "magnetic_components", "gravitational_field", "gravitational_force", "flux_process", "induction_state", "flux_sinusoid", "sinusoid_state", "current_element_field", "conductor_force", "parallel_wire_force", "magnetic_dipole_field", "solenoid_field", "loop_torque", "galvanometer", "bar_magnet", "cyclotron", "rutherford_scattering"],
+  energy_level: ["axes", "segment", "vector", "dimension", "label", "rectangle", "point", "circle", "curve_anchor", "rutherford_scattering"],
   coordinate_figure: ["permutation_cycles", "subset_lattice","set_partition", "set_select",
     "number_line_set", "linear_half_plane", "linear_feasible_region", "linear_system",
     "complex_point", "complex_transform", "complex_roots",
@@ -234,7 +236,7 @@ const FAMILY_GUIDANCE: Record<SceneVisualFamily, string> = {
   solid_figure: "Draw each source solid via solid_projection; retain body quantities and shared/internal joins. Dimensions declare measurementKind and use solid_anchor: radius centre to rim; diameter opposite rims (projection radius=D/2); sphere section at=0.5; cylinder height matching rims; cone/frustum height axis centres. Hollow cylinders retain innerRadius or coaxial inner/outer projections. Polyhedron spans use actual vertices. Preserve cavities and all composite parts; unsupported cuts use source-grounded representations.",
   fluid_apparatus: "Construct connected vessels or pipes with shared terminals. Use solid_projection and solid_anchor for cylindrical or spherical bodies: radii join centre to rim, diameters join opposite rim anchors on the same section. Supply dimension measurementKind for solid-anchor spans and keep each measurement attached to its own body. A fluid-level difference is measured between the actual levels, never as vessel height. Flow and force arrows attach to their bodies; do not draw disconnected tanks. With no stated values, Archimedes uses submerged_body and Pascal's press uses hydraulic_press; pressure is never an arrow.",
   point_field: "Place each named charge or current-carrying wire as a point or line. Field and force vectors share those IDs. Compute point-charge fields with electric_field and field_components; schematic mode expresses direction, SI mode requires explicit consistent length and charge units. Uniform line charges use line_charge_field; spherical Gauss flux uses gauss_flux; straight-wire and loop-center B fields use wire_field and loop_field with their explicit current sign conventions. Use current_element_field for a wire, arc, or loop field, conductor_force for I L cross B, loop_torque for I(A cross B), cyclotron for mv/(|q|B), and solenoid_field, magnetic_dipole_field, galvanometer, or bar_magnet only with explicit source values. Circular field geometry around a wire is a circle, not a guessed arc family. Prove collinearity, opposite directions, or perpendicularity named by the question.",
-  energy_level: "Draw energy or stopping-potential as an axis-aligned level diagram. Semiconductor topics reuse the same stacked levels: valence and conduction bands, optional donor/acceptor levels, and a p–n depletion region as adjacent regions on one axis. Transitions are segments or vectors between shared level IDs. Do not invent a circuit or a ray path for a photoelectric/Bohr energy balance; a device I–V curve is a state plot.",
+  energy_level: "Choose the physical observable stated by the source. Use rutherford_scattering when the question establishes the fixed-heavy-target point-charge model. Use source-owned levels and transitions for energy or stopping potential. Semiconductor levels may be ordinal. Never substitute a level ladder for an orbit or a reaction inventory. Draw energy or stopping-potential as an axis-aligned level diagram. Semiconductor topics reuse the same stacked levels: valence and conduction bands, optional donor/acceptor levels, and a p–n depletion region as adjacent regions on one axis. Transitions are segments or vectors between shared level IDs. Do not invent a circuit or a ray path for a photoelectric/Bohr energy balance; a device I–V curve is a state plot.",
   coordinate_figure: "Plot named points on axes, then construct the asked line, circle, polygon, or right-angle mark from those IDs. Intersections and tangents are derived operators, not guessed extra points. For a canonical hyperbola, ellipse, or parabola, use conic and its derived anchors, directrices, asymptotes, and tangents; use implicit_curve for a different explicit implicit equation; never treat a 2D conic or a planar angle-between-lines as space_frame. For 3D lines, planes, skew lines, or shortest distance, build one space_frame, then space_point / space_line / plane and space_project / space_intersection / space_closest_points / space_segment in that frame; never flatten a 3D question onto a guessed 2D circle. Mark a 3D angle with space_angle_mark or space_right_angle_mark; 2D angle marks reject space points. Draw 3D vectors with space_vector and derive a×b with space_cross.",
   vector_diagram: "Draw named vectors from a shared origin in one frame. Use vector_components for resolved parts and prove the named angle or perpendicular/parallel relation. A stream figure uses parallel_guides plus velocity_triangle, collinear_velocity_pair, or crossing_strategies; do not invent a heading or a straight-across triangle when boat speed does not exceed the current. Use relative_velocity for one shared frame and uniform_circular_motion for v^2/R. Do not substitute a free-body or a circuit. Only three-component vectors or a cross product use one space_frame with space_point and space_vector; derive a×b with space_cross.",
 };
@@ -415,7 +417,22 @@ export function inferSceneCapabilities(
   // An explicit visual without a recognized representation still reaches the
   // universal construction language. Do not add chapter keyword routers to
   // make a reusable operator available.
-  if (orderedFamilies.length === 0 && (explicitVisual || hints.turnPlan?.visualRequirement === "required")) {
+  const mechanicsProgram = hints.problemIR?.solveRequests?.some(request => request.kind === "mechanics") === true;
+  if (mechanicsProgram) {
+    // A wholly mechanical source program supplies its physical constructors.
+    // Keep the reusable geometry language beside them instead of sending all
+    // unrelated family contracts. Mixed programs retain their other operators.
+    if (hints.problemIR?.solveRequests?.every(request => request.kind === "mechanics")) {
+      operators.clear();
+      ["point", "segment", "ray", "line", "circle", "arc", "rectangle", "polygon", "polyline", "vector", "axes", "dimension", "label",
+        "midpoint", "project", "translate", "rotate", "parallel_through", "perpendicular_through", "angle_mark", "right_angle_mark", "tick_mark", "sign_badge",
+        "space_frame", "space_point", "space_vector", "space_cross", "space_line", "plane", "space_angle_mark",
+        "function_curve", "function_region", "parametric_curve", "curve_anchor", "curve_derivative"].forEach(operator => operators.add(operator));
+    }
+    [...MECHANICS_OPERATORS, "circle", "arc", "axes", "function_curve", "midpoint", "dimension"].forEach(operator => operators.add(operator));
+    planningGuidance.add("Use the source-bound mechanical program's mass, axis, motion and contact models. Keep mathematical display scales separate from physical values; never invent mass or inertia for a kinematic or axial question.");
+  }
+  if (!mechanicsProgram && orderedFamilies.length === 0 && (explicitVisual || hints.turnPlan?.visualRequirement === "required")) {
     SUPPORTED_SCENE_CONSTRUCTION_OPERATORS.forEach((operator) => operators.add(operator));
     PLANNER_VISIBLE_SCENE_PROOF_PREDICATES.forEach((predicate) => predicates.add(predicate));
     planningGuidance.add("Choose supported constructions from the question's explicit quantities and relations. Derive landmarks and numeric labels with the engine; do not guess missing physical inputs.");
@@ -425,7 +442,7 @@ export function inferSceneCapabilities(
       || explicitVisual
       || hints.turnPlan?.visualRequirement === "required",
     families: orderedFamilies,
-    constructionOperators: [...operators],
+    constructionOperators: [...operators].filter(isPlannerVisibleSceneConstructionOperator),
     proofPredicates: [...predicates],
     planningGuidance: [...planningGuidance],
   };

@@ -239,10 +239,39 @@ for (const [name, document] of [["water", water], ["ammonia", ammonia], ["HF", h
   });
 }
 
-// The fix moves no stem: on each fixture row head draws the family dev draws, including none.
+// Keep the recorded family for each stem. The source compiler may add the
+// independently proved atomic transition for this one non-bond fixture.
+const atomicTransitionStem = "Draw the energy levels of the hydrogen atom for the n=2 to n=1 transition. Hydrogen bonds play no part.";
 for (const [question, devFamily] of fixture.rows as Array<[string, string | null]>) {
-  const family = (synthesizeFamilyScene({ question }) ?? synthesizeLastResortScene({ question }))?.family ?? null;
-  check(`same as dev: ${question}`, () => assert.equal(family, devFamily, `head draws ${family}, dev drew ${devFamily}`));
+  const selected = synthesizeFamilyScene({ question }) ?? synthesizeLastResortScene({ question });
+  const family = selected?.family ?? null;
+  check(`family and source parity: ${question}`, () => {
+    if (question !== atomicTransitionStem || devFamily !== null || selected?.family !== "energy_level") {
+      assert.equal(family, devFamily, `head draws ${family}, dev drew ${devFamily}`);
+      return;
+    }
+    assert.equal(selected.document.source.question, question);
+    assert.equal(selected.nonMetric, true);
+    assert.ok(selected.validationReport.valid);
+    const primitives = selected.renderScene.primitives;
+    const states = primitives.filter(mark => mark.kind === "label" && /^n=\d+$/.test(mark.text ?? ""));
+    assert.deepEqual(states.map(mark => mark.text).sort(), ["n=1", "n=2"]);
+    const transitions = primitives.filter(mark => mark.kind === "vector");
+    assert.equal(transitions.length, 1);
+    const arrow = transitions[0]!;
+    const stateStroke = (text: string) => primitives.find(mark => mark.kind === "line" &&
+      mark.entityId === states.find(label => label.text === text)?.entityId);
+    const lower = stateStroke("n=1"), upper = stateStroke("n=2");
+    assert.ok(lower && upper && arrow.points.length === 2);
+    const [start, end] = arrow.points;
+    const onLevel = (point: Point, level: NonNullable<typeof upper>) => {
+      const [left, right] = level.points;
+      return left && right && left.y === right.y && point.y === left.y &&
+        point.x >= Math.min(left.x, right.x) && point.x <= Math.max(left.x, right.x);
+    };
+    assert.ok(start && end && start.y < end.y && onLevel(start, upper) && onLevel(end, lower),
+      "the single emission arrow connects its actual n=2 then n=1 states");
+  });
 }
 
 console.log(`verify-chemistry-hbond-molecules: ${passed} passed, ${failed} failed`);

@@ -14,6 +14,8 @@
  *   conic written x*x, a rail circuit and a photoelectric energy ladder still
  *   draw nothing and record picture_demand_unmet. A rail circuit whose rod
  *   ends carry a lone "+" or "−" polarity note is refused earlier, at compile.
+ *   The recorded P/Q cases may also be refused at compile when its parameter
+ *   positions lack an original-source certificate. It still draws nothing.
  *
  *   pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-picture-demand-conic-rows.ts
  */
@@ -56,7 +58,16 @@ const withoutTier = (document: SceneDocument | undefined) => {
 };
 
 const DRAWN = new Set(["conic_operator", "thread_spheres"]);
-const counts = { drawn: 0, laterDecline: 0, protected: 0, polarityRefused: 0 };
+const counts = { drawn: 0, laterDecline: 0, protected: 0, polarityRefused: 0, sourcePointRefused: 0 };
+
+function refusesUnprovedRecordedPoints(row: Row, validation: ReturnType<typeof validateProductionSceneCandidate>): boolean {
+  const recordedPointCase = (row.id === "pd32" && row.case === "conic_operator_exempt") ||
+    (row.case === "parametric_curve" && ["pd35", "pd36", "pd37", "pd38", "pd39"].includes(row.id));
+  return recordedPointCase && !validation.valid &&
+    validation.errors.length === 2 && validation.errors.every(issue =>
+      issue.code === "requested_point_source_missing" && issue.severity === "fatal" && issue.entityIds?.length === 1) &&
+    validation.errors.flatMap(issue => issue.entityIds ?? []).sort().join(",") === "P,Q";
+}
 
 function currentFixture(row: Row): SceneDocument {
   const document = structuredClone(row.document);
@@ -114,8 +125,10 @@ for (const row of rows) {
   // A lone "+" or "−" polarity note cannot bind a terminal, so the compiler
   // refuses it in both yield modes, before the picture demand is consulted.
   // Only a protected row may end here, and it still draws nothing.
-  if (!validation.valid && validation.errors.some((issue) => issue.code === "polarity_binding_ambiguous")) {
-    assert(!DRAWN.has(row.case), `${label}: a drawn row is not refused for its polarity note`);
+  const polarityRefused = !validation.valid && validation.errors.some(issue => issue.code === "polarity_binding_ambiguous");
+  const sourcePointRefused = refusesUnprovedRecordedPoints(row, validation);
+  if (polarityRefused || sourcePointRefused) {
+    assert(!DRAWN.has(row.case), `${label}: a drawn row cannot take an early-refusal path`);
     const refused = selectProductionScene({
       question: row.question, turnPlan: row.turnPlan, problemIR: null, candidateValidation: validation,
       fastRepresentation: null, exactFigureSource: "planner", solverAuthorityBlocked: row.solverBlocked,
@@ -123,7 +136,8 @@ for (const row of rows) {
     });
     assert.equal(refused.representation, null, `${label}: strict draws no stand in`);
     counts.protected += 1;
-    counts.polarityRefused += 1;
+    counts.polarityRefused += Number(polarityRefused);
+    counts.sourcePointRefused += Number(sourcePointRefused);
     continue;
   }
   assert(validation.valid && validation.value, `${label}: current fixture must validate: ${JSON.stringify(validation.errors)}`);
@@ -172,9 +186,9 @@ assert(counts.drawn >= 25 && counts.protected >= 10 && counts.laterDecline <= 2,
 /*
  * The same protected documents asked in other words (PR #190 review). Each
  * recorded parameter angle document is paired with a reworded stem, its
- * source question set to that stem, and must still record
- * picture_demand_unmet: the wording, not the recorded phrase, keeps today's
- * rule. pd30 is the study's judged wrong conic operator figure.
+ * source question set to that stem, and must still draw nothing. An admitted
+ * candidate must record picture_demand_unmet. pd30 is the study's judged
+ * wrong conic operator figure.
  */
 const REWORDED: [string, string][] = [
   ["pd30", "parametric form of a point on an ellipse"],
@@ -203,14 +217,19 @@ for (const [id, question] of REWORDED) {
     allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(decision, source)),
   };
   const validation = validateProductionSceneCandidate({ candidate: document as unknown as Record<string, unknown>, question, turnPlan });
-  assert(validation.valid && validation.value, `${label}: the reworded candidate must still validate`);
+  const sourcePointRefused = refusesUnprovedRecordedPoints(row, validation);
+  if (!sourcePointRefused) {
+    assert(validation.valid && validation.value, `${label}: the reworded candidate must still validate`);
+  }
   const selection = selectProductionScene({
     question, turnPlan, problemIR: null, candidateValidation: validation,
     fastRepresentation: null, exactFigureSource: "planner", solverAuthorityBlocked: row.solverBlocked,
     requiredRetryEnabled: true, policy,
   });
-  assert.equal(selection.droppedCandidate?.code, "picture_demand_unmet", `${label}: still dropped by the picture demand (${selection.reason})`);
+  if (!sourcePointRefused) {
+    assert.equal(selection.droppedCandidate?.code, "picture_demand_unmet", `${label}: still dropped by the picture demand (${selection.reason})`);
+  }
   assert.equal(selection.representation, null, `${label}: strict draws no stand in`);
   reworded += 1;
 }
-console.log(`verify-picture-demand-conic-rows: ok (drawn ${counts.drawn}, declined by a later check ${counts.laterDecline}, still drawing nothing ${counts.protected} (${counts.polarityRefused} refused earlier for a lone polarity sign), reworded protected ${reworded})`);
+console.log(`verify-picture-demand-conic-rows: ok (drawn ${counts.drawn}, declined by a later check ${counts.laterDecline}, still drawing nothing ${counts.protected} (${counts.polarityRefused} refused earlier for a lone polarity sign, ${counts.sourcePointRefused} for unproved P/Q positions), reworded protected ${reworded})`);

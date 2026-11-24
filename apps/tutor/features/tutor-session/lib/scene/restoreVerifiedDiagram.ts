@@ -8,7 +8,6 @@
  */
 import {
   compileSceneDocument,
-  validateSceneDocument,
   validateTurnPlanV3,
   type SceneDocument,
 } from "@heytutor/scene-engine";
@@ -18,7 +17,7 @@ import {
 } from "@heytutor/drawing";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import type { NarrationLanguage } from "@heytutor/tutor-core";
-import { storedTurnSourceIssues } from "@/lib/scene/storedSceneSource";
+import { sourceCheckedStoredDocument } from "@/lib/scene/storedSceneSource";
 import { storedTurnSceneQuestion } from "@/lib/boards/doubtFigure";
 import { DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildVerifiedDiagramPresentation } from "./verifiedScenePresentation";
@@ -32,11 +31,9 @@ export function restoreVerifiedPresentationFromTurn(
   narrationLanguage?: NarrationLanguage,
 ): ReturnType<typeof buildVerifiedDiagramPresentation> | null {
   if (!turn?.sceneDocument) return null;
-  const structural = validateSceneDocument(turn.sceneDocument);
-  if (!structural.document) return null;
-  const document = structural.document;
+  const document = sourceCheckedStoredDocument(turn.sceneDocument, turn);
+  if (!document) return null;
   if (document.visualDecision.mode !== "scene") return null;
-  if (storedTurnSourceIssues(document, turn).some((issue) => issue.severity === "fatal")) return null;
   const dsa = isDsaSceneDocument(document);
   const compiled = compileSceneDocument(
     document,
@@ -50,6 +47,8 @@ export function restoreVerifiedPresentationFromTurn(
   const question = storedTurnSceneQuestion(turn);
   const plan = validateTurnPlanV3(rawPlan, question ?? String(document.source.question ?? "")).plan;
   const presentation = buildVerifiedDiagramPresentation(
+    // This is a stored server-canonical source, including any already bound
+    // cosmetic sample stamp. Acquisition shutdown does not restyle playback.
     document,
     compiled.renderScene,
     { originalQuestion: question, narrationLanguage, ...(plan ? { turnPlan: plan } : {}), ...(dsa ? { layout: "code_lesson" as const } : {}) },
