@@ -1,3 +1,11 @@
+import { exactBinary64 } from "./exactBinary64";
+import {
+  Q_ONE, Q_ZERO, addRational, compareRational,
+  divideRational, exactRationalToNumber, multiplyRational, negateRational,
+  parseRational, rational, serializeRational,
+  type Rational,
+} from "./exactRational";
+
 import { chargeExpressionSteps } from "../compile/figureWork";
 
 const MAX_EXPRESSION_LENGTH = 256;
@@ -16,7 +24,7 @@ type FunctionName = keyof typeof FUNCTIONS;
 type VariableName = "x" | "y";
 
 type ExpressionNode =
-  | { kind: "number"; value: number; literal?: string }
+  | { kind: "number"; value: number; literal?: string; exactConstant?: "pi" | "e" }
   | { kind: "variable"; name: VariableName }
   | { kind: "unary"; operator: UnaryOperator; value: ExpressionNode }
   | { kind: "binary"; operator: BinaryOperator; left: ExpressionNode; right: ExpressionNode }
@@ -46,9 +54,30 @@ const FUNCTIONS = {
 
 export interface ParsedMathExpression {
   readonly source: string;
+  /** Structural identity after the parser's documented notation normalization. */
+  readonly syntaxKey: string;
   evaluate(x: number): number;
   derivative(x: number): number;
+  secondDerivative(x: number): number;
+  /**
+   * Value and analytic derivatives with conservative ABSOLUTE error bounds.
+   * x is the exact supplied binary64, decimal tokens are source rationals,
+   * and pi/e keep their symbolic identities. An unresolved zero has a nonzero
+   * bound; domain, precision or work-budget failures throw. Both objects freeze.
+   */
+  certifiedJetAt(x: number): CertifiedMathJet;
+  /** Source-rational outward bounds over the whole closed domain, never sampled bounds. */
+  intervalBoundsOn(xMin: number, xMax: number): { low: number; high: number };
   assertContinuousOn(xMin: number, xMax: number): void;
+}
+
+export interface CertifiedMathJet {
+  readonly value: number;
+  readonly derivative: number;
+  readonly secondDerivative: number;
+  readonly errorBounds: Readonly<{ value: number; derivative: number; secondDerivative: number }>;
+  /** Present only when the value is algebraically proved to be k*pi/2. */
+  readonly exactQuarterTurns?: number;
 }
 
 export interface ParsedMathExpression2D {
@@ -549,6 +578,7 @@ export function parseMathExpression(source: string): ParsedMathExpression {
   const root = new Parser(tokenize(normalized), new Set(["x"])).parse();
   return {
     source: normalized,
+    syntaxKey: JSON.stringify(root),
     evaluate(x: number): number {
       if (!Number.isFinite(x) || Math.abs(x) > MAX_ABSOLUTE_VALUE) {
         throw new Error("x must be finite and within the supported numeric range");
@@ -559,6 +589,32 @@ export function parseMathExpression(source: string): ParsedMathExpression {
     derivative(x: number): number {
       assertSupportedVariable(x, "x");
       return evaluateDerivative(root, x, { remaining: MAX_EVALUATION_STEPS }).derivative;
+    },
+    secondDerivative(x: number): number {
+      assertSupportedVariable(x, "x");
+      return evaluateCertifiedJet(root, x, { remaining: MAX_CERTIFIED_STEPS }).second.value;
+    },
+    certifiedJetAt(x: number): CertifiedMathJet {
+      assertSupportedVariable(x, "x");
+      const jet = evaluateCertifiedJet(root, x, { remaining: MAX_CERTIFIED_STEPS });
+      const quarterTurns = exactQuarterTurns(jet.value.exact);
+      return Object.freeze({
+        value: jet.value.value,
+        derivative: jet.first.value,
+        secondDerivative: jet.second.value,
+        errorBounds: Object.freeze({
+          value: certifiedError(jet.value),
+          derivative: certifiedError(jet.first),
+          secondDerivative: certifiedError(jet.second),
+        }),
+        ...(quarterTurns === undefined ? {} : { exactQuarterTurns: quarterTurns }),
+      });
+    },
+    intervalBoundsOn(xMin: number, xMax: number): Interval {
+      assertSupportedVariable(xMin, "x");
+      assertSupportedVariable(xMax, "x");
+      if (xMin > xMax) throw new Error("function bounds require xMin <= xMax");
+      return Object.freeze(evaluateCertifiedRange(root, { low: xMin, high: xMax }, { remaining: MAX_CERTIFIED_STEPS }).bounds);
     },
     assertContinuousOn(xMin: number, xMax: number): void {
       if (!Number.isFinite(xMin) || !Number.isFinite(xMax) || !(xMin < xMax)) {
@@ -792,8 +848,8 @@ class Parser {
       if ((token.value === "x" || token.value === "y") && this.variables.has(token.value)) {
         return { kind: "variable", name: token.value };
       }
-      if (token.value === "pi") return { kind: "number", value: Math.PI };
-      if (token.value === "e") return { kind: "number", value: Math.E };
+      if (token.value === "pi") return { kind: "number", value: Math.PI, exactConstant: "pi" };
+      if (token.value === "e") return { kind: "number", value: Math.E, exactConstant: "e" };
       if (!Object.prototype.hasOwnProperty.call(FUNCTIONS, token.value)) {
         throw new Error(`unknown identifier '${token.value}' at position ${token.position}`);
       }
@@ -1052,4 +1108,720 @@ function extrema(values: number[], description: string): Interval {
 
 function interval(low: number, high: number, description: string): Interval {
   return { low: checked(low, description), high: checked(high, description) };
+}
+
+const MAX_CERTIFIED_STEPS = 8192;
+const MAX_EXACT_TERMS = 32;
+const MAX_EXACT_POWER = 128;
+type CertifiedBudget = { remaining: number };
+// A small Laurent polynomial in the retained constants. It proves algebraic
+// cancellations without asserting any unproved relation between pi and e.
+type ExactForm = ReadonlyMap<string, Rational>;
+type CertifiedScalar = { value: number; bounds: Interval; exact?: ExactForm };
+type CertifiedJet = { value: CertifiedScalar; first: CertifiedScalar; second: CertifiedScalar; constant: boolean };
+
+function certifiedStep(budget: CertifiedBudget): void {
+  chargeExpressionSteps(1);
+  if (--budget.remaining < 0) throw new Error("certified expression exceeded the operation budget");
+}
+
+function binaryRational(value: number): Rational {
+  const dyadic = exactBinary64(value);
+  return dyadic.power >= 0 ? rational(dyadic.n << BigInt(dyadic.power)) : rational(dyadic.n, 1n << BigInt(-dyadic.power));
+}
+
+/** Adjacent binary64 endpoints; no relative-epsilon estimate or zero snapping. */
+function adjacent(value: number, up: boolean): number {
+  if (!Number.isFinite(value)) throw new Error("certified arithmetic is not finite");
+  if (value === 0) return up ? Number.MIN_VALUE : -Number.MIN_VALUE;
+  const data = new DataView(new ArrayBuffer(8));
+  data.setFloat64(0, value);
+  data.setBigUint64(0, data.getBigUint64(0) + ((value > 0) === up ? 1n : -1n));
+  const result = data.getFloat64(0);
+  if (!Number.isFinite(result)) throw new Error("certified arithmetic overflows binary64");
+  return result;
+}
+
+function rationalBounds(q: Rational): Interval {
+  const value = exactRationalToNumber(serializeRational(q));
+  const comparison = compareRational(binaryRational(value), q);
+  return { low: comparison > 0 ? adjacent(value, false) : value, high: comparison < 0 ? adjacent(value, true) : value };
+}
+
+// Rational brackets for the mathematical constants (the final digit bounds
+// are strict); these also cover the rounded Math.PI/Math.E central estimates.
+// pi follows Machin's atan series, e its factorial series, ln(2) the positive
+// 2*atanh(1/3) series. Bounds, rather than a libm-accuracy assumption, carry truth.
+function constantBounds(lower: string, upper: string): Interval {
+  return { low: rationalBounds(parseRational(lower)).low, high: rationalBounds(parseRational(upper)).high };
+}
+const CERTIFIED_PI = constantBounds("3.14159265358979323846264338327950288419716939937510", "3.14159265358979323846264338327950288419716939937511");
+const CERTIFIED_E = constantBounds("2.71828182845904523536028747135266249775724709369995", "2.71828182845904523536028747135266249775724709369996");
+const CERTIFIED_LN2 = constantBounds("0.69314718055994530941723212145817656807550013436025", "0.69314718055994530941723212145817656807550013436026");
+const pointBounds = (value: number): Interval => ({ low: value, high: value });
+const boundMagnitude = (a: Interval): number => Math.max(Math.abs(a.low), Math.abs(a.high));
+
+function boundsAdd(a: Interval, b: Interval): Interval {
+  return { low: adjacent(a.low + b.low, false), high: adjacent(a.high + b.high, true) };
+}
+function boundsNegate(a: Interval): Interval { return { low: -a.high, high: -a.low }; }
+function boundsSubtract(a: Interval, b: Interval): Interval { return boundsAdd(a, boundsNegate(b)); }
+function boundsMultiply(a: Interval, b: Interval): Interval {
+  const products = [a.low * b.low, a.low * b.high, a.high * b.low, a.high * b.high];
+  const operands = [[a.low, b.low], [a.low, b.high], [a.high, b.low], [a.high, b.high]];
+  if (products.some((value, index) => value === 0 && operands[index]![0] !== 0 && operands[index]![1] !== 0)) {
+    throw new Error("certified product underflows binary64");
+  }
+  return { low: adjacent(Math.min(...products), false), high: adjacent(Math.max(...products), true) };
+}
+function boundsDivide(a: Interval, b: Interval): Interval {
+  if (containsZero(b)) throw new Error("certified denominator may be zero");
+  const quotients = [a.low / b.low, a.low / b.high, a.high / b.low, a.high / b.high];
+  if (quotients.some((value, index) => value === 0 && (index < 2 ? a.low : a.high) !== 0)) {
+    throw new Error("certified quotient underflows binary64");
+  }
+  return { low: adjacent(Math.min(...quotients), false), high: adjacent(Math.max(...quotients), true) };
+}
+function boundsIntegerPower(a: Interval, power: number, budget: CertifiedBudget): Interval {
+  let result = pointBounds(1); let factor = a; let exponent = Math.abs(power);
+  while (exponent > 0) {
+    certifiedStep(budget);
+    if (exponent % 2 === 1) result = boundsMultiply(result, factor);
+    exponent = Math.floor(exponent / 2);
+    if (exponent) factor = boundsMultiply(factor, factor);
+  }
+  return power < 0 ? boundsDivide(pointBounds(1), result) : result;
+}
+
+function makeExact(q: Rational, pi = 0, e = 0): ExactForm {
+  return q.n === 0n ? new Map() : new Map([[`${pi},${e}`, q]]);
+}
+function exactRationalPart(form: ExactForm | undefined): Rational | undefined {
+  if (!form) return undefined;
+  return form.size === 0 ? Q_ZERO : form.size === 1 ? form.get("0,0") : undefined;
+}
+function sameForm(a: ExactForm | undefined, b: ExactForm | undefined): boolean {
+  return !!a && !!b && a.size === b.size && [...a].every(([key, value]) => {
+    const other = b.get(key); return other !== undefined && compareRational(value, other) === 0;
+  });
+}
+function formAdd(a: ExactForm, b: ExactForm, subtract: boolean, budget: CertifiedBudget): ExactForm {
+  const result = new Map(a);
+  for (const [key, value] of b) {
+    certifiedStep(budget);
+    const next = addRational(result.get(key) ?? Q_ZERO, subtract ? negateRational(value) : value);
+    if (next.n === 0n) result.delete(key); else result.set(key, next);
+  }
+  if (result.size > MAX_EXACT_TERMS) throw new Error("certified symbolic expression exceeds the term budget");
+  return result;
+}
+function formMultiply(a: ExactForm, b: ExactForm, budget: CertifiedBudget): ExactForm {
+  const result = new Map<string, Rational>();
+  for (const [aKey, aQ] of a) for (const [bKey, bQ] of b) {
+    certifiedStep(budget);
+    const [aPi, aE] = aKey.split(",").map(Number); const [bPi, bE] = bKey.split(",").map(Number);
+    const pi = aPi! + bPi!; const e = aE! + bE!;
+    if (Math.abs(pi) > MAX_EXACT_POWER || Math.abs(e) > MAX_EXACT_POWER) throw new Error("certified symbolic power exceeds capacity");
+    const key = `${pi},${e}`; const q = addRational(result.get(key) ?? Q_ZERO, multiplyRational(aQ, bQ));
+    if (q.n === 0n) result.delete(key); else result.set(key, q);
+    if (result.size > MAX_EXACT_TERMS) throw new Error("certified symbolic expression exceeds the term budget");
+  }
+  return result;
+}
+function formDivide(a: ExactForm, b: ExactForm, budget: CertifiedBudget): ExactForm | undefined {
+  if (sameForm(a, b)) return makeExact(Q_ONE);
+  if (b.size !== 1) return undefined;
+  const [key, q] = [...b][0]!; const [pi, e] = key.split(",").map(Number);
+  return formMultiply(a, makeExact(divideRational(Q_ONE, q), -pi!, -e!), budget);
+}
+function scalarFromBounds(bounds: Interval, value: number): CertifiedScalar {
+  checked(bounds.low, "certified lower bound"); checked(bounds.high, "certified upper bound");
+  checked(value, "certified expression value");
+  if (bounds.low > bounds.high) throw new Error("invalid certified interval");
+  if (value === 0 && !containsZero(bounds)) throw new Error("certified nonzero value underflows binary64");
+  return { value: value === 0 ? 0 : value, bounds };
+}
+function scalarFromForm(form: ExactForm, budget: CertifiedBudget): CertifiedScalar {
+  const q = exactRationalPart(form);
+  if (q) return { ...scalarFromBounds(rationalBounds(q), exactRationalToNumber(serializeRational(q))), exact: form };
+  let bounds: Interval | undefined; let value = 0;
+  for (const [key, coefficient] of form) {
+    certifiedStep(budget);
+    const [pi, e] = key.split(",").map(Number);
+    let term = rationalBounds(coefficient);
+    if (pi) term = boundsMultiply(term, boundsIntegerPower(CERTIFIED_PI, pi, budget));
+    if (e) term = boundsMultiply(term, boundsIntegerPower(CERTIFIED_E, e, budget));
+    bounds = bounds ? boundsAdd(bounds, term) : term;
+    value += exactRationalToNumber(serializeRational(coefficient)) * Math.PI ** pi! * Math.E ** e!;
+  }
+  return { ...scalarFromBounds(bounds ?? pointBounds(0), value), exact: form };
+}
+const CERTIFIED_ZERO: CertifiedScalar = { value: 0, bounds: pointBounds(0), exact: makeExact(Q_ZERO) };
+const CERTIFIED_ONE: CertifiedScalar = { value: 1, bounds: pointBounds(1), exact: makeExact(Q_ONE) };
+function certifiedNumber(value: number, budget: CertifiedBudget): CertifiedScalar { return scalarFromForm(makeExact(binaryRational(value)), budget); }
+function certifiedNegate(a: CertifiedScalar): CertifiedScalar {
+  return { value: a.value === 0 ? 0 : -a.value, bounds: boundsNegate(a.bounds), exact: a.exact && new Map([...a.exact].map(([key, q]) => [key, negateRational(q)])) };
+}
+function certifiedAdd(a: CertifiedScalar, b: CertifiedScalar, budget: CertifiedBudget, subtract = false): CertifiedScalar {
+  certifiedStep(budget);
+  if (subtract && (a === b || sameForm(a.exact, b.exact))) return CERTIFIED_ZERO;
+  if (a.exact && b.exact) return scalarFromForm(formAdd(a.exact, b.exact, subtract, budget), budget);
+  if (b.exact?.size === 0) return a;
+  if (a.exact?.size === 0) return subtract ? certifiedNegate(b) : b;
+  return scalarFromBounds(subtract ? boundsSubtract(a.bounds, b.bounds) : boundsAdd(a.bounds, b.bounds), subtract ? a.value - b.value : a.value + b.value);
+}
+function certifiedMultiply(a: CertifiedScalar, b: CertifiedScalar, budget: CertifiedBudget): CertifiedScalar {
+  certifiedStep(budget);
+  if (a.exact?.size === 0 || b.exact?.size === 0) return CERTIFIED_ZERO;
+  if (a.exact && b.exact) return scalarFromForm(formMultiply(a.exact, b.exact, budget), budget);
+  return scalarFromBounds(boundsMultiply(a.bounds, b.bounds), a.value * b.value);
+}
+function certifiedDivide(a: CertifiedScalar, b: CertifiedScalar, budget: CertifiedBudget): CertifiedScalar {
+  certifiedStep(budget);
+  if (containsZero(b.bounds)) throw new Error("certified denominator may be zero");
+  if (a.exact?.size === 0) return CERTIFIED_ZERO;
+  const form = a.exact && b.exact && formDivide(a.exact, b.exact, budget);
+  if (form) return scalarFromForm(form, budget);
+  return scalarFromBounds(boundsDivide(a.bounds, b.bounds), a.value / b.value);
+}
+function certifiedError(a: CertifiedScalar): number {
+  const error = Math.max(Math.abs(a.value - a.bounds.low), Math.abs(a.bounds.high - a.value));
+  return error === 0 ? 0 : checked(adjacent(error, true), "certified absolute error");
+}
+
+function cardinalTrig(form: ExactForm | undefined, cosine: boolean): Rational | undefined {
+  const turns = exactQuarterTurns(form);
+  if (turns === undefined) return undefined;
+  const quarter = (turns % 4 + 4) % 4;
+  return rational(BigInt((cosine ? [1, 0, -1, 0] : [0, 1, 0, -1])[quarter]!));
+}
+function exactQuarterTurns(form: ExactForm | undefined): number | undefined {
+  if (!form) return undefined;
+  const q = form.size === 0 ? Q_ZERO : form.size === 1 ? form.get("1,0") : undefined;
+  if (!q || (2n * q.n) % q.d !== 0n) return undefined;
+  const turns = Number(2n * q.n / q.d);
+  return Number.isSafeInteger(turns) ? turns : undefined;
+}
+
+// Remainders are upper bounds, so a positive remainder below the subnormal
+// grid rounds UP to MIN_VALUE. Expression values themselves never get this
+// treatment: their nonzero underflow is rejected by the arithmetic above.
+function positiveUpperProduct(a: number, b: number): number {
+  if (a === 0 || b === 0) return 0;
+  const value = a * b;
+  return value === 0 ? Number.MIN_VALUE : adjacent(value, true);
+}
+function positiveUpperQuotient(a: number, b: number): number {
+  if (a === 0) return 0;
+  const value = a / b;
+  return value === 0 ? Number.MIN_VALUE : adjacent(value, true);
+}
+function factorialRemainder(radius: number, degree: number, budget: CertifiedBudget): number {
+  let result = 1;
+  for (let index = 1; index <= degree; index++) {
+    certifiedStep(budget);
+    result = positiveUpperQuotient(positiveUpperProduct(result, radius), index);
+  }
+  return result;
+}
+function symmetricRemainder(value: Interval, error: number): Interval {
+  return error === 0 ? value : boundsAdd(value, { low: -error, high: error });
+}
+
+function boundedTrig(a: Interval, cosine: boolean, budget: CertifiedBudget): Interval {
+  const cycles = Math.round((a.low / 2 + a.high / 2) / (2 * Math.PI));
+  const reduced = cycles === 0 ? a : boundsSubtract(a, boundsMultiply(pointBounds(2 * cycles), CERTIFIED_PI));
+  const radius = boundMagnitude(reduced);
+  if (radius > 4) return { low: -1, high: 1 };
+  if (radius < 1e-4) {
+    const square = positiveUpperProduct(radius, radius);
+    return cosine ? symmetricRemainder(pointBounds(1), positiveUpperQuotient(square, 2))
+      : symmetricRemainder(reduced, positiveUpperQuotient(positiveUpperProduct(square, radius), 6));
+  }
+  const square = boundsMultiply(reduced, reduced);
+  let term = cosine ? pointBounds(1) : reduced; let sum = term; let terms = 0;
+  for (let index = 1; index <= 20; index++) {
+    certifiedStep(budget);
+    const degree = 2 * index + (cosine ? 0 : 1);
+    term = boundsNegate(boundsDivide(boundsMultiply(term, square), pointBounds(degree * (degree - 1))));
+    sum = boundsAdd(sum, term); terms = index;
+    if (boundMagnitude(term) < 1e-22) break;
+  }
+  // Taylor at zero: every real derivative of sin/cos has magnitude <= 1.
+  const result = symmetricRemainder(sum, factorialRemainder(radius, 2 * terms + (cosine ? 2 : 3), budget));
+  return { low: Math.max(-1, result.low), high: Math.min(1, result.high) };
+}
+
+function boundedSqrtPoint(value: number, budget: CertifiedBudget): Interval {
+  if (value < 0) throw new Error("certified sqrt argument is negative");
+  if (value === 0) return pointBounds(0);
+  const source = binaryRational(value);
+  const compareSquare = (candidate: number): number => {
+    certifiedStep(budget);
+    return compareRational(multiplyRational(binaryRational(candidate), binaryRational(candidate)), source);
+  };
+  const candidate = Math.sqrt(value);
+  if (!(candidate > 0 && Number.isFinite(candidate))) throw new Error("certified sqrt underflows or is nonfinite");
+  const comparison = compareSquare(candidate);
+  if (comparison === 0) return pointBounds(candidate);
+  let low = comparison < 0 ? candidate : adjacent(candidate, false);
+  let high = comparison > 0 ? candidate : adjacent(candidate, true);
+  // Validate the bracket with exact squares; libm is only an initial estimate.
+  for (let index = 0; index < 64; index++) {
+    const lower = compareSquare(low); const upper = compareSquare(high);
+    if (lower <= 0 && upper >= 0) return { low, high };
+    if (lower > 0) low = adjacent(low, false);
+    if (upper < 0) high = adjacent(high, true);
+  }
+  throw new Error("sqrt estimate could not be certified within the operation budget");
+}
+function boundedSqrt(a: Interval, budget: CertifiedBudget): Interval {
+  if (a.low < 0) throw new Error("certified sqrt argument may be negative");
+  return { low: boundedSqrtPoint(a.low, budget).low, high: boundedSqrtPoint(a.high, budget).high };
+}
+
+function boundedExp(a: Interval, budget: CertifiedBudget): Interval {
+  if (a.low > 28) throw new Error("certified exp exceeds the supported numeric range");
+  if (a.high < -746) throw new Error("certified exp underflows binary64");
+  const power = Math.max(0, Math.ceil(Math.log2(Math.max(1, boundMagnitude(a)))) + 1);
+  const reduced = boundsDivide(a, pointBounds(2 ** power));
+  const radius = boundMagnitude(reduced);
+  let sum: Interval;
+  if (radius < 1e-8) {
+    sum = symmetricRemainder(boundsAdd(pointBounds(1), reduced), positiveUpperProduct(2, positiveUpperProduct(radius, radius)));
+  } else {
+    let term = pointBounds(1); sum = term;
+    for (let index = 1; index <= 22; index++) {
+      certifiedStep(budget);
+      term = boundsDivide(boundsMultiply(term, reduced), pointBounds(index));
+      sum = boundsAdd(sum, term);
+    }
+    // |reduced| < 1, hence exp(|reduced|) < 3 in the Lagrange remainder.
+    sum = symmetricRemainder(sum, positiveUpperProduct(3, factorialRemainder(radius, 23, budget)));
+  }
+  for (let index = 0; index < power; index++) { certifiedStep(budget); sum = boundsMultiply(sum, sum); }
+  if (!(sum.low > 0)) throw new Error("certified exp positive value exceeds available precision");
+  return sum;
+}
+
+function boundedLogPoint(value: number, budget: CertifiedBudget): Interval {
+  if (!(value > 0)) throw new Error("certified log argument must be strictly positive");
+  if (value === 1) return pointBounds(0);
+  let exponent = Math.floor(Math.log2(value)); let scale = 2 ** exponent; let mantissa = value / scale;
+  for (let index = 0; index < 4 && !(mantissa >= 1 && mantissa <= 2); index++) {
+    certifiedStep(budget);
+    exponent += mantissa < 1 ? -1 : 1; scale = 2 ** exponent; mantissa = value / scale;
+  }
+  if (!(mantissa >= 1 && mantissa <= 2 && Number.isFinite(scale) && scale > 0)) throw new Error("certified log range reduction failed");
+  const exactlyScaled = compareRational(multiplyRational(binaryRational(mantissa), binaryRational(scale)), binaryRational(value)) === 0;
+  const m = exactlyScaled ? pointBounds(mantissa) : boundsDivide(pointBounds(value), pointBounds(scale));
+  let logMantissa = pointBounds(0);
+  if (mantissa !== 1) {
+    const z = boundsDivide(boundsSubtract(m, pointBounds(1)), boundsAdd(m, pointBounds(1)));
+    const square = boundsMultiply(z, z); let term = z; let sum = z;
+    for (let index = 1; index < 24; index++) {
+      certifiedStep(budget);
+      term = boundsMultiply(term, square);
+      sum = boundsAdd(sum, boundsDivide(term, pointBounds(2 * index + 1)));
+    }
+    const radius = boundMagnitude(z);
+    let tail = radius;
+    for (let index = 0; index < 24; index++) { certifiedStep(budget); tail = positiveUpperProduct(tail, positiveUpperProduct(radius, radius)); }
+    const denominator = adjacent(49 * adjacent(1 - positiveUpperProduct(radius, radius), false), false);
+    const remainder = positiveUpperQuotient(positiveUpperProduct(2, tail), denominator);
+    logMantissa = symmetricRemainder(boundsMultiply(pointBounds(2), sum), remainder);
+  }
+  return exponent === 0 ? logMantissa : boundsAdd(logMantissa, boundsMultiply(pointBounds(exponent), CERTIFIED_LN2));
+}
+function boundedLog(a: Interval, budget: CertifiedBudget): Interval {
+  return { low: boundedLogPoint(a.low, budget).low, high: boundedLogPoint(a.high, budget).high };
+}
+
+function boundedAtanPoint(value: number, budget: CertifiedBudget): Interval {
+  if (value === 0) return pointBounds(0);
+  if (value < 0) return boundsNegate(boundedAtanPoint(-value, budget));
+  const reciprocal = value > 1;
+  let z = reciprocal ? boundsDivide(pointBounds(1), pointBounds(value)) : pointBounds(value);
+  // atan(z)=2*atan(z/(1+sqrt(1+z^2))). Two reductions put |z|<0.2.
+  for (let index = 0; index < 2; index++) {
+    certifiedStep(budget);
+    z = boundsDivide(z, boundsAdd(pointBounds(1), boundedSqrt(boundsAdd(pointBounds(1), boundsMultiply(z, z)), budget)));
+  }
+  const square = boundsMultiply(z, z); let term = z; let sum = z;
+  for (let index = 1; index < 18; index++) {
+    certifiedStep(budget);
+    term = boundsNegate(boundsMultiply(term, square));
+    sum = boundsAdd(sum, boundsDivide(term, pointBounds(2 * index + 1)));
+  }
+  let remainder = boundMagnitude(z);
+  for (let index = 0; index < 18; index++) { certifiedStep(budget); remainder = positiveUpperProduct(remainder, positiveUpperProduct(boundMagnitude(z), boundMagnitude(z))); }
+  const result = boundsMultiply(pointBounds(4), symmetricRemainder(sum, positiveUpperQuotient(remainder, 37)));
+  return reciprocal ? boundsSubtract(boundsDivide(CERTIFIED_PI, pointBounds(2)), result) : result;
+}
+function boundedAtan(a: Interval, budget: CertifiedBudget): Interval {
+  return { low: boundedAtanPoint(a.low, budget).low, high: boundedAtanPoint(a.high, budget).high };
+}
+function boundedAsinPoint(value: number, budget: CertifiedBudget): Interval {
+  if (Math.abs(value) > 1) throw new Error("certified asin argument leaves [-1,1]");
+  if (Math.abs(value) === 1) return value < 0 ? boundsNegate(boundsDivide(CERTIFIED_PI, pointBounds(2))) : boundsDivide(CERTIFIED_PI, pointBounds(2));
+  if (value === 0) return pointBounds(0);
+  // The identity is valid on the whole real principal asin domain.
+  const denominator = boundedSqrt(boundsMultiply(boundsSubtract(pointBounds(1), pointBounds(value)), boundsAdd(pointBounds(1), pointBounds(value))), budget);
+  return boundedAtan(boundsDivide(pointBounds(value), denominator), budget);
+}
+
+function boundedFunction(name: FunctionName, a: Interval, budget: CertifiedBudget): Interval {
+  switch (name) {
+    case "sin": return boundedTrig(a, false, budget);
+    case "cos": return boundedTrig(a, true, budget);
+    case "sqrt": return boundedSqrt(a, budget);
+    case "exp": return boundedExp(a, budget);
+    case "log":
+    case "ln": return boundedLog(a, budget);
+    case "atan": return boundedAtan(a, budget);
+    case "asin": return { low: boundedAsinPoint(a.low, budget).low, high: boundedAsinPoint(a.high, budget).high };
+    case "acos": return boundsSubtract(boundsDivide(CERTIFIED_PI, pointBounds(2)), { low: boundedAsinPoint(a.low, budget).low, high: boundedAsinPoint(a.high, budget).high });
+    case "abs": return { low: containsZero(a) ? 0 : Math.min(Math.abs(a.low), Math.abs(a.high)), high: boundMagnitude(a) };
+    case "tan": return boundsDivide(boundedTrig(a, false, budget), boundedTrig(a, true, budget));
+  }
+}
+
+function certifiedFunctionValue(name: FunctionName, a: CertifiedScalar, budget: CertifiedBudget): CertifiedScalar {
+  certifiedStep(budget);
+  const q = exactRationalPart(a.exact);
+  if (name === "sin" || name === "cos") {
+    const cardinal = cardinalTrig(a.exact, name === "cos");
+    if (cardinal) return scalarFromForm(makeExact(cardinal), budget);
+  }
+  if (name === "exp" && q?.d === 1n && q.n >= -BigInt(MAX_EXACT_POWER) && q.n <= BigInt(MAX_EXACT_POWER)) {
+    return scalarFromForm(makeExact(Q_ONE, 0, Number(q.n)), budget);
+  }
+  if (name === "log" || name === "ln") {
+    if (q && compareRational(q, Q_ONE) === 0) return CERTIFIED_ZERO;
+    if (sameForm(a.exact, makeExact(Q_ONE, 0, 1))) return CERTIFIED_ONE;
+  }
+  if (name === "abs") {
+    if (a.bounds.low >= 0) return a;
+    if (a.bounds.high <= 0) return certifiedNegate(a);
+  }
+  if (name === "sqrt" && q) {
+    const candidate = Math.sqrt(a.value);
+    if (Number.isFinite(candidate) && compareRational(multiplyRational(binaryRational(candidate), binaryRational(candidate)), q) === 0) {
+      return certifiedNumber(candidate, budget);
+    }
+  }
+  if ((name === "atan" || name === "asin") && q?.n === 0n) return CERTIFIED_ZERO;
+  if (name === "atan" && q && q.d === 1n && (q.n === 1n || q.n === -1n)) return scalarFromForm(makeExact(rational(q.n, 4n), 1), budget);
+  if (name === "acos" && q?.n === 0n) return scalarFromForm(makeExact(rational(1n, 2n), 1), budget);
+  if (name === "tan") return certifiedDivide(certifiedFunctionValue("sin", a, budget), certifiedFunctionValue("cos", a, budget), budget);
+  return scalarFromBounds(boundedFunction(name, a.bounds, budget), FUNCTIONS[name](a.value));
+}
+
+function certifiedJetMultiply(a: CertifiedJet, b: CertifiedJet, budget: CertifiedBudget): CertifiedJet {
+  const mul = (left: CertifiedScalar, right: CertifiedScalar) => certifiedMultiply(left, right, budget);
+  const add = (left: CertifiedScalar, right: CertifiedScalar) => certifiedAdd(left, right, budget);
+  return {
+    value: mul(a.value, b.value),
+    first: add(mul(a.first, b.value), mul(a.value, b.first)),
+    second: add(add(mul(a.second, b.value), mul(certifiedNumber(2, budget), mul(a.first, b.first))), mul(a.value, b.second)),
+    constant: a.constant && b.constant,
+  };
+}
+function certifiedJetDivide(a: CertifiedJet, b: CertifiedJet, budget: CertifiedBudget): CertifiedJet {
+  const mul = (left: CertifiedScalar, right: CertifiedScalar) => certifiedMultiply(left, right, budget);
+  const sub = (left: CertifiedScalar, right: CertifiedScalar) => certifiedAdd(left, right, budget, true);
+  const div = (left: CertifiedScalar, right: CertifiedScalar) => certifiedDivide(left, right, budget);
+  const value = div(a.value, b.value);
+  const first = div(sub(a.first, mul(value, b.first)), b.value);
+  const second = div(sub(sub(a.second, mul(certifiedNumber(2, budget), mul(first, b.first))), mul(value, b.second)), b.value);
+  return { value, first, second, constant: a.constant && b.constant };
+}
+function certifiedJetConstant(value: CertifiedScalar): CertifiedJet {
+  return { value, first: CERTIFIED_ZERO, second: CERTIFIED_ZERO, constant: true };
+}
+function certifiedJetFunction(name: FunctionName, a: CertifiedJet, budget: CertifiedBudget): CertifiedJet {
+  const mul = (left: CertifiedScalar, right: CertifiedScalar) => certifiedMultiply(left, right, budget);
+  const add = (left: CertifiedScalar, right: CertifiedScalar) => certifiedAdd(left, right, budget);
+  const sub = (left: CertifiedScalar, right: CertifiedScalar) => certifiedAdd(left, right, budget, true);
+  const div = (left: CertifiedScalar, right: CertifiedScalar) => certifiedDivide(left, right, budget);
+  const fn = (n: FunctionName, v: CertifiedScalar) => certifiedFunctionValue(n, v, budget);
+  const value = fn(name, a.value);
+  if (a.constant) return certifiedJetConstant(value);
+  let factor: CertifiedScalar; let secondFactor = CERTIFIED_ZERO;
+  const two = certifiedNumber(2, budget);
+  switch (name) {
+    case "sin": factor = fn("cos", a.value); secondFactor = certifiedNegate(value); break;
+    case "cos": factor = certifiedNegate(fn("sin", a.value)); secondFactor = certifiedNegate(value); break;
+    case "tan": {
+      const cosine = fn("cos", a.value);
+      factor = div(CERTIFIED_ONE, mul(cosine, cosine)); secondFactor = mul(two, mul(value, factor)); break;
+    }
+    case "asin":
+    case "acos": {
+      if (!(a.value.bounds.low > -1 && a.value.bounds.high < 1)) throw new Error(`${name} certified derivative requires (-1,1)`);
+      const denominator = mul(sub(CERTIFIED_ONE, a.value), add(CERTIFIED_ONE, a.value));
+      factor = div(name === "acos" ? certifiedNegate(CERTIFIED_ONE) : CERTIFIED_ONE, fn("sqrt", denominator));
+      secondFactor = div(mul(factor, a.value), denominator); break;
+    }
+    case "atan": {
+      factor = div(CERTIFIED_ONE, add(CERTIFIED_ONE, mul(a.value, a.value)));
+      secondFactor = certifiedNegate(mul(two, mul(a.value, mul(factor, factor)))); break;
+    }
+    case "sqrt":
+      if (!(a.value.bounds.low > 0)) throw new Error("sqrt certified derivative requires a strictly positive argument");
+      factor = div(CERTIFIED_ONE, mul(two, value));
+      secondFactor = certifiedNegate(div(CERTIFIED_ONE, mul(certifiedNumber(4, budget), mul(a.value, value)))); break;
+    case "abs":
+      if (containsZero(a.value.bounds)) throw new Error("abs certified derivative cannot cross its cusp");
+      factor = a.value.bounds.low > 0 ? CERTIFIED_ONE : certifiedNegate(CERTIFIED_ONE); break;
+    case "exp": factor = value; secondFactor = value; break;
+    case "log":
+    case "ln": factor = div(CERTIFIED_ONE, a.value); secondFactor = certifiedNegate(mul(factor, factor)); break;
+  }
+  return { value, first: mul(factor, a.first), second: add(mul(secondFactor, mul(a.first, a.first)), mul(factor, a.second)), constant: false };
+}
+function certifiedJetIntegerPower(a: CertifiedJet, exponent: number, budget: CertifiedBudget): CertifiedJet {
+  let result = certifiedJetConstant(CERTIFIED_ONE); let factor = a; let remaining = Math.abs(exponent);
+  while (remaining > 0) {
+    certifiedStep(budget);
+    if (remaining % 2 === 1) result = certifiedJetMultiply(result, factor, budget);
+    remaining = Math.floor(remaining / 2);
+    if (remaining) factor = certifiedJetMultiply(factor, factor, budget);
+  }
+  return exponent < 0 ? certifiedJetDivide(certifiedJetConstant(CERTIFIED_ONE), result, budget) : result;
+}
+
+/** Forward-mode order-two chain rule, with one shared absolute certificate. */
+function evaluateCertifiedJet(node: ExpressionNode, x: number, budget: CertifiedBudget): CertifiedJet {
+  certifiedStep(budget);
+  if (node.kind === "number") {
+    const form = node.exactConstant === "pi" ? makeExact(Q_ONE, 1) : node.exactConstant === "e" ? makeExact(Q_ONE, 0, 1) : makeExact(node.literal !== undefined ? parseRational(node.literal) : binaryRational(node.value));
+    return certifiedJetConstant(scalarFromForm(form, budget));
+  }
+  if (node.kind === "variable") return { value: certifiedNumber(x, budget), first: CERTIFIED_ONE, second: CERTIFIED_ZERO, constant: false };
+  if (node.kind === "unary") {
+    const a = evaluateCertifiedJet(node.value, x, budget);
+    return node.operator === "+" ? a : { value: certifiedNegate(a.value), first: certifiedNegate(a.first), second: certifiedNegate(a.second), constant: a.constant };
+  }
+  if (node.kind === "function") return certifiedJetFunction(node.name, evaluateCertifiedJet(node.argument, x, budget), budget);
+  const a = evaluateCertifiedJet(node.left, x, budget); const b = evaluateCertifiedJet(node.right, x, budget);
+  switch (node.operator) {
+    case "+":
+    case "-": return {
+      value: certifiedAdd(a.value, b.value, budget, node.operator === "-"),
+      first: certifiedAdd(a.first, b.first, budget, node.operator === "-"),
+      second: certifiedAdd(a.second, b.second, budget, node.operator === "-"), constant: a.constant && b.constant,
+    };
+    case "*": return certifiedJetMultiply(a, b, budget);
+    case "/": return certifiedJetDivide(a, b, budget);
+    case "^": {
+      const q = b.constant && exactRationalPart(b.value.exact);
+      if (q && q.d === 1n) {
+        if (q.n < -BigInt(MAX_EXACT_POWER) || q.n > BigInt(MAX_EXACT_POWER)) throw new Error("certified integer power exceeds capacity");
+        return certifiedJetIntegerPower(a, Number(q.n), budget);
+      }
+      if (a.constant && b.constant && a.value.exact?.size === 0 && b.value.bounds.low > 0) return certifiedJetConstant(CERTIFIED_ZERO);
+      if (!(a.value.bounds.low > 0)) throw new Error("certified noninteger power requires a strictly positive base");
+      return certifiedJetFunction("exp", certifiedJetMultiply(b, certifiedJetFunction("log", a, budget), budget), budget);
+    }
+  }
+}
+
+// Range evaluation shares the point certificate's constant algebra and outward
+// function enclosures. Keeping the coefficients of x symbolically prevents
+// floating cancellation (and interval dependency) from manufacturing a sign.
+type CertifiedPolynomial = ReadonlyMap<number, ExactForm>;
+type CertifiedRange = { bounds: Interval; polynomial?: CertifiedPolynomial };
+type RationalBounds = { low: Rational; high: Rational };
+
+function polynomialConstant(form: ExactForm): CertifiedPolynomial {
+  return form.size === 0 ? new Map() : new Map([[0, form]]);
+}
+function polynomialConstantForm(polynomial: CertifiedPolynomial | undefined): ExactForm | undefined {
+  if (!polynomial) return undefined;
+  return polynomial.size === 0 ? makeExact(Q_ZERO) : polynomial.size === 1 ? polynomial.get(0) : undefined;
+}
+function checkPolynomialCapacity(polynomial: CertifiedPolynomial): void {
+  if ([...polynomial.values()].reduce((size, form) => size + form.size, 0) > MAX_EXACT_TERMS) throw new Error("certified polynomial exceeds the term budget");
+}
+function polynomialAdd(a: CertifiedPolynomial, b: CertifiedPolynomial, subtract: boolean, budget: CertifiedBudget): CertifiedPolynomial {
+  const result = new Map(a);
+  for (const [degree, coefficient] of b) {
+    certifiedStep(budget);
+    const next = formAdd(result.get(degree) ?? makeExact(Q_ZERO), coefficient, subtract, budget);
+    if (next.size === 0) result.delete(degree); else result.set(degree, next);
+  }
+  checkPolynomialCapacity(result);
+  return result;
+}
+function polynomialMultiply(a: CertifiedPolynomial, b: CertifiedPolynomial, budget: CertifiedBudget): CertifiedPolynomial {
+  const result = new Map<number, ExactForm>();
+  for (const [aDegree, aCoefficient] of a) for (const [bDegree, bCoefficient] of b) {
+    certifiedStep(budget);
+    const degree = aDegree + bDegree;
+    if (degree > MAX_EXACT_POWER) throw new Error("certified polynomial degree exceeds capacity");
+    const coefficient = formAdd(result.get(degree) ?? makeExact(Q_ZERO), formMultiply(aCoefficient, bCoefficient, budget), false, budget);
+    if (coefficient.size === 0) result.delete(degree); else result.set(degree, coefficient);
+    checkPolynomialCapacity(result);
+  }
+  return result;
+}
+function polynomialDivide(a: CertifiedPolynomial, b: CertifiedPolynomial, budget: CertifiedBudget): CertifiedPolynomial | undefined {
+  if (a.size === b.size && [...a].every(([degree, form]) => sameForm(form, b.get(degree)))) return polynomialConstant(makeExact(Q_ONE));
+  const denominator = polynomialConstantForm(b);
+  if (!denominator) return undefined;
+  const result = new Map<number, ExactForm>();
+  for (const [degree, form] of a) {
+    certifiedStep(budget);
+    const quotient = formDivide(form, denominator, budget);
+    if (!quotient) return undefined;
+    if (quotient.size !== 0) result.set(degree, quotient);
+  }
+  return result;
+}
+function polynomialPower(a: CertifiedPolynomial, exponent: number, budget: CertifiedBudget): CertifiedPolynomial {
+  let result = polynomialConstant(makeExact(Q_ONE)); let factor = a; let remaining = exponent;
+  while (remaining > 0) {
+    certifiedStep(budget);
+    if (remaining % 2 === 1) result = polynomialMultiply(result, factor, budget);
+    remaining = Math.floor(remaining / 2);
+    if (remaining) factor = polynomialMultiply(factor, factor, budget);
+  }
+  return result;
+}
+function rationalPower(q: Rational, exponent: number, budget: CertifiedBudget): Rational {
+  let result = Q_ONE; let factor = q; let remaining = Math.abs(exponent);
+  while (remaining > 0) {
+    certifiedStep(budget);
+    if (remaining % 2 === 1) result = multiplyRational(result, factor);
+    remaining = Math.floor(remaining / 2);
+    if (remaining) factor = multiplyRational(factor, factor);
+  }
+  return exponent < 0 ? divideRational(Q_ONE, result) : result;
+}
+function rationalRangePower(a: Interval, exponent: number, budget: CertifiedBudget): RationalBounds {
+  if (exponent < 0 && containsZero(a)) throw new Error("certified negative power may divide by zero");
+  const left = rationalPower(binaryRational(a.low), exponent, budget); const right = rationalPower(binaryRational(a.high), exponent, budget);
+  const low = compareRational(left, right) < 0 ? left : right; const high = compareRational(left, right) > 0 ? left : right;
+  return { low: exponent > 0 && exponent % 2 === 0 && containsZero(a) ? Q_ZERO : low, high };
+}
+function rationalRangeMultiply(a: RationalBounds, b: RationalBounds, budget: CertifiedBudget): RationalBounds {
+  const products: Rational[] = [];
+  for (const left of [a.low, a.high]) for (const right of [b.low, b.high]) { certifiedStep(budget); products.push(multiplyRational(left, right)); }
+  return {
+    low: products.reduce((low, value) => compareRational(low, value) <= 0 ? low : value),
+    high: products.reduce((high, value) => compareRational(high, value) >= 0 ? high : value),
+  };
+}
+function rangeFromRationals(bounds: RationalBounds): Interval {
+  return { low: rationalBounds(bounds.low).low, high: rationalBounds(bounds.high).high };
+}
+function polynomialAt(polynomial: CertifiedPolynomial, x: number, budget: CertifiedBudget): ExactForm {
+  let result = makeExact(Q_ZERO);
+  for (const [degree, form] of polynomial) {
+    certifiedStep(budget);
+    result = formAdd(result, formMultiply(form, makeExact(rationalPower(binaryRational(x), degree, budget)), budget), false, budget);
+  }
+  return result;
+}
+function rangeFromBounds(bounds: Interval, polynomial?: CertifiedPolynomial): CertifiedRange {
+  checked(bounds.low, "certified interval lower bound"); checked(bounds.high, "certified interval upper bound");
+  if (bounds.low > bounds.high) throw new Error("invalid certified expression interval");
+  return { bounds, polynomial };
+}
+function intersectRange(a: CertifiedRange, b: Interval): CertifiedRange {
+  // Both are whole-domain certificates. Preserve the polynomial identity while
+  // retaining tighter structural proofs, such as the nonnegativity of a square.
+  return rangeFromBounds({ low: Math.max(a.bounds.low, b.low), high: Math.min(a.bounds.high, b.high) }, a.polynomial);
+}
+function rangeFromPolynomial(polynomial: CertifiedPolynomial, x: Interval, budget: CertifiedBudget): CertifiedRange {
+  if (x.low === x.high) return rangeFromBounds(scalarFromForm(polynomialAt(polynomial, x.low, budget), budget).bounds, polynomial);
+  let bounds: RationalBounds = { low: Q_ZERO, high: Q_ZERO };
+  for (const [degree, coefficient] of polynomial) {
+    certifiedStep(budget);
+    const q = exactRationalPart(coefficient);
+    const coefficientBounds = q ? { low: q, high: q } : (() => {
+      const value = scalarFromForm(coefficient, budget).bounds;
+      return { low: binaryRational(value.low), high: binaryRational(value.high) };
+    })();
+    const term = rationalRangeMultiply(coefficientBounds, rationalRangePower(x, degree, budget), budget);
+    bounds = { low: addRational(bounds.low, term.low), high: addRational(bounds.high, term.high) };
+  }
+  return rangeFromBounds(rangeFromRationals(bounds), polynomial);
+}
+function rangeConstantForm(a: CertifiedRange, x: Interval, budget: CertifiedBudget): ExactForm | undefined {
+  return polynomialConstantForm(a.polynomial) ?? (x.low === x.high && a.polynomial ? polynomialAt(a.polynomial, x.low, budget) : undefined);
+}
+function certifiedRangeFunction(name: FunctionName, a: CertifiedRange, x: Interval, budget: CertifiedBudget): CertifiedRange {
+  const constant = rangeConstantForm(a, x, budget);
+  if (constant) {
+    const value = certifiedFunctionValue(name, scalarFromForm(constant, budget), budget);
+    return rangeFromBounds(value.bounds, value.exact ? polynomialConstant(value.exact) : undefined);
+  }
+  if (name === "exp") {
+    // Monotonic endpoint certificates avoid range dependency in the Taylor
+    // reconstruction and preserve exp(0)=1 at a closed-domain boundary.
+    const low = certifiedFunctionValue("exp", certifiedNumber(a.bounds.low, budget), budget).bounds.low;
+    const high = certifiedFunctionValue("exp", certifiedNumber(a.bounds.high, budget), budget).bounds.high;
+    return rangeFromBounds({ low, high });
+  }
+  return rangeFromBounds(boundedFunction(name, a.bounds, budget));
+}
+function evaluateCertifiedRange(node: ExpressionNode, x: Interval, budget: CertifiedBudget): CertifiedRange {
+  certifiedStep(budget);
+  if (node.kind === "number") {
+    const form = node.exactConstant === "pi" ? makeExact(Q_ONE, 1) : node.exactConstant === "e" ? makeExact(Q_ONE, 0, 1) : makeExact(node.literal !== undefined ? parseRational(node.literal) : binaryRational(node.value));
+    return rangeFromPolynomial(polynomialConstant(form), x, budget);
+  }
+  if (node.kind === "variable") return rangeFromPolynomial(new Map([[1, makeExact(Q_ONE)]]), x, budget);
+  if (node.kind === "unary") {
+    const value = evaluateCertifiedRange(node.value, x, budget);
+    if (node.operator === "+") return value;
+    return value.polynomial ? rangeFromPolynomial(polynomialAdd(new Map(), value.polynomial, true, budget), x, budget) : rangeFromBounds(boundsNegate(value.bounds));
+  }
+  if (node.kind === "function") return certifiedRangeFunction(node.name, evaluateCertifiedRange(node.argument, x, budget), x, budget);
+  const a = evaluateCertifiedRange(node.left, x, budget); const b = evaluateCertifiedRange(node.right, x, budget);
+  switch (node.operator) {
+    case "+":
+    case "-": {
+      const bounds = node.operator === "-" ? boundsSubtract(a.bounds, b.bounds) : boundsAdd(a.bounds, b.bounds);
+      return a.polynomial && b.polynomial ? intersectRange(rangeFromPolynomial(polynomialAdd(a.polynomial, b.polynomial, node.operator === "-", budget), x, budget), bounds) : rangeFromBounds(bounds);
+    }
+    case "*": {
+      if (a.polynomial && b.polynomial) {
+        const polynomial = polynomialMultiply(a.polynomial, b.polynomial, budget);
+        const result = rangeFromPolynomial(polynomial, x, budget);
+        return polynomial.size === 0 ? result : intersectRange(result, boundsMultiply(a.bounds, b.bounds));
+      }
+      return rangeFromBounds(boundsMultiply(a.bounds, b.bounds));
+    }
+    case "/": {
+      if (containsZero(b.bounds)) throw new Error("certified interval denominator may be zero");
+      const polynomial = a.polynomial && b.polynomial && polynomialDivide(a.polynomial, b.polynomial, budget);
+      return polynomial ? intersectRange(rangeFromPolynomial(polynomial, x, budget), boundsDivide(a.bounds, b.bounds)) : rangeFromBounds(boundsDivide(a.bounds, b.bounds));
+    }
+    case "^": {
+      const exponentForm = rangeConstantForm(b, x, budget); const exponent = exactRationalPart(exponentForm);
+      if (exponent?.d === 1n) {
+        if (exponent.n < -BigInt(MAX_EXACT_POWER) || exponent.n > BigInt(MAX_EXACT_POWER)) throw new Error("certified interval integer power exceeds capacity");
+        const power = Number(exponent.n);
+        if (power < 0 && containsZero(a.bounds)) throw new Error("certified interval negative power may divide by zero");
+        if (a.polynomial) {
+          const positive = polynomialPower(a.polynomial, Math.abs(power), budget);
+          const polynomial = power < 0 ? polynomialDivide(polynomialConstant(makeExact(Q_ONE)), positive, budget) : positive;
+          if (polynomial) return intersectRange(rangeFromPolynomial(polynomial, x, budget), rangeFromRationals(rationalRangePower(a.bounds, power, budget)));
+        }
+        return rangeFromBounds(rangeFromRationals(rationalRangePower(a.bounds, power, budget)));
+      }
+      if (exponent && compareRational(exponent, rational(1n, 2n)) === 0) return certifiedRangeFunction("sqrt", a, x, budget);
+      if (polynomialConstantForm(a.polynomial)?.size === 0 && b.bounds.low > 0) return rangeFromPolynomial(new Map(), x, budget);
+      if (!(a.bounds.low > 0)) throw new Error("certified interval noninteger power requires a strictly positive base");
+      const logarithm = boundedLog(a.bounds, budget);
+      const product = rangeFromRationals(rationalRangeMultiply(
+        { low: binaryRational(b.bounds.low), high: binaryRational(b.bounds.high) },
+        { low: binaryRational(logarithm.low), high: binaryRational(logarithm.high) }, budget,
+      ));
+      return certifiedRangeFunction("exp", rangeFromBounds(product), x, budget);
+    }
+  }
 }
